@@ -151,7 +151,8 @@ model Product {
   product_code String @unique
   product_name String
   pack_size    String
-
+  selling_price Decimal @db.Decimal(10, 2)
+  
   category         Category        @relation(fields: [category_id], references: [category_id])
   invoice_lines    InvoiceLine[]
   stocks           Stock[]
