@@ -1,0 +1,225 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Role {
+  role_id   Int    @id @default(autoincrement())
+  role_name String
+
+  users User[]
+
+  @@map("ROLE")
+}
+
+model User {
+  user_id       Int    @id @default(autoincrement())
+  role_id       Int
+  full_name     String
+  username      String @unique
+  password_hash String
+
+  role              Role             @relation(fields: [role_id], references: [role_id])
+  invoices          Invoice[]        @relation("InvoiceCreatedBy")
+  receipts          Receipt[]        @relation("ReceiptCollectedBy")
+  stock_movements   StockMovement[]  @relation("StockMovementCreatedBy")
+
+  @@map("USER")
+}
+
+model SalesRep {
+  rep_id    Int    @id @default(autoincrement())
+  full_name String
+  phone     String
+
+  customers   Customer[]
+  invoices    Invoice[]
+  commissions Commission[]
+
+  @@map("SALES_REP")
+}
+
+model Customer {
+  customer_id         Int      @id @default(autoincrement())
+  assigned_rep_id     Int
+  name                String
+  address             String
+  phone               String
+  outstanding_balance Decimal  @db.Decimal(10, 2)
+
+  assigned_rep SalesRep   @relation(fields: [assigned_rep_id], references: [rep_id])
+  invoices     Invoice[]
+  reminders    Reminder[]
+
+  @@map("CUSTOMER")
+}
+
+model Invoice {
+  invoice_id   Int      @id @default(autoincrement())
+  customer_id  Int
+  rep_id       Int
+  created_by   Int
+  invoice_date DateTime
+  total_amount Decimal  @db.Decimal(10, 2)
+  status       InvoiceStatus
+
+  customer      Customer      @relation(fields: [customer_id], references: [customer_id])
+  rep           SalesRep      @relation(fields: [rep_id], references: [rep_id])
+  creator       User          @relation("InvoiceCreatedBy", fields: [created_by], references: [user_id])
+  invoice_lines InvoiceLine[]
+  receipts      Receipt[]
+
+  @@map("INVOICE")
+}
+
+model InvoiceLine {
+  line_id    Int     @id @default(autoincrement())
+  invoice_id Int
+  product_id Int
+  quantity   Int
+  unit_price Decimal @db.Decimal(10, 2)
+  discount   Decimal @default(0) @db.Decimal(10, 2)
+  line_total Decimal @db.Decimal(10, 2)
+
+  invoice Invoice @relation(fields: [invoice_id], references: [invoice_id])
+  product Product @relation(fields: [product_id], references: [product_id])
+
+  @@map("INVOICE_LINE")
+}
+
+model Receipt {
+  receipt_id      Int      @id @default(autoincrement())
+  invoice_id      Int
+  collected_by    Int
+  receipt_date    DateTime
+  amount_received Decimal       @db.Decimal(10, 2)
+  payment_method  PaymentMethod
+  cheque_no       String?
+  cheque_date     DateTime?
+  bank_name       String?
+
+  invoice     Invoice      @relation(fields: [invoice_id], references: [invoice_id])
+  collector   User         @relation("ReceiptCollectedBy", fields: [collected_by], references: [user_id])
+  commissions Commission[]
+
+  @@map("RECEIPT")
+}
+
+model Commission {
+  commission_id     Int     @id @default(autoincrement())
+  rep_id            Int
+  receipt_id        Int
+  commission_rate   Decimal @db.Decimal(5, 4)
+  commission_amount Decimal @db.Decimal(10, 2)
+  days_to_pay       Int
+
+  rep     SalesRep @relation(fields: [rep_id], references: [rep_id])
+  receipt Receipt  @relation(fields: [receipt_id], references: [receipt_id])
+
+  @@map("COMMISSION")
+}
+
+model Reminder {
+  reminder_id   Int      @id @default(autoincrement())
+  customer_id   Int
+  triggered_by  Int
+  reminder_date DateTime
+  message       String
+  status        ReminderStatus
+
+  customer Customer @relation(fields: [customer_id], references: [customer_id])
+
+  @@map("REMINDER")
+}
+
+model Category {
+  category_id Int       @id @default(autoincrement())
+  name        String
+  tag         String    @unique
+  
+  products    Product[]
+
+  @@map("CATEGORY")
+}
+
+model Product {
+  product_id   Int    @id @default(autoincrement())
+  category_id  Int
+  product_code String @unique
+  product_name String
+  pack_size    String
+
+  category         Category        @relation(fields: [category_id], references: [category_id])
+  invoice_lines    InvoiceLine[]
+  stocks           Stock[]
+  stock_movements  StockMovement[] @relation("StockMovementProduct")
+
+  @@map("PRODUCT")
+}
+
+model InventoryLocation {
+  location_id Int    @id @default(autoincrement())
+  code        String @unique
+  name        String
+
+  stocks Stock[]
+
+  @@map("INVENTORY_LOCATION")
+}
+
+model Stock {
+  stock_id         Int @id @default(autoincrement())
+  product_id       Int
+  location_id      Int
+  quantity_on_hand Int
+
+  product          Product         @relation(fields: [product_id], references: [product_id])
+  location         InventoryLocation @relation(fields: [location_id], references: [location_id])
+  stock_movements  StockMovement[]
+
+  @@map("STOCK")
+}
+
+model StockMovement {
+  movement_id   Int      @id @default(autoincrement())
+  stock_id      Int
+  created_by    Int
+  movement_type MovementType
+  quantity      Int
+  movement_date DateTime
+  notes         String?
+
+  stock   Stock @relation(fields: [stock_id], references: [stock_id])
+  creator User  @relation("StockMovementCreatedBy", fields: [created_by], references: [user_id])
+  product Product @relation("StockMovementProduct", fields: [product_id], references: [product_id])
+  product_id Int
+
+  @@map("STOCK_MOVEMENT")
+}
+enum InvoiceStatus {
+  PAID
+  PARTIAL
+  UNPAID
+  OVERDUE
+}
+
+enum PaymentMethod {
+  CASH
+  CHEQUE
+  BANK_TRANSFER
+}
+
+enum MovementType {
+  ISSUE
+  RETURN
+  PURCHASE
+  ADJUSTMENT
+}
+
+enum ReminderStatus {
+  PENDING
+  COMPLETED
+}
