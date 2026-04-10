@@ -46,8 +46,8 @@ model Customer {
   customer_id         Int      @id @default(autoincrement())
   assigned_rep_id     Int
   name                String
-  address             String
-  phone               String
+  address             String?
+  phone               String?
   outstanding_balance Decimal  @db.Decimal(10, 2)
 
   assigned_rep SalesRep   @relation(fields: [assigned_rep_id], references: [rep_id])
@@ -152,7 +152,7 @@ model Product {
   product_name String
   pack_size    String
   selling_price Decimal @db.Decimal(10, 2)
-  
+
   category         Category        @relation(fields: [category_id], references: [category_id])
   invoice_lines    InvoiceLine[]
   stocks           Stock[]
