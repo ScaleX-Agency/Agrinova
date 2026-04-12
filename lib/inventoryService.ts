@@ -282,7 +282,7 @@ export async function createMovement(dto: CreateMovementDto, userId: number) {
  * If a stock row doesn't exist for product+location, creates it.
  */
 export async function createStockEntry(dto: StockEntryDto, userId: number) {
-  const results = [];
+  const results: any[] /* eslint-disable-line @typescript-eslint/no-explicit-any */ = [];
 
   for (const item of dto.items) {
     // Find or create stock row for this product + location

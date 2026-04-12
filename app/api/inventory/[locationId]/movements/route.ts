@@ -3,24 +3,24 @@
 // POST /api/inventory/[locationId]/movements — New issue / return / adjustment
 
 import { NextRequest, NextResponse } from "next/server";
-import { getAllMovements, createMovement } from "../../../../lib/inventoryService";
+import { getAllMovements, createMovement } from "@/lib/inventoryService";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { locationId: string } }
+  { params }: { params: Promise<{ locationId: string }> }
 ) {
   try {
-    const locationId = parseInt(params.locationId);
+    const locationId = parseInt((await params).locationId);
     const data = await getAllMovements(locationId);
     return NextResponse.json({ data });
-  } catch (err: any) {
+  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { locationId: string } }
+  { params }: { params: Promise<{ locationId: string }> }
 ) {
   try {
     // In production: get userId from session/JWT
@@ -52,7 +52,7 @@ export async function POST(
 
     const data = await createMovement(body, userId);
     return NextResponse.json({ data }, { status: 201 });
-  } catch (err: any) {
+  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
     const status = err.message.includes("Insufficient") ? 422 : 500;
     return NextResponse.json({ error: err.message }, { status });
   }

@@ -3,13 +3,13 @@
 // POST /api/stock  — New Stock Entry (Local Purchase / Foreign Import)
 
 import { NextRequest, NextResponse } from "next/server";
-import { getAllStock, createStockEntry } from "../../lib/inventoryService";
+import { getAllStock, createStockEntry } from "@/lib/inventoryService";
 
 export async function GET() {
   try {
     const data = await getAllStock();
     return NextResponse.json({ data });
-  } catch (err: any) {
+  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
     const data = await createStockEntry(body, userId);
     return NextResponse.json({ data }, { status: 201 });
-  } catch (err: any) {
+  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

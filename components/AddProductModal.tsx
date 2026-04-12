@@ -85,7 +85,7 @@ export default function AddProductModal({ onClose, onSaved }: Props) {
       await new Promise((r) => setTimeout(r, 600));
       onSaved();
       onClose();
-    } catch (err: any) {
+    } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
       setErrors({ _global: err.message });
     } finally {
       setSaving(false);

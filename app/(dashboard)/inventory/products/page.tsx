@@ -1,7 +1,7 @@
 // src/app/inventory/products/page.tsx
 // Place at: app/(dashboard)/inventory/products/page.tsx in your Next.js project.
 
-import ProductsPage from "../../../components/ProductsPage";
+import ProductsPage from "@/components/ProductsPage";
 
 export const metadata = { title: "Products — Agrinova IMS" };
 
