@@ -694,7 +694,6 @@ REMINDER          id, customer_id(FK→CUSTOMER), triggered_by(FK→USER),
 | ORM | Prisma |
 | PDF / Print | react-to-print |
 | Export | SheetJS (xlsx) |
-| Auth | NextAuth.js (credentials provider — chairman & operator only) |
 
 ---
 
