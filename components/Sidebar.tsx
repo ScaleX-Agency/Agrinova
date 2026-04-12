@@ -76,12 +76,15 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+import { useSearchParams } from "next/navigation";
+
 export default function Sidebar({
   collapsed = false,
   mobileOpen = false,
   onClose,
 }: SidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const content = (
     <motion.aside
@@ -126,7 +129,18 @@ export default function Sidebar({
             )}
             <ul className="space-y-0.5">
               {group.items.map((item) => {
-                const active = pathname === item.href;
+                let active = false;
+                if (item.href === "/inventory?tab=movements") {
+                  active =
+                    pathname === "/inventory" &&
+                    searchParams.get("tab") === "movements";
+                } else if (item.href === "/inventory") {
+                  active =
+                    pathname === "/inventory" &&
+                    searchParams.get("tab") !== "movements";
+                } else {
+                  active = pathname === item.href;
+                }
                 return (
                   <li key={item.href}>
                     <Link

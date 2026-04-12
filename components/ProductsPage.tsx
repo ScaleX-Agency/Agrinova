@@ -151,6 +151,7 @@ export default function ProductsPage() {
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("ALL");
   const [showAdd, setShowAdd] = useState(false);
+  const [editTarget, setEditTarget] = useState<Product | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -184,16 +185,31 @@ export default function ProductsPage() {
     : 0;
   const uniqueCats = new Set(products.map((p) => p.category.name)).size;
 
+  const [deleteError, setDeleteError] = useState("");
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
-    // Real: await fetch(`/api/products/${deleteTarget.product_id}`, { method: "DELETE" });
-    await new Promise((r) => setTimeout(r, 500));
-    setProducts((prev) =>
-      prev.filter((p) => p.product_id !== deleteTarget.product_id),
-    );
-    setDeleting(false);
-    setDeleteTarget(null);
+    setDeleteError("");
+    try {
+      // Real: await fetch(`/api/products/${deleteTarget.product_id}`, { method: "DELETE" });
+      await new Promise((r) => setTimeout(r, 500));
+
+      // Simulate 409 error randomly or based on condition for demo
+      // Here we just proceed since we are mocking, but let's allow it to succeed
+
+      setProducts((prev) =>
+        prev.filter((p) => p.product_id !== deleteTarget.product_id),
+      );
+      setDeleteTarget(null);
+    } catch (err) {
+      // Mocking a 409
+      setDeleteError(
+        "Cannot delete — this product has existing stock. Remove all stock entries first.",
+      );
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -260,7 +276,41 @@ export default function ProductsPage() {
         </div>
 
         {/* Export */}
-        <button className="ml-auto flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-stone-500 border border-stone-200 rounded-xl bg-white hover:bg-stone-50 transition-colors [font-family:var(--font-dmsans)]">
+        <button
+          onClick={() => {
+            import("@/lib/exportCsv").then(({ exportToCsv }) => {
+              const headers = [
+                "Product Code",
+                "Product Name",
+                "Pack Size",
+                "Category",
+                "Selling Price (LKR)",
+              ];
+              const exportRows = filtered.map((p) => [
+                p.product_code,
+                p.product_name,
+                p.pack_size,
+                p.category.name,
+                String(p.selling_price),
+              ]);
+              exportToCsv(
+                `agrinova-products-${new Date().toISOString().split("T")[0]}.csv`,
+                headers,
+                exportRows,
+              );
+              if (typeof window !== "undefined") {
+                const event = new CustomEvent("toast", {
+                  detail: {
+                    msg: `Exported ${exportRows.length} products to CSV`,
+                    type: "success",
+                  },
+                });
+                window.dispatchEvent(event);
+              }
+            });
+          }}
+          className="ml-auto flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-stone-500 border border-stone-200 rounded-xl bg-white hover:bg-stone-50 transition-colors [font-family:var(--font-dmsans)]"
+        >
           <Download size={12} /> Export
         </button>
       </div>
@@ -368,6 +418,7 @@ export default function ProductsPage() {
                       <div className="flex gap-1.5">
                         <button
                           title="Edit product"
+                          onClick={() => setEditTarget(p)}
                           className="w-7 h-7 flex items-center justify-center rounded-lg border border-stone-200 hover:bg-stone-100 text-stone-400 hover:text-stone-600 transition-colors"
                         >
                           <Pencil size={12} />
@@ -393,8 +444,29 @@ export default function ProductsPage() {
       <AnimatePresence>
         {showAdd && (
           <AddProductModal
+            mode="add"
             onClose={() => setShowAdd(false)}
             onSaved={() => setShowAdd(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── Edit Product Modal ── */}
+      <AnimatePresence>
+        {editTarget && (
+          <AddProductModal
+            mode="edit"
+            initialValues={{
+              ...editTarget,
+              category_id:
+                editTarget.category.tag === "FERT"
+                  ? 1
+                  : editTarget.category.tag === "FUNG"
+                    ? 2
+                    : 3, // mock mapping
+            }}
+            onClose={() => setEditTarget(null)}
+            onSaved={() => setEditTarget(null)}
           />
         )}
       </AnimatePresence>
@@ -445,6 +517,12 @@ export default function ProductsPage() {
                   </p>
                 </div>
 
+                {deleteError && (
+                  <div className="bg-[#2a0d0d] border border-[#4a1a1a] text-[#f87171] rounded-lg p-3 text-[12px]">
+                    {deleteError}
+                  </div>
+                )}
+
                 {/* Product code pill */}
                 <div className="flex items-center gap-2 pt-1">
                   <span className="text-[11px] text-stone-400 [font-family:var(--font-dmsans)]">
@@ -460,14 +538,14 @@ export default function ProductsPage() {
               <div className="flex items-center justify-end gap-2 px-5 py-3.5 bg-stone-50 border-t border-stone-100">
                 <button
                   onClick={() => setDeleteTarget(null)}
-                  className="px-4 py-2 text-[13px] font-medium text-stone-600 border border-stone-200 rounded-xl hover:bg-white transition-colors [font-family:var(--font-dmsans)]"
+                  className="px-4 py-2 text-[13px] font-medium text-[#8b91a8] border border-stone-200 rounded-xl hover:bg-[#242840] transition-colors [font-family:var(--font-dmsans)]"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-60 rounded-xl transition-colors [font-family:var(--font-dmsans)]"
+                  className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold text-[#f87171] bg-[#2a0d0d] border border-[#4a1a1a] hover:bg-[#3a1010] disabled:opacity-60 rounded-xl transition-colors [font-family:var(--font-dmsans)]"
                 >
                   {deleting ? (
                     <>
