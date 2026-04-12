@@ -75,8 +75,12 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
           </button>
 
           <div className="hidden sm:flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-green-50 border border-green-100 flex items-center justify-center">
-              <Leaf size={15} className="text-green-700" />
+            <div className="w-8 h-8 rounded-lg border border-stone-200 flex items-center justify-center overflow-hidden bg-white">
+              <img
+                src="/agrinova-logo.jpeg"
+                alt="Agrinova Logo"
+                className="w-full h-full object-cover"
+              />
             </div>
             <div className="h-6 w-px bg-stone-200" />
           </div>

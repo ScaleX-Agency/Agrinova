@@ -96,8 +96,12 @@ export default function Sidebar({
       <div
         className={`h-[64px] border-b border-stone-200 flex items-center shrink-0 ${collapsed ? "justify-center px-3" : "gap-3 px-4"}`}
       >
-        <div className="w-9 h-9 rounded-xl bg-green-50 border border-green-100 flex items-center justify-center shrink-0">
-          <Leaf size={16} className="text-green-700" />
+        <div className="w-9 h-9 rounded-xl border border-stone-200 flex items-center justify-center shrink-0 overflow-hidden bg-white">
+          <img
+            src="/agrinova-logo.jpeg"
+            alt="Agrinova Logo"
+            className="w-full h-full object-cover"
+          />
         </div>
         {!collapsed && (
           <div className="min-w-0">
