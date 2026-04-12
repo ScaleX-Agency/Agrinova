@@ -1,23 +1,17 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client"; 
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 
-const connectionString = process.env.DIRECT_URL || "postgresql://postgres:postgres@localhost:5432/agrinova";
-const pool = new Pool({ connectionString });
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }; 
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
-
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
+export const prisma = 
+  globalForPrisma.prisma ?? 
+  new PrismaClient({ 
     adapter,
-    log:
-      process.env.NODE_ENV === "development"
-        ? ["query", "error", "warn"]
-        : ["error"],
-  });
+    log: process.env.NODE_ENV === "development" ? ["query", "error"] : ["error"], 
+  }); 
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma; 

@@ -50,44 +50,42 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
     setError("");
 
     try {
-      // ── Real API call ──
-      // const res = await fetch(`/api/inventory/${row.location_id}/movements`, {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({
-      //     stock_id: row.stock_id,
-      //     product_id: row.product_id,
-      //     movement_type: movementType,
-      //     quantity: qty,
-      //     notes,
-      //   }),
-      // });
-      // if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+      const res = await fetch(`/api/inventory/${row.location_id}/movements`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          stock_id: row.stock_id,
+          movement_type: movementType,
+          quantity: qty,
+          notes: notes || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error);
+      }
 
-      // ── Mock (remove when connecting to API) ──
-      await new Promise((r) => setTimeout(r, 500));
+      const { updatedStock, movement_id } = await res.json();
 
       const updatedRow: StockOverviewRow = {
         ...row,
-        quantity_on_hand: resultingQty,
+        quantity_on_hand: updatedStock.quantity_on_hand,
         status:
-          resultingQty === 0
+          updatedStock.quantity_on_hand <= 0
             ? "out"
-            : resultingQty < row.reorder_threshold
+            : updatedStock.quantity_on_hand < row.reorder_threshold
               ? "low"
               : "ok",
       };
 
       const newMovement: MovementRow = {
-        movement_id: Date.now(),
-        stock_id: row.stock_id,
-        product_id: row.product_id,
-        created_by: 1,
+        movement_id,
         movement_type: movementType,
         quantity: qty,
         movement_date: new Date().toISOString().split("T")[0],
-        notes,
+        notes: notes || null,
         product_name: row.product_name,
+        product_code: row.product_code,
         location_code: row.location_code,
         created_by_name: "Admin",
         qty_delta: delta,

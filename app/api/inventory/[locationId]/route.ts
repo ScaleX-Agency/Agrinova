@@ -1,21 +1,12 @@
-// src/api/inventory/[locationId]/route.ts
-// GET /api/inventory/[locationId]  — Stock for one location
+import { NextResponse } from "next/server"; 
+import { getStockByLocation } from "@/lib/inventoryService"; 
 
-import { NextRequest, NextResponse } from "next/server";
-import { getStockByLocation } from "@/lib/inventoryService";
-
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ locationId: string }> }
-) {
-  try {
-    const locationId = parseInt((await params).locationId);
-    if (isNaN(locationId)) {
-      return NextResponse.json({ error: "Invalid locationId" }, { status: 400 });
-    }
-    const data = await getStockByLocation(locationId);
-    return NextResponse.json({ data });
-  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
-  }
+export async function GET(_req: Request, { params }: { params: Promise<{ locationId: string }> }) { 
+  const { locationId } = await params; 
+  try { 
+    const stock = await getStockByLocation(Number(locationId)); 
+    return NextResponse.json({ stock }); 
+  } catch { 
+    return NextResponse.json({ error: "Not found" }, { status: 404 }); 
+  } 
 }
