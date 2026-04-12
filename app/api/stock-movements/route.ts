@@ -3,7 +3,7 @@
 // POST /api/stock-movements  — Record a movement (shorthand, also works without locationId)
 
 import { NextRequest, NextResponse } from "next/server";
-import { getAllMovements, createMovement } from "../../lib/inventoryService";
+import { getAllMovements, createMovement } from "@/lib/inventoryService";
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
     const data = await getAllMovements(locationId);
     return NextResponse.json({ data });
-  } catch (err: any) {
+  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
 
     const data = await createMovement(body, userId);
     return NextResponse.json({ data }, { status: 201 });
-  } catch (err: any) {
+  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
     const status = err.message.includes("Insufficient") ? 422 : 500;
     return NextResponse.json({ error: err.message }, { status });
   }

@@ -1,23 +1,26 @@
 "use client";
-// src/components/MovementsLog.tsx
-// Stock movements log with type filter and color-coded rows.
 
 import { useState, useMemo } from "react";
-import { MovementRow, MovementType } from "../types/inventory";
+import { MovementRow, MovementType } from "@/types/inventory";
 
 interface Props {
   movements: MovementRow[];
 }
 
-const TYPE_LABELS: Record<MovementType | "ALL", string> = {
-  ALL: "All",
-  ISSUE: "Issue",
-  RETURN: "Return",
-  PURCHASE: "Purchase",
-  ADJUSTMENT: "Adjustment",
+type FilterType = MovementType | "ALL";
+
+const TYPES: FilterType[] = ["ALL", "ISSUE", "RETURN", "PURCHASE", "ADJUSTMENT"];
+
+const TYPE_LABELS: Record<FilterType, string> = {
+  ALL: "All", ISSUE: "Issue", RETURN: "Return", PURCHASE: "Purchase", ADJUSTMENT: "Adjustment",
 };
 
-const TYPES = ["ALL", "ISSUE", "RETURN", "PURCHASE", "ADJUSTMENT"] as const;
+const TYPE_BADGE: Record<MovementType, string> = {
+  ISSUE:      "bg-blue-50   text-blue-800",
+  RETURN:     "bg-teal-50   text-teal-700",
+  PURCHASE:   "bg-green-50  text-green-700",
+  ADJUSTMENT: "bg-amber-50  text-amber-800",
+};
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-GB", {
@@ -26,95 +29,94 @@ function fmtDate(iso: string) {
 }
 
 export default function MovementsLog({ movements }: Props) {
-  const [typeFilter, setTypeFilter] = useState<"ALL" | MovementType>("ALL");
+  const [typeFilter, setTypeFilter] = useState<FilterType>("ALL");
 
   const filtered = useMemo(() =>
-    typeFilter === "ALL"
-      ? movements
-      : movements.filter((m) => m.movement_type === typeFilter),
+    typeFilter === "ALL" ? movements : movements.filter((m) => m.movement_type === typeFilter),
     [movements, typeFilter]
   );
 
   return (
-    <div>
-      <div className="filter-bar" style={{ marginBottom: 16 }}>
-        <div className="toggle-group">
+    <div className="space-y-3">
+      {/* Filter toggle */}
+      <div className="flex items-center gap-3">
+        <div className="flex border border-stone-200 rounded-lg overflow-hidden bg-white">
           {TYPES.map((t) => (
             <button
               key={t}
-              className={`toggle-btn ${typeFilter === t ? "active" : ""}`}
               onClick={() => setTypeFilter(t)}
+              className={`px-3 py-1.5 text-[12px] font-medium border-r border-stone-200 last:border-r-0 transition-colors ${
+                typeFilter === t
+                  ? "bg-blue-800 text-white"
+                  : "text-stone-500 hover:bg-stone-50"
+              }`}
             >
               {TYPE_LABELS[t]}
             </button>
           ))}
         </div>
-        <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--text2)" }}>
+        <span className="text-[12px] text-stone-400 ml-auto">
           {filtered.length} records
         </span>
       </div>
 
-      <div className="table-wrap">
-        <table>
+      {/* Table */}
+      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
+        <table className="w-full border-collapse">
           <thead>
-            <tr>
-              <th>Date</th>
-              <th>Type</th>
-              <th>Product</th>
-              <th>Location</th>
-              <th className="r">Qty Change</th>
-              <th>Reference / Notes</th>
-              <th>By</th>
+            <tr className="border-b border-stone-100">
+              {["Date", "Type", "Product", "Location", "Qty Change", "Reference / Notes", "By"].map((h, i) => (
+                <th
+                  key={h}
+                  className={`px-3.5 py-2.5 text-[11px] font-medium uppercase tracking-wide text-stone-400 bg-white ${i === 4 ? "text-right" : "text-left"}`}
+                >
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={7}>
-                  <div className="empty-state">
-                    <div className="empty-title">No movements found</div>
-                    <div className="empty-sub">Try a different filter</div>
-                  </div>
-                </td>
-              </tr>
-            )}
             {filtered.map((m) => {
               const isNeg = m.qty_delta < 0;
               const display = isNeg ? `−${Math.abs(m.qty_delta)}` : `+${Math.abs(m.qty_delta)}`;
-              const typeClass = m.movement_type.toLowerCase();
               return (
-                <tr key={m.movement_id}>
-                  <td style={{ whiteSpace: "nowrap" }}>{fmtDate(m.movement_date)}</td>
-                  <td>
-                    <span className={`badge ${typeClass}`}>
+                <tr key={m.movement_id} className="border-b border-stone-50 hover:bg-stone-50/60 transition-colors last:border-b-0">
+                  <td className="px-3.5 py-3 text-[12px] text-stone-400 whitespace-nowrap">
+                    {fmtDate(m.movement_date)}
+                  </td>
+                  <td className="px-3.5 py-3">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${TYPE_BADGE[m.movement_type]}`}>
                       {TYPE_LABELS[m.movement_type]}
                     </span>
                   </td>
-                  <td style={{ fontWeight: 500 }}>{m.product_name}</td>
-                  <td>
-                    <span className="badge issue">{m.location_code}</span>
+                  <td className="px-3.5 py-3 text-[13px] font-medium text-stone-700">
+                    {m.product_name}
                   </td>
-                  <td className="r">
-                    <span
-                      style={{
-                        fontWeight: 600,
-                        fontSize: 15,
-                        fontFamily: "'Playfair Display',serif",
-                        color: isNeg ? "var(--danger)" : "var(--success)",
-                      }}
-                    >
-                      {display}
+                  <td className="px-3.5 py-3">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-800">
+                      {m.location_code}
                     </span>
                   </td>
-                  <td style={{ fontSize: 12, color: "var(--text2)", maxWidth: 200 }}>
+                  <td className="px-3.5 py-3 text-right font-mono text-[14px] font-bold" style={{ color: isNeg ? "#991b1b" : "#166534" }}>
+                    {display}
+                  </td>
+                  <td className="px-3.5 py-3 text-[12px] text-stone-400 max-w-[180px] truncate">
                     {m.notes ?? "—"}
                   </td>
-                  <td style={{ fontSize: 12, color: "var(--text2)" }}>
+                  <td className="px-3.5 py-3 text-[12px] text-stone-400">
                     {m.created_by_name}
                   </td>
                 </tr>
               );
             })}
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-4 py-10 text-center">
+                  <p className="text-[14px] font-medium text-stone-400">No movements found</p>
+                  <p className="text-[12px] text-stone-300 mt-1">Try a different filter</p>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

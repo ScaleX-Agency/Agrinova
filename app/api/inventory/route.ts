@@ -2,7 +2,7 @@
 // GET /api/inventory  — All stock across all locations
 
 import { NextResponse } from "next/server";
-import { getAllStock, getLocationSummaries } from "../../lib/inventoryService";
+import { getAllStock, getLocationSummaries } from "@/lib/inventoryService";
 
 export async function GET() {
   try {
@@ -11,7 +11,7 @@ export async function GET() {
       getLocationSummaries(),
     ]);
     return NextResponse.json({ data: { stock, summaries } });
-  } catch (err: any) {
+  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

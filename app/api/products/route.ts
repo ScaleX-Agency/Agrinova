@@ -3,13 +3,13 @@
 // POST /api/products  — Create new product
 
 import { NextRequest, NextResponse } from "next/server";
-import { getAllProducts, createProduct } from "../../lib/inventoryService";
+import { getAllProducts, createProduct } from "@/lib/inventoryService";
 
 export async function GET() {
   try {
     const data = await getAllProducts();
     return NextResponse.json({ data });
-  } catch (err: any) {
+  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ data }, { status: 201 });
-  } catch (err: any) {
+  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
