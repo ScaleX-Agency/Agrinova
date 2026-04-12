@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "db:generate": "prisma generate",
+    "predb:test": "npm run db:generate",
     "db:test": "tsx scripts/test-db.ts"
   },
   "dependencies": {
