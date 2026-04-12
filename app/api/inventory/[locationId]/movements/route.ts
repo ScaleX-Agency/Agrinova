@@ -18,4 +18,4 @@ export async function POST(req: Request, { params }: { params: Promise<{ locatio
     const msg = err instanceof Error ? err.message : "Failed"; 
     return NextResponse.json({ error: msg }, { status: 400 }); 
   } 
-}
+} 

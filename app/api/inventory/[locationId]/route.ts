@@ -9,4 +9,4 @@ export async function GET(_req: Request, { params }: { params: Promise<{ locatio
   } catch { 
     return NextResponse.json({ error: "Not found" }, { status: 404 }); 
   } 
-}
+} 

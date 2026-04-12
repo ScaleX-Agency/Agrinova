@@ -9,4 +9,4 @@ export async function GET() {
     console.error(err); 
     return NextResponse.json({ error: "Failed to fetch inventory" }, { status: 500 }); 
   } 
-}
+} 

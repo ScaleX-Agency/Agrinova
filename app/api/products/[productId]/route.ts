@@ -32,4 +32,4 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ product
     const msg = err instanceof Error ? err.message : "Failed"; 
     return NextResponse.json({ error: msg }, { status: 400 }); 
   } 
-}
+} 
