@@ -1,26 +1,31 @@
 "use client";
+// src/components/StockOverview.tsx
+// Data is now owned by React Query — useState only drives UI state (modals, tabs).
+// Server-fetched initialData hydrates the cache on first render (no loading flash).
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
+import { useQueryClient }  from "@tanstack/react-query";
 import {
-  Package,
-  TrendingUp,
-  AlertTriangle,
-  XCircle,
-  Plus,
-  Upload,
-  RefreshCw,
-  Pencil,
-  ArrowLeftRight,
-  Download,
-  Search,
+  Package, TrendingUp, AlertTriangle, XCircle,
+  Plus, Upload,
 } from "lucide-react";
-import LocationCards from "./LocationCards";
-import StockTable from "./StockTable";
-import MovementsLog from "./MovementsLog";
+import { useSearchParams } from "next/navigation";
+import { useState } from "react";
+
+import LocationCards      from "./LocationCards";
+import StockTable         from "./StockTable";
+import MovementsLog       from "./MovementsLog";
 import RecordMovementModal from "./RecordMovementModal";
-import NewStockEntryModal from "./NewStockEntryModal";
-import ImportStockModal from "./ImportStockModal";
+import NewStockEntryModal  from "./NewStockEntryModal";
+import ImportStockModal    from "./ImportStockModal";
+
 import {
+  useAllStock,
+  useLocationSummaries,
+  useAllMovements,
+  KEYS,
+} from "@/hooks/useInventory";
+import type {
   StockOverviewRow,
   LocationSummary,
   MovementRow,
@@ -28,85 +33,78 @@ import {
 } from "@/types/inventory";
 
 interface StockOverviewProps {
-  initialStock?: StockOverviewRow[];
+  initialStock?:     StockOverviewRow[];
   initialSummaries?: LocationSummary[];
   initialMovements?: MovementRow[];
 }
 
-import { useSearchParams } from "next/navigation";
-
 export default function StockOverview({
-  initialStock = [],
+  initialStock     = [],
   initialSummaries = [],
   initialMovements = [],
 }: StockOverviewProps) {
   const searchParams = useSearchParams();
-  const defaultTab =
-    searchParams.get("tab") === "movements" ? "movements" : "overview";
+  const qc = useQueryClient();
 
-  const [stock, setStock] = useState<StockOverviewRow[]>(initialStock);
-  const [summaries] = useState<LocationSummary[]>(initialSummaries);
-  const [movements, setMovements] = useState<MovementRow[]>(initialMovements);
+  // ── Data from React Query (seeded by RSC initialData) ────────
+  const { data: stock     = [] } = useAllStock(initialStock);
+  const { data: summaries = [] } = useLocationSummaries(initialSummaries);
+  const { data: movements = [] } = useAllMovements(initialMovements);
+
+  // ── UI-only state ─────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<"overview" | "movements">(
-    defaultTab,
+    searchParams.get("tab") === "movements" ? "movements" : "overview",
   );
-
   const [filter, setFilter] = useState<StockFilter>({
     location_id: null,
-    search: "",
-    status: "all",
+    search:      "",
+    status:      "all",
   });
+  const [movementTarget, setMovementTarget] = useState<StockOverviewRow | null>(null);
+  const [showNewStock,   setShowNewStock]   = useState(false);
+  const [showImport,     setShowImport]     = useState(false);
 
-  const [movementTarget, setMovementTarget] = useState<StockOverviewRow | null>(
-    null,
-  );
-  const [showNewStock, setShowNewStock] = useState(false);
-  const [showImport, setShowImport] = useState(false);
-
+  // ── Derived data ──────────────────────────────────────────────
   const filteredStock = useMemo(
     () =>
       stock.filter((row) => {
-        const matchLoc =
-          filter.location_id == null || row.location_id === filter.location_id;
-        const matchSearch =
-          !filter.search ||
-          row.product_name
-            .toLowerCase()
-            .includes(filter.search.toLowerCase()) ||
+        const matchLoc    = filter.location_id == null || row.location_id === filter.location_id;
+        const matchSearch = !filter.search ||
+          row.product_name.toLowerCase().includes(filter.search.toLowerCase()) ||
           row.product_code.toLowerCase().includes(filter.search.toLowerCase());
-        const matchStatus =
-          filter.status === "all" || row.status === filter.status;
+        const matchStatus = filter.status === "all" || row.status === filter.status;
         return matchLoc && matchSearch && matchStatus;
       }),
     [stock, filter],
   );
 
-  const stats = useMemo(
-    () => ({
-      totalProducts: stock.length,
-      totalUnits: stock.reduce((a, b) => a + b.quantity_on_hand, 0),
-      lowCount: stock.filter((r) => r.status === "low").length,
-      outCount: stock.filter((r) => r.status === "out").length,
-    }),
-    [stock],
-  );
+  const stats = useMemo(() => ({
+    totalProducts: stock.length,
+    totalUnits:    stock.reduce((a, b) => a + b.quantity_on_hand, 0),
+    lowCount:      stock.filter((r) => r.status === "low").length,
+    outCount:      stock.filter((r) => r.status === "out").length,
+  }), [stock]);
 
-  const handleMovementSaved = (
-    updated: StockOverviewRow,
-    newMov: MovementRow,
-  ) => {
-    setStock((prev) =>
-      prev.map((r) => (r.stock_id === updated.stock_id ? updated : r)),
+  // ── Cache update helpers (passed to modals) ───────────────────
+  // Modals keep their existing callback signatures — we just mirror the
+  // update into the RQ cache and fire an invalidation for server sync.
+
+  const handleMovementSaved = (updated: StockOverviewRow, newMov: MovementRow) => {
+    qc.setQueryData<StockOverviewRow[]>(KEYS.allStock, (old) =>
+      old?.map((r) => (r.stock_id === updated.stock_id ? updated : r)) ?? [updated],
     );
-    setMovements((prev) => [newMov, ...prev]);
+    qc.setQueryData<MovementRow[]>(KEYS.allMovements, (old) => [newMov, ...(old ?? [])]);
+    // Background server sync
+    qc.invalidateQueries({ queryKey: ["stock"] });
+    qc.invalidateQueries({ queryKey: ["movements"] });
   };
 
   const handleStockEntrySaved = (
     updatedRows: StockOverviewRow[],
     newMovements: MovementRow[],
   ) => {
-    setStock((prev) => {
-      const next = [...prev];
+    qc.setQueryData<StockOverviewRow[]>(KEYS.allStock, (old) => {
+      const next = [...(old ?? [])];
       for (const row of updatedRows) {
         const idx = next.findIndex((r) => r.stock_id === row.stock_id);
         if (idx >= 0) next[idx] = row;
@@ -114,11 +112,17 @@ export default function StockOverview({
       }
       return next;
     });
-    setMovements((prev) => [...newMovements, ...prev]);
+    qc.setQueryData<MovementRow[]>(KEYS.allMovements, (old) => [
+      ...newMovements,
+      ...(old ?? []),
+    ]);
+    qc.invalidateQueries({ queryKey: ["stock"] });
+    qc.invalidateQueries({ queryKey: ["movements"] });
   };
 
   return (
     <div className="space-y-5">
+
       {/* ── Stat Cards ── */}
       <div className="grid grid-cols-4 gap-3">
         <StatCard
@@ -160,10 +164,7 @@ export default function StockOverview({
         summaries={summaries}
         selectedId={filter.location_id}
         onSelect={(id) =>
-          setFilter((f) => ({
-            ...f,
-            location_id: f.location_id === id ? null : id,
-          }))
+          setFilter((f) => ({ ...f, location_id: f.location_id === id ? null : id }))
         }
       />
 
@@ -235,56 +236,46 @@ export default function StockOverview({
       {showImport && (
         <ImportStockModal
           onClose={() => setShowImport(false)}
-          onSaved={() => setShowImport(false)}
+          onSaved={() => {
+            setShowImport(false);
+            qc.invalidateQueries({ queryKey: ["stock"] });
+          }}
         />
       )}
     </div>
   );
 }
 
-// ── StatCard ─────────────────────────────────────────────────
+// ── StatCard ──────────────────────────────────────────────────
 type DeltaVariant = "up" | "warn" | "danger" | "neutral";
 
 const deltaStyles: Record<DeltaVariant, string> = {
-  up: "bg-green-50 text-green-700",
-  warn: "bg-amber-50 text-amber-800",
-  danger: "bg-red-50 text-red-700",
+  up:      "bg-green-50 text-green-700",
+  warn:    "bg-amber-50 text-amber-800",
+  danger:  "bg-red-50   text-red-700",
   neutral: "bg-stone-100 text-stone-500",
 };
 
 function StatCard({
-  label,
-  value,
-  delta,
-  deltaVariant,
-  icon,
-  iconBg,
+  label, value, delta, deltaVariant, icon, iconBg,
 }: {
-  label: string;
-  value: string | number;
-  delta?: string;
+  label:         string;
+  value:         string | number;
+  delta?:        string;
   deltaVariant?: DeltaVariant;
-  icon: React.ReactNode;
-  iconBg: string;
+  icon:          React.ReactNode;
+  iconBg:        string;
 }) {
   return (
     <div className="bg-white border border-stone-200 rounded-xl p-4 flex gap-3 items-start">
-      <div
-        className={`${iconBg} w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0`}
-      >
+      <div className={`${iconBg} w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0`}>
         {icon}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-stone-400 mb-1">
-          {label}
-        </p>
-        <p className="text-2xl font-semibold text-stone-800 leading-none mb-1.5">
-          {value}
-        </p>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-stone-400 mb-1">{label}</p>
+        <p className="text-2xl font-semibold text-stone-800 leading-none mb-1.5">{value}</p>
         {delta && deltaVariant && (
-          <span
-            className={`inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full ${deltaStyles[deltaVariant]}`}
-          >
+          <span className={`inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full ${deltaStyles[deltaVariant]}`}>
             {delta}
           </span>
         )}

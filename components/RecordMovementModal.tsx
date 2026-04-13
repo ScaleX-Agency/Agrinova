@@ -56,7 +56,7 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
         body: JSON.stringify({
           stock_id: row.stock_id,
           movement_type: movementType,
-          quantity: qty,
+           
           notes: notes || undefined,
         }),
       });
@@ -81,7 +81,7 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
       const newMovement: MovementRow = {
         movement_id,
         movement_type: movementType,
-        quantity: qty,
+         
         movement_date: new Date().toISOString().split("T")[0],
         notes: notes || null,
         product_name: row.product_name,
