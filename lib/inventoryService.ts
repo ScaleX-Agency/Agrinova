@@ -299,3 +299,98 @@ export async function createStockEntry(dto: CreateStockEntryDto, userId: number)
   revalidateTag("inventory");
   return stock;
 }
+
+export async function getAllCategories() {
+  return prisma.category.findMany({
+    orderBy: { name: "asc" },
+  });
+}
+
+export async function updateProduct(productId: number, dto: Partial<CreateProductDto>) {
+  const product = await prisma.product.update({
+    where: { product_id: productId },
+    data: {
+      product_name: dto.product_name,
+      pack_size: dto.pack_size,
+      category_id: dto.category_id,
+      selling_price: dto.selling_price,
+    },
+    include: { category: true },
+  });
+
+  revalidateTag("inventory");
+  return product;
+}
+
+export async function importStock(data: any[], userId: number) {
+  const imported = [];
+  for (const row of data) {
+    const product = await prisma.product.findFirst({ where: { product_code: row.product_code } });
+    const location = await prisma.inventoryLocation.findFirst({ where: { code: row.location_code } });
+
+    if (!product || !location) {
+      throw new Error(`Product ${row.product_code} or location ${row.location_code} not found`);
+    }
+
+    const qty = parseInt(row.quantity);
+    if (isNaN(qty) || qty <= 0) throw new Error("Invalid quantity");
+
+    const existing = await prisma.stock.findFirst({
+      where: { product_id: product.product_id, location_id: location.location_id },
+    });
+
+    let stock;
+    if (existing) {
+      stock = await prisma.stock.update({
+        where: { stock_id: existing.stock_id },
+        data: { quantity_on_hand: { increment: qty } },
+      });
+    } else {
+      stock = await prisma.stock.create({
+        data: { product_id: product.product_id, location_id: location.location_id, quantity_on_hand: qty },
+      });
+    }
+
+    await prisma.stockMovement.create({
+      data: {
+        stock_id: stock.stock_id,
+        product_id: product.product_id,
+        created_by: userId,
+        movement_type: row.entry_type || "PURCHASE",
+        quantity: qty,
+        movement_date: row.date ? new Date(row.date) : new Date(),
+        notes: row.notes || "Imported stock",
+      },
+    });
+
+    imported.push(stock);
+  }
+
+  revalidateTag("inventory");
+  return imported;
+}
+
+export async function deleteMovement(movementId: number) {
+  const movement = await prisma.stockMovement.findUnique({ where: { movement_id: movementId } });
+  if (!movement) throw new Error("Movement not found");
+
+  const stock = await prisma.stock.findUnique({ where: { stock_id: movement.stock_id } });
+  if (!stock) throw new Error("Stock not found");
+
+  // Revert the quantity change
+  let qtyDelta = movement.quantity;
+  if (movement.movement_type === "ISSUE" || movement.movement_type === "ADJUSTMENT") {
+    qtyDelta = -qtyDelta;
+  }
+
+  // We are deleting the movement, so we do the opposite of what it did
+  await prisma.stock.update({
+    where: { stock_id: stock.stock_id },
+    data: { quantity_on_hand: stock.quantity_on_hand - qtyDelta },
+  });
+
+  await prisma.stockMovement.delete({ where: { movement_id: movementId } });
+
+  revalidateTag("inventory");
+  return movement;
+}

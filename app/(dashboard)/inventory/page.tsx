@@ -16,7 +16,7 @@ export default async function InventoryPage() {
   // Runs server-side — hits unstable_cache (not Supabase directly on repeat loads)
   const stock     = await getAllStock();
   const [summaries, movements] = await Promise.all([
-    getLocationSummaries(stock), // pass preloaded stock to avoid duplicate query
+    getLocationSummaries(), // fetch via SQL aggregation directly
     getAllMovements(),
   ]);
 

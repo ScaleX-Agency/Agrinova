@@ -57,138 +57,6 @@ interface Props {
   initialMovements?: MovementRow[];
 }
 
-// ── Mock data (remove when DB connected) ─────────────────────
-
-const MOCK_STOCK: StockRow[] = [
-  {
-    stock_id: 1,
-    product_id: 1,
-    product_code: "FERT-0001",
-    product_name: "AgriGold Fertilizer",
-    category_name: "Fertilizer",
-    pack_size: "25 kg",
-    quantity_on_hand: 120,
-    reorder_threshold: 50,
-    status: "ok",
-  },
-  {
-    stock_id: 2,
-    product_id: 2,
-    product_code: "FUNG-0001",
-    product_name: "BioShield Fungicide",
-    category_name: "Fungicide",
-    pack_size: "500 ml",
-    quantity_on_hand: 18,
-    reorder_threshold: 30,
-    status: "low",
-  },
-  {
-    stock_id: 3,
-    product_id: 3,
-    product_code: "SUPP-0001",
-    product_name: "RootBoost Supplement",
-    category_name: "Supplement",
-    pack_size: "1 L",
-    quantity_on_hand: 0,
-    reorder_threshold: 20,
-    status: "out",
-  },
-  {
-    stock_id: 4,
-    product_id: 4,
-    product_code: "INSC-0001",
-    product_name: "PestOff Insecticide",
-    category_name: "Insecticide",
-    pack_size: "250 ml",
-    quantity_on_hand: 75,
-    reorder_threshold: 25,
-    status: "ok",
-  },
-  {
-    stock_id: 5,
-    product_id: 5,
-    product_code: "HERB-0001",
-    product_name: "GreenMax Herbicide",
-    category_name: "Herbicide",
-    pack_size: "1 L",
-    quantity_on_hand: 8,
-    reorder_threshold: 20,
-    status: "low",
-  },
-  {
-    stock_id: 6,
-    product_id: 6,
-    product_code: "SOIL-0001",
-    product_name: "SoilPro Conditioner",
-    category_name: "Soil",
-    pack_size: "10 kg",
-    quantity_on_hand: 44,
-    reorder_threshold: 15,
-    status: "ok",
-  },
-  {
-    stock_id: 7,
-    product_id: 7,
-    product_code: "SUPP-0002",
-    product_name: "NutriSpray Foliar",
-    category_name: "Supplement",
-    pack_size: "500 ml",
-    quantity_on_hand: 0,
-    reorder_threshold: 10,
-    status: "out",
-  },
-  {
-    stock_id: 8,
-    product_id: 8,
-    product_code: "NEMA-0001",
-    product_name: "CropSafe Nematicide",
-    category_name: "Nematicide",
-    pack_size: "1 L",
-    quantity_on_hand: 62,
-    reorder_threshold: 10,
-    status: "ok",
-  },
-];
-
-const MOCK_MOVEMENTS: MovementRow[] = [
-  {
-    movement_id: 1,
-    movement_date: "2026-04-12T08:30:00Z",
-    movement_type: "PURCHASE",
-    product_name: "AgriGold Fertilizer",
-    qty_delta: +60,
-    notes: "Restock from supplier",
-    created_by_name: "Admin",
-  },
-  {
-    movement_id: 2,
-    movement_date: "2026-04-11T14:10:00Z",
-    movement_type: "ISSUE",
-    product_name: "BioShield Fungicide",
-    qty_delta: -12,
-    notes: "Sales order #1042",
-    created_by_name: "Kamal P.",
-  },
-  {
-    movement_id: 3,
-    movement_date: "2026-04-11T11:00:00Z",
-    movement_type: "RETURN",
-    product_name: "PestOff Insecticide",
-    qty_delta: +5,
-    notes: "Customer return",
-    created_by_name: "Admin",
-  },
-  {
-    movement_id: 4,
-    movement_date: "2026-04-10T09:00:00Z",
-    movement_type: "ADJUSTMENT",
-    product_name: "SoilPro Conditioner",
-    qty_delta: -3,
-    notes: "Damaged units removed",
-    created_by_name: "Admin",
-  },
-];
-
 // ── Style maps ────────────────────────────────────────────────
 
 const STATUS_CFG: Record<
@@ -517,14 +385,8 @@ export default function LocationStockPage({
   initialStock = [],
   initialMovements = [],
 }: Props) {
-  // Use mock data when DB not connected
-  const seedStock = initialStock.length ? initialStock : MOCK_STOCK;
-  const seedMovements = initialMovements.length
-    ? initialMovements
-    : MOCK_MOVEMENTS;
-
-  const [stock, setStock] = useState<StockRow[]>(seedStock);
-  const [movements, setMovements] = useState<MovementRow[]>(seedMovements);
+  const [stock, setStock] = useState<StockRow[]>(initialStock);
+  const [movements, setMovements] = useState<MovementRow[]>(initialMovements);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<
     "all" | "ok" | "low" | "out"

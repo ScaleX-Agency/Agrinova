@@ -199,3 +199,19 @@ export function useInvalidateInventory() {
     qc.invalidateQueries({ queryKey: ["movements"] });
   };
 }
+
+export function useCategories() {
+  return useQuery({
+    queryKey: ["categories"],
+    queryFn: () => fetchJSON<{ categories: { category_id: number; name: string; tag: string }[] }>("/api/categories").then((d) => d.categories),
+    staleTime: 300_000,
+  });
+}
+
+export function useLocations() {
+  return useQuery({
+    queryKey: ["locations"],
+    queryFn: () => fetchJSON<{ locations: { location_id: number; code: string; name: string }[] }>("/api/locations").then((d) => d.locations),
+    staleTime: 300_000,
+  });
+}

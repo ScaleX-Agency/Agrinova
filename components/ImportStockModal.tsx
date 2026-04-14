@@ -50,7 +50,7 @@ export default function ImportStockModal({ onClose, onSaved }: Props) {
 
       setPreview(parsed);
 
-      // Basic mock validation: assume any missing code is an error
+      // Basic validation: assume any missing code is an error
       const errs = parsed
         .filter(
           (r) =>
@@ -67,12 +67,26 @@ export default function ImportStockModal({ onClose, onSaved }: Props) {
     if (!file || errorRows.length > 0) return;
     setImporting(true);
 
-    // Simulate import
-    await new Promise((r) => setTimeout(r, 1000));
+    try {
+      const res = await fetch("/api/inventory/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(preview),
+      });
 
-    setImporting(false);
-    onSaved([]); // Mock passing back imported rows
-    onClose();
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to import stock");
+      }
+
+      const { imported } = await res.json();
+      onSaved(imported);
+      onClose();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Import failed");
+    } finally {
+      setImporting(false);
+    }
   };
 
   return (

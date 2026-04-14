@@ -56,7 +56,7 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
         body: JSON.stringify({
           stock_id: row.stock_id,
           movement_type: movementType,
-           
+          quantity: qty,
           notes: notes || undefined,
         }),
       });

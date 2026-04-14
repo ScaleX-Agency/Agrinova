@@ -26,77 +26,9 @@ interface Product {
   product_name: string;
   pack_size: string;
   selling_price: number;
-  category: { name: string; tag: string };
+  category_id: number;
+  category: { category_id: number; name: string; tag: string };
 }
-
-// ── Mock data ─────────────────────────────────────────────────
-
-const INITIAL_PRODUCTS: Product[] = [
-  {
-    product_id: 1,
-    product_code: "FERT-0001",
-    product_name: "AgriGold Fertilizer",
-    pack_size: "25 kg",
-    selling_price: 2500,
-    category: { name: "Fertilizer", tag: "FERT" },
-  },
-  {
-    product_id: 2,
-    product_code: "FUNG-0001",
-    product_name: "BioShield Fungicide",
-    pack_size: "500 ml",
-    selling_price: 1800,
-    category: { name: "Fungicide", tag: "FUNG" },
-  },
-  {
-    product_id: 3,
-    product_code: "SUPP-0001",
-    product_name: "RootBoost Supplement",
-    pack_size: "1 L",
-    selling_price: 1200,
-    category: { name: "Supplement", tag: "SUPP" },
-  },
-  {
-    product_id: 4,
-    product_code: "INSC-0001",
-    product_name: "PestOff Insecticide",
-    pack_size: "250 ml",
-    selling_price: 950,
-    category: { name: "Insecticide", tag: "INSC" },
-  },
-  {
-    product_id: 5,
-    product_code: "HERB-0001",
-    product_name: "GreenMax Herbicide",
-    pack_size: "1 L",
-    selling_price: 1600,
-    category: { name: "Herbicide", tag: "HERB" },
-  },
-  {
-    product_id: 6,
-    product_code: "SOIL-0001",
-    product_name: "SoilPro Conditioner",
-    pack_size: "10 kg",
-    selling_price: 3200,
-    category: { name: "Soil", tag: "SOIL" },
-  },
-  {
-    product_id: 7,
-    product_code: "SUPP-0002",
-    product_name: "NutriSpray Foliar",
-    pack_size: "500 ml",
-    selling_price: 1100,
-    category: { name: "Supplement", tag: "SUPP" },
-  },
-  {
-    product_id: 8,
-    product_code: "NEMA-0001",
-    product_name: "CropSafe Nematicide",
-    pack_size: "1 L",
-    selling_price: 4500,
-    category: { name: "Nematicide", tag: "NEMA" },
-  },
-];
 
 // ── Category badge colours ────────────────────────────────────
 
@@ -146,8 +78,8 @@ function StatCard({
 
 // ── Main component ────────────────────────────────────────────
 
-export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+export default function ProductsPage({ initialProducts }: { initialProducts: Product[] }) {
+  const [products, setProducts] = useState<Product[]>(initialProducts);
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("ALL");
   const [showAdd, setShowAdd] = useState(false);
@@ -192,20 +124,19 @@ export default function ProductsPage() {
     setDeleting(true);
     setDeleteError("");
     try {
-      // Real: await fetch(`/api/products/${deleteTarget.product_id}`, { method: "DELETE" });
-      await new Promise((r) => setTimeout(r, 500));
-
-      // Simulate 409 error randomly or based on condition for demo
-      // Here we just proceed since we are mocking, but let's allow it to succeed
+      const res = await fetch(`/api/products/${deleteTarget.product_id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to delete product");
+      }
 
       setProducts((prev) =>
         prev.filter((p) => p.product_id !== deleteTarget.product_id),
       );
       setDeleteTarget(null);
     } catch (err) {
-      // Mocking a 409
       setDeleteError(
-        "Cannot delete — this product has existing stock. Remove all stock entries first.",
+        err instanceof Error ? err.message : "Cannot delete — this product has existing stock. Remove all stock entries first.",
       );
     } finally {
       setDeleting(false);
@@ -446,7 +377,10 @@ export default function ProductsPage() {
           <AddProductModal
             mode="add"
             onClose={() => setShowAdd(false)}
-            onSaved={() => setShowAdd(false)}
+            onSaved={() => {
+              setShowAdd(false);
+              window.location.reload();
+            }}
           />
         )}
       </AnimatePresence>
@@ -458,15 +392,14 @@ export default function ProductsPage() {
             mode="edit"
             initialValues={{
               ...editTarget,
-              category_id:
-                editTarget.category.tag === "FERT"
-                  ? 1
-                  : editTarget.category.tag === "FUNG"
-                    ? 2
-                    : 3, // mock mapping
+              product_id: editTarget.product_id,
+              category_id: editTarget.category_id,
             }}
             onClose={() => setEditTarget(null)}
-            onSaved={() => setEditTarget(null)}
+            onSaved={() => {
+              setEditTarget(null);
+              window.location.reload();
+            }}
           />
         )}
       </AnimatePresence>

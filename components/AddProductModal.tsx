@@ -5,23 +5,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Package, Info, ChevronDown } from "lucide-react";
 import { CreateProductDto } from "../types/inventory";
-
-const MOCK_CATEGORIES = [
-  { category_id: 1, name: "Fertilizer", tag: "FERT" },
-  { category_id: 2, name: "Fungicide", tag: "FUNG" },
-  { category_id: 3, name: "Herbicide", tag: "HERB" },
-  { category_id: 4, name: "Insecticide", tag: "INSC" },
-  { category_id: 5, name: "Nematicide", tag: "NEMA" },
-  { category_id: 6, name: "Supplement", tag: "SUPP" },
-  { category_id: 7, name: "Soil", tag: "SOIL" },
-];
-
-const MOCK_LOCATIONS = [
-  { location_id: 1, code: "IGRN1", name: "Head Office" },
-  { location_id: 2, code: "IGRN2", name: "Kuliyapitiya" },
-  { location_id: 3, code: "IGRN3", name: "Nuwara Eliya" },
-  { location_id: 4, code: "IGRN4", name: "Peradeniya" },
-];
+import { useCategories, useLocations } from "@/hooks/useInventory";
 
 interface FormState {
   product_name: string;
@@ -35,7 +19,7 @@ interface FormState {
 
 interface Props {
   mode?: "add" | "edit";
-  initialValues?: Partial<CreateProductDto & { product_code: string }>;
+  initialValues?: Partial<CreateProductDto & { product_code: string; product_id: number; reorder_threshold: number }>;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -124,8 +108,11 @@ export default function AddProductModal({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
+  const { data: categories = [] } = useCategories();
+  const { data: locations = [] } = useLocations();
+
   // Preview the auto-generated product code
-  const categoryTag = MOCK_CATEGORIES.find(
+  const categoryTag = categories.find(
     (c) => String(c.category_id) === form.category_id,
   )?.tag;
   const previewCode = categoryTag ? `${categoryTag}-XXXX` : null;
@@ -157,19 +144,33 @@ export default function AddProductModal({
     }
     setSaving(true);
     try {
-      // ── Real API call ──
-      // const res = await fetch("/api/products", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({
-      //     product_name: form.product_name,
-      //     pack_size: form.pack_size,
-      //     category_id: parseInt(form.category_id),
-      //     selling_price: parseFloat(form.selling_price),
-      //   } as CreateProductDto),
-      // });
-      // if (!res.ok) throw new Error((await res.json()).error);
-      await new Promise((r) => setTimeout(r, 700));
+      const payload: Partial<CreateProductDto & { reorder_threshold?: number }> = {
+        product_name: form.product_name,
+        pack_size: form.pack_size,
+        category_id: parseInt(form.category_id),
+        selling_price: parseFloat(form.selling_price),
+      };
+
+      if (form.reorder_threshold) {
+        payload.reorder_threshold = parseInt(form.reorder_threshold);
+      }
+
+      if (mode === "add") {
+        const res = await fetch("/api/products", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error((await res.json()).error);
+      } else if (mode === "edit" && initialValues?.product_id) {
+        const res = await fetch(`/api/products/${initialValues.product_id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error((await res.json()).error);
+      }
+
       onSaved();
       onClose();
     } catch (err: unknown) {
@@ -252,7 +253,7 @@ export default function AddProductModal({
                   onChange={(e) => set("category_id", e.target.value)}
                 >
                   <option value="">Select…</option>
-                  {MOCK_CATEGORIES.map((c) => (
+                  {categories.map((c) => (
                     <option key={c.category_id} value={c.category_id}>
                       {c.name}
                     </option>
@@ -342,7 +343,7 @@ export default function AddProductModal({
                       value={form.location_id}
                       onChange={(e) => set("location_id", e.target.value)}
                     >
-                      {MOCK_LOCATIONS.map((l) => (
+                      {locations.map((l) => (
                         <option key={l.location_id} value={l.location_id}>
                           {l.code} — {l.name}
                         </option>

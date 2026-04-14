@@ -1,14 +1,8 @@
 "use client";
 
-import { Search, ArrowLeftRight, Pencil, Download } from "lucide-react";
+import { Search, ArrowLeftRight, Download } from "lucide-react";
 import { StockOverviewRow, StockFilter, StockStatus } from "@/types/inventory";
-
-const LOCATIONS = [
-  { location_id: 1, code: "IGRN1", name: "Head Office" },
-  { location_id: 2, code: "IGRN2", name: "Kuliyapitiya" },
-  { location_id: 3, code: "IGRN3", name: "Nuwara Eliya" },
-  { location_id: 4, code: "IGRN4", name: "Peradeniya" },
-];
+import { useLocations } from "@/hooks/useInventory";
 
 const STATUS_CONFIG: Record<
   StockStatus,
@@ -53,6 +47,8 @@ export default function StockTable({
 }: Props) {
   const set = (k: keyof StockFilter, v: StockFilter[keyof StockFilter]) =>
     onFilterChange({ ...filter, [k]: v });
+
+  const { data: LOCATIONS = [] } = useLocations();
 
   return (
     <>
@@ -258,12 +254,6 @@ export default function StockTable({
                           className="w-7 h-7 flex items-center justify-center rounded-md border border-stone-200 hover:bg-stone-100 text-stone-500 transition-colors"
                         >
                           <ArrowLeftRight size={12} />
-                        </button>
-                        <button
-                          title="Edit"
-                          className="w-7 h-7 flex items-center justify-center rounded-md border border-stone-200 hover:bg-stone-100 text-stone-500 transition-colors"
-                        >
-                          <Pencil size={12} />
                         </button>
                       </div>
                     </td>
