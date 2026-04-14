@@ -9,7 +9,7 @@ import {
   Package, TrendingUp, AlertTriangle, XCircle,
   Plus, Upload,
 } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+
 import { useState } from "react";
 
 import LocationCards      from "./LocationCards";
@@ -43,7 +43,7 @@ export default function StockOverview({
   initialSummaries = [],
   initialMovements = [],
 }: StockOverviewProps) {
-  const searchParams = useSearchParams();
+
   const qc = useQueryClient();
 
   // ── Data from React Query (seeded by RSC initialData) ────────
@@ -53,7 +53,7 @@ export default function StockOverview({
 
   // ── UI-only state ─────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<"overview" | "movements">(
-    searchParams.get("tab") === "movements" ? "movements" : "overview",
+    "overview",
   );
   const [filter, setFilter] = useState<StockFilter>({
     location_id: null,

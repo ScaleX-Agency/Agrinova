@@ -73,12 +73,27 @@ export default function NewStockEntryModal({ onClose, onSaved }: Props) {
     setSaving(true);
     setError("");
 
-    // Simulate save
-    await new Promise((r) => setTimeout(r, 600));
-
-    setSaving(false);
-    onSaved([], []);
-    onClose();
+    try {
+      for (const item of items) {
+        const res = await fetch("/api/inventory/stock", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            product_id: Number(item.productId),
+            location_id: Number(location),
+            quantity: Number(item.qty),
+          }),
+        });
+        if (!res.ok) throw new Error((await res.json()).error);
+      }
+      onSaved([], []);
+      onClose();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed";
+      setError(msg);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

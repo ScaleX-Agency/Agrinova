@@ -232,10 +232,19 @@ export async function createMovement(
 }
 
 export async function getAllProducts() {
-  return prisma.product.findMany({
+  const products = await prisma.product.findMany({
     include: { category: true },
     orderBy: { product_name: "asc" },
   });
+  return products.map(p => ({
+    product_id: p.product_id,
+    category_id: p.category_id,
+    product_code: p.product_code,
+    product_name: p.product_name,
+    pack_size: p.pack_size,
+    selling_price: Number(p.selling_price),
+    category: p.category
+  }));
 }
 
 export async function createProduct(dto: CreateProductDto) {
