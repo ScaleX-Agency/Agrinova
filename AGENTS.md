@@ -60,11 +60,13 @@ There are four roles in the system. **Only Chairman and Operator have login acco
 
 ### 2.3 Auth Rules
 
-- Login page is the only public route (`/login`). All other routes require an authenticated session.
-- `middleware.ts` guards all `/(dashboard)` routes — redirect to `/login` if no valid session.
+- Authentication is managed via **Clerk**. The system uses the `@clerk/nextjs` SDK.
+- Login page is the only public route (`/login`). It uses a custom TanStack Query + Zod form connected to Clerk's `useSignIn`. All other routes require an authenticated session.
+- `middleware.ts` guards all `/(dashboard)` routes and API routes (except `/api/webhooks`) — redirects to `/login` if no valid session.
 - The `/users` page (user account management) is hidden in the sidebar and blocked at the API level for Operators.
-- Session stores `{ userId, role: 'chairman' | 'operator' }`.
+- Session stores `userId`. The backend maps this `clerk_id` to the local PostgreSQL `USER` model where the `role_id` is verified.
 - No password reset flow needed for the initial build (max 4 users, managed by Chairman directly).
+- **Chairman User Generation**: The Chairman creates new accounts by filling a form in `/users`, which makes a POST request to `/api/users`. This endpoint calls `clerkClient.users.createUser()` backend and inserts the user directly into the database.
 
 ---
 
@@ -599,7 +601,7 @@ commission_amount = invoice_total × commission_rate
 ```
 ROLE              id, role_name  ('chairman' | 'operator' | 'sales_rep' | 'customer')
 
-USER              id, role_id(FK→ROLE), full_name, username, password_hash
+USER              id, clerk_id(String?, unique), role_id(FK→ROLE), full_name, username, password_hash
                   — only chairman and operator rows exist here
 
 SALES_REP         id, full_name, phone, email
@@ -689,8 +691,9 @@ REMINDER          id, customer_id(FK→CUSTOMER), triggered_by(FK→USER),
 | Charts | Recharts |
 | Tables | TanStack Table |
 | Forms | React Hook Form + Zod |
-| State | Zustand |
-| Database | Supabase (Postgres + Auth + RLS for role-based access) |
+| State | Zustand + TanStack React Query (for mutations) |
+| Auth | Clerk (`@clerk/nextjs`) |
+| Database | Supabase (Postgres) |
 | ORM | Prisma |
 | PDF / Print | react-to-print |
 | Export | SheetJS (xlsx) |
