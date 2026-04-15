@@ -17,10 +17,11 @@ model Role {
 
 model User {
   user_id       Int    @id @default(autoincrement())
+  clerk_id      String? @unique
   role_id       Int
   full_name     String
   username      String @unique
-  password_hash String
+  password_hash String?
 
   role              Role             @relation(fields: [role_id], references: [role_id])
   invoices          Invoice[]        @relation("InvoiceCreatedBy")
