@@ -61,7 +61,8 @@ There are four roles in the system. **Only Chairman and Operator have login acco
 ### 2.3 Auth Rules
 
 - Authentication is managed via **Clerk**. The system uses the `@clerk/nextjs` SDK.
-- Login page is the only public route (`/login`). It uses a custom TanStack Query + Zod form connected to Clerk's `useSignIn`. All other routes require an authenticated session.
+- Login page is the only public route (`/login`). It uses a custom TanStack Query + Zod form connected to Clerk's `useSignIn`. All other routes require an authenticated session. Enforce this custom UI using `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/login` in `.env.local`.
+- **No Sign Ups**: Users should not be able to sign up themselves, only login is possible through email and password. Ensure `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/login` in `.env.local` is set to block default signups and point it back to login.
 - `middleware.ts` guards all `/(dashboard)` routes and API routes (except `/api/webhooks`) — redirects to `/login` if no valid session.
 - The `/users` page (user account management) is hidden in the sidebar and blocked at the API level for Operators.
 - Session stores `userId`. The backend maps this `clerk_id` to the local PostgreSQL `USER` model where the `role_id` is verified.

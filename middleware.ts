@@ -1,7 +1,15 @@
-import { clerkMiddleware } from '@clerk/nextjs/server';
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
-export default clerkMiddleware();
+const isPublicRoute = createRouteMatcher(['/login(.*)', '/api/webhooks(.*)']);
 
+export default clerkMiddleware(async (auth, req) => {
+  if (!isPublicRoute(req)) {
+    const session = await auth();
+    if (!session.userId) {
+      session.redirectToSignIn();
+    }
+  }
+});
 export const config = {
   matcher: [
     // Skip Next.js internals and all static files, unless found in search params
