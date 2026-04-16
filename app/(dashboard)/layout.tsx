@@ -3,6 +3,7 @@ import { Playfair_Display, DM_Sans, JetBrains_Mono } from "next/font/google";
 import { ClerkProvider, Show, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs'
 import "../globals.css";
 import AppShell from "@/components/AppShell";
+import Providers from "@/app/providers";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -46,7 +47,9 @@ export default function RootLayout({
     >
       <body className="h-full bg-stone-50 text-stone-900 [font-family:var(--font-dmsans)]">
         <ClerkProvider>
-          <AppShell>{children}</AppShell>
+          <Providers>
+            <AppShell>{children}</AppShell>
+          </Providers>
         </ClerkProvider>
       </body>
     </html>
