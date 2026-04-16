@@ -22,10 +22,10 @@ model User {
   username      String @unique
   password_hash String
 
-  role              Role             @relation(fields: [role_id], references: [role_id])
-  invoices          Invoice[]        @relation("InvoiceCreatedBy")
-  receipts          Receipt[]        @relation("ReceiptCollectedBy")
-  stock_movements   StockMovement[]  @relation("StockMovementCreatedBy")
+  role            Role            @relation(fields: [role_id], references: [role_id])
+  invoices        Invoice[]       @relation("InvoiceCreatedBy")
+  receipts        Receipt[]       @relation("ReceiptCollectedBy")
+  stock_movements StockMovement[] @relation("StockMovementCreatedBy")
 
   @@map("USER")
 }
@@ -43,36 +43,73 @@ model SalesRep {
 }
 
 model Customer {
-  customer_id         Int      @id @default(autoincrement())
+  customer_id         Int     @id @default(autoincrement())
   assigned_rep_id     Int
   name                String
   address             String?
   phone               String?
-  outstanding_balance Decimal  @db.Decimal(10, 2)
+  outstanding_balance Decimal @db.Decimal(10, 2)
 
-  assigned_rep SalesRep   @relation(fields: [assigned_rep_id], references: [rep_id])
-  invoices     Invoice[]
-  reminders    Reminder[]
+  assigned_rep      SalesRep         @relation(fields: [assigned_rep_id], references: [rep_id])
+  invoices          Invoice[]
+  goods_issue_notes GoodsIssueNote[]
+  reminders         Reminder[]
 
   @@map("CUSTOMER")
 }
 
 model Invoice {
-  invoice_id   Int      @id @default(autoincrement())
-  customer_id  Int
-  rep_id       Int
-  created_by   Int
-  invoice_date DateTime
-  total_amount Decimal  @db.Decimal(10, 2)
-  status       InvoiceStatus
+  invoice_id     Int           @id @default(autoincrement())
+  invoice_number String        @unique
+  gin_id         Int
+  customer_id    Int
+  rep_id         Int
+  created_by     Int
+  invoice_date   DateTime
+  total_amount   Decimal       @db.Decimal(10, 2)
+  status         InvoiceStatus
 
-  customer      Customer      @relation(fields: [customer_id], references: [customer_id])
-  rep           SalesRep      @relation(fields: [rep_id], references: [rep_id])
-  creator       User          @relation("InvoiceCreatedBy", fields: [created_by], references: [user_id])
-  invoice_lines InvoiceLine[]
-  receipts      Receipt[]
+  goods_issue_note GoodsIssueNote @relation(fields: [gin_id], references: [gin_id])
+  customer         Customer       @relation(fields: [customer_id], references: [customer_id])
+  rep              SalesRep       @relation(fields: [rep_id], references: [rep_id])
+  creator          User           @relation("InvoiceCreatedBy", fields: [created_by], references: [user_id])
+  invoice_lines    InvoiceLine[]
+  receipts         Receipt[]
 
   @@map("INVOICE")
+}
+
+model GoodsIssueNote {
+  gin_id      Int      @id @default(autoincrement())
+  gin_number  String   @unique
+  gin_date    DateTime
+  customer_id Int
+  location_id Int
+  prepared_by String
+  received_by String
+
+  customer Customer             @relation(fields: [customer_id], references: [customer_id])
+  location InventoryLocation    @relation(fields: [location_id], references: [location_id])
+  lines    GoodsIssueNoteLine[]
+  invoices Invoice[]
+
+  @@index([customer_id])
+  @@index([location_id])
+  @@map("GOODS_ISSUE_NOTE")
+}
+
+model GoodsIssueNoteLine {
+  gin_line_id Int @id @default(autoincrement())
+  gin_id      Int
+  product_id  Int
+  quantity    Int
+
+  goods_issue_note GoodsIssueNote @relation(fields: [gin_id], references: [gin_id])
+  product          Product        @relation(fields: [product_id], references: [product_id])
+
+  @@index([gin_id])
+  @@index([product_id])
+  @@map("GOODS_ISSUE_NOTE_LINE")
 }
 
 model InvoiceLine {
@@ -91,7 +128,7 @@ model InvoiceLine {
 }
 
 model Receipt {
-  receipt_id      Int      @id @default(autoincrement())
+  receipt_id      Int           @id @default(autoincrement())
   invoice_id      Int
   collected_by    Int
   receipt_date    DateTime
@@ -123,7 +160,7 @@ model Commission {
 }
 
 model Reminder {
-  reminder_id   Int      @id @default(autoincrement())
+  reminder_id   Int            @id @default(autoincrement())
   customer_id   Int
   triggered_by  Int
   reminder_date DateTime
@@ -136,27 +173,28 @@ model Reminder {
 }
 
 model Category {
-  category_id Int       @id @default(autoincrement())
+  category_id Int    @id @default(autoincrement())
   name        String
-  tag         String    @unique
-  
-  products    Product[]
+  tag         String @unique
+
+  products Product[]
 
   @@map("CATEGORY")
 }
 
 model Product {
-  product_id   Int    @id @default(autoincrement())
-  category_id  Int
-  product_code String @unique
-  product_name String
-  pack_size    String
+  product_id    Int     @id @default(autoincrement())
+  category_id   Int
+  product_code  String  @unique
+  product_name  String
+  pack_size     String
   selling_price Decimal @db.Decimal(10, 2)
 
-  category         Category        @relation(fields: [category_id], references: [category_id])
-  invoice_lines    InvoiceLine[]
-  stocks           Stock[]
-  stock_movements  StockMovement[] @relation("StockMovementProduct")
+  category               Category             @relation(fields: [category_id], references: [category_id])
+  invoice_lines          InvoiceLine[]
+  goods_issue_note_lines GoodsIssueNoteLine[]
+  stocks                 Stock[]
+  stock_movements        StockMovement[]      @relation("StockMovementProduct")
 
   @@map("PRODUCT")
 }
@@ -166,7 +204,8 @@ model InventoryLocation {
   code        String @unique
   name        String
 
-  stocks Stock[]
+  stocks            Stock[]
+  goods_issue_notes GoodsIssueNote[]
 
   @@map("INVENTORY_LOCATION")
 }
@@ -177,15 +216,16 @@ model Stock {
   location_id      Int
   quantity_on_hand Int
 
-  product          Product         @relation(fields: [product_id], references: [product_id])
-  location         InventoryLocation @relation(fields: [location_id], references: [location_id])
-  stock_movements  StockMovement[]
+  product         Product           @relation(fields: [product_id], references: [product_id])
+  location        InventoryLocation @relation(fields: [location_id], references: [location_id])
+  stock_movements StockMovement[]
 
+  @@unique([product_id, location_id])
   @@map("STOCK")
 }
 
 model StockMovement {
-  movement_id   Int      @id @default(autoincrement())
+  movement_id   Int          @id @default(autoincrement())
   stock_id      Int
   created_by    Int
   movement_type MovementType
@@ -193,13 +233,14 @@ model StockMovement {
   movement_date DateTime
   notes         String?
 
-  stock   Stock @relation(fields: [stock_id], references: [stock_id])
-  creator User  @relation("StockMovementCreatedBy", fields: [created_by], references: [user_id])
-  product Product @relation("StockMovementProduct", fields: [product_id], references: [product_id])
+  stock      Stock   @relation(fields: [stock_id], references: [stock_id])
+  creator    User    @relation("StockMovementCreatedBy", fields: [created_by], references: [user_id])
+  product    Product @relation("StockMovementProduct", fields: [product_id], references: [product_id])
   product_id Int
 
   @@map("STOCK_MOVEMENT")
 }
+
 enum InvoiceStatus {
   PAID
   PARTIAL
