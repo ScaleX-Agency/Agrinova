@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getStockByLocation } from "@/lib/inventoryService";
+import type { StockByLocationResponse } from "@/types/api";
 
 export async function GET(
   _req: NextRequest,
@@ -14,7 +15,8 @@ export async function GET(
       return NextResponse.json({ error: "Invalid locationId" }, { status: 400 });
     }
     const data = await getStockByLocation(locationId);
-    return NextResponse.json({ data });
+    const responseBody: StockByLocationResponse = { data };
+    return NextResponse.json(responseBody);
   } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
