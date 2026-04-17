@@ -1,5 +1,5 @@
-import { auth } from '@clerk/nextjs/server';
-import { prisma } from '@/lib/prisma';
+import { auth } from "@clerk/nextjs/server";
+import { prisma } from "@/lib/prisma";
 
 export async function getCurrentUser() {
   const { userId } = await auth();
@@ -14,4 +14,8 @@ export async function getCurrentUser() {
   });
 
   return user;
+}
+
+export function isAdminUser(user: Awaited<ReturnType<typeof getCurrentUser>>) {
+  return user?.role?.role_name?.toLowerCase() === "admin";
 }
