@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { Mail, ShieldUser, UserRound } from "lucide-react";
+import { ArrowLeft, Mail, ShieldUser, UserRound } from "lucide-react";
 
 interface AccountDetails {
   user_id: number;
@@ -88,6 +89,9 @@ export default function AccountPageClient() {
 
   const handleSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!hasChanges) {
+      return;
+    }
     setIsSaving(true);
     setSaveError("");
     setSuccessMessage("");
@@ -113,7 +117,12 @@ export default function AccountPageClient() {
 
       const data = (await response.json()) as AccountApiResponse;
       setAccount(data.account);
-      setForm((prev) => ({ ...prev, password: "" }));
+      setForm({
+        firstName: data.account.first_name,
+        lastName: data.account.last_name,
+        email: data.account.username,
+        password: "",
+      });
       setSuccessMessage("Account updated successfully.");
     } catch (error: unknown) {
       setSaveError(
@@ -146,9 +155,33 @@ export default function AccountPageClient() {
     );
   }
 
+  const hasChanges =
+    form.firstName.trim() !== account.first_name.trim() ||
+    form.lastName.trim() !== account.last_name.trim() ||
+    form.email.trim().toLowerCase() !== account.username.trim().toLowerCase() ||
+    form.password.trim().length > 0;
+
+  const handleCancelEdits = () => {
+    setForm({
+      firstName: account.first_name,
+      lastName: account.last_name,
+      email: account.username,
+      password: "",
+    });
+    setSaveError("");
+    setSuccessMessage("");
+  };
+
   return (
     <div className="space-y-5">
       <div>
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 hover:text-stone-700 [font-family:var(--font-dmsans)]"
+        >
+          <ArrowLeft size={14} />
+          Back to Dashboard
+        </Link>
         <p className="text-[11.5px] font-semibold uppercase tracking-[0.12em] text-stone-400 [font-family:var(--font-dmsans)] mb-1">
           Profile
         </p>
@@ -280,11 +313,24 @@ export default function AccountPageClient() {
             />
           </div>
 
-          <div className="pt-2 flex items-center justify-end">
+          <div className="pt-2 flex items-center justify-end gap-2">
+            {hasChanges && (
+              <button
+                type="button"
+                onClick={handleCancelEdits}
+                className="px-4 py-2 rounded-xl border border-stone-200 text-[13px] font-medium text-stone-600 hover:bg-stone-100 transition-colors [font-family:var(--font-dmsans)]"
+              >
+                Cancel
+              </button>
+            )}
             <button
               type="submit"
-              disabled={isSaving}
-              className="px-4 py-2 rounded-xl bg-green-700 text-white text-[13px] font-semibold hover:bg-green-800 disabled:opacity-70 transition-colors [font-family:var(--font-dmsans)]"
+              disabled={isSaving || !hasChanges}
+              className={`px-4 py-2 rounded-xl text-[13px] font-semibold transition-colors [font-family:var(--font-dmsans)] ${
+                isSaving || !hasChanges
+                  ? "bg-green-500 text-white opacity-70 cursor-not-allowed"
+                  : "bg-green-700 text-white hover:bg-green-800"
+              }`}
             >
               {isSaving ? "Saving..." : "Save Changes"}
             </button>

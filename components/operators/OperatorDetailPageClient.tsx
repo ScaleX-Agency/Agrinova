@@ -70,6 +70,12 @@ export default function OperatorDetailPageClient({
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
   }, [operatorId]);
 
+  const hasEditChanges = !!operator &&
+    (form.firstName.trim() !== operator.first_name.trim() ||
+      form.lastName.trim() !== operator.last_name.trim() ||
+      form.email.trim().toLowerCase() !== operator.username.trim().toLowerCase() ||
+      form.password.trim().length > 0);
+
   const fetchOperator = useCallback(async () => {
     if (!resolvedOperatorId) {
       setLoadError("Invalid operator ID.");
@@ -119,6 +125,7 @@ export default function OperatorDetailPageClient({
   const handleSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!resolvedOperatorId) return;
+    if (!hasEditChanges) return;
 
     setSaving(true);
     setSaveError("");
@@ -369,8 +376,12 @@ export default function OperatorDetailPageClient({
               </button>
               <button
                 type="submit"
-                disabled={saving}
-                className="px-4 py-2 rounded-xl bg-green-700 text-white text-[13px] font-semibold hover:bg-green-800 disabled:opacity-70 transition-colors [font-family:var(--font-dmsans)]"
+                disabled={saving || !hasEditChanges}
+                className={`px-4 py-2 rounded-xl text-[13px] font-semibold transition-colors [font-family:var(--font-dmsans)] ${
+                  saving || !hasEditChanges
+                    ? "bg-green-500 text-white opacity-70 cursor-not-allowed"
+                    : "bg-green-700 text-white hover:bg-green-800"
+                }`}
               >
                 {saving ? "Saving..." : "Save Changes"}
               </button>
