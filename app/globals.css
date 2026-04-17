@@ -1,26 +1,84 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --color-green: #1a5c2e;
+  --color-green-mid: #2d7a42;
+  --color-green-light: #e8f5ec;
+  --color-green-border: #b6d9be;
+
+  --color-navy: #2b2d7e;
+  --color-navy-mid: #3d40a8;
+  --color-navy-light: #eeeffe;
+  --color-navy-border: #c0c3f0;
+
+  --color-bg: #faf9f5;
+  --color-surface: #ffffff;
+  --color-surface-2: #f4f3ef;
+  --color-border: #e4e2db;
+  --color-border-strong: #c8c6be;
+
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #5a6672;
+  --color-text-muted: #9ba5ad;
+
+  --color-success: #1a5c2e;
+  --color-success-bg: #e8f5ec;
+  --color-warning: #854f0b;
+  --color-warning-bg: #faeeda;
+  --color-danger: #a32d2d;
+  --color-danger-bg: #fcebeb;
+  --color-info: #185fa5;
+  --color-info-bg: #e6f1fb;
+
+  --radius-sm: 6px;
+  --radius-md: 9px;
+  --radius-lg: 13px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body: 'DM Sans', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-dmsans), sans-serif;
+  background: #f5f5f4;
+  color: #1c1917;
+}
+
+.agrinova-menu .ant-menu-item {
+  height: 44px;
+  line-height: 44px;
+  border-radius: 12px;
+  margin-inline: 0 !important;
+  margin-block: 4px !important;
+  color: #57534e;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-dmsans), sans-serif;
+}
+
+.agrinova-menu .ant-menu-item .ant-menu-title-content a {
+  color: inherit;
+}
+
+.agrinova-menu .ant-menu-item-selected {
+  background: #eff6ff !important;
+  color: #1e3a8a !important;
+  border: 1px solid #dbeafe;
+}
+
+.agrinova-menu .ant-menu-item:hover {
+  background: #fafaf9 !important;
+  color: #1c1917 !important;
+}
+
+.agrinova-menu .ant-menu-inline {
+  border-inline-end: none !important;
 }
