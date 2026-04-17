@@ -30,7 +30,7 @@ There are four roles in the system. **Only Admin and Operator have login account
 | ------------------------ | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Admin**                | ✅ Yes | Full system access. Can manage users, view all reports, approve returns, access commission and financial data.                                            |
 | **Operator**             | ✅ Yes | Day-to-day operational access. Can manage inventory, customers, invoices, receipts, and reminders. Cannot manage user accounts or delete core records.    |
-| **Sales Representative** | ❌ No  | Exists as a data entity only. Assigned to customers. Linked to invoices and commission records. Managed by Admin/Operator via the Sales Reps section.     |
+| **Sales Representative** | ❌ No  | Exists as a data entity only. Assigned to customers. Linked to invoices and commission records. Created/edited/removed by Admin; visible to Operators as read-only. |
 | **Customer**             | ❌ No  | Exists as a data entity only. Assigned to a Sales Representative. Has invoices, receipts, outstanding balances, and reminders. Managed by Admin/Operator. |
 
 ### 2.2 Permission Matrix
@@ -48,7 +48,8 @@ There are four roles in the system. **Only Admin and Operator have login account
 | Returns — approve           | ✅      | ❌           |
 | Customers — manage          | ✅      | ✅           |
 | Operators — manage          | ✅      | ❌           |
-| Sales Reps — manage         | ✅      | ✅           |
+| Sales Reps — view           | ✅      | ✅           |
+| Sales Reps — add/edit/delete| ✅      | ❌           |
 | Reminders                   | ✅      | ✅           |
 | Commission — view           | ✅      | ✅ Read-only |
 | Commission — export         | ✅      | ❌           |
@@ -672,13 +673,14 @@ Actions: Mark as contacted · Send reminder (WhatsApp deep link / SMS link)
 
 **Rep list table:** Rep ID · Name · Phone · Assigned Customers (count) · Active Invoices (count) · Total Commission (LKR, current month)
 
-**Rep detail drawer:** full profile + assigned customer list + invoice history + commission history
+**Rep detail view:** full profile + assigned customer list + invoice history + commission history
+
+**Access rule:** Sales reps are DB-only records (no Clerk account). Admin can create/edit/remove. Operators can view only.
 
 **Add/edit rep form fields:**
 
 - Full Name \*
 - Phone \*
-- Email
 
 ---
 

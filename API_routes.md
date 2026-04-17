@@ -18,9 +18,9 @@ app/
 │ └── route.ts # GET | PATCH | DELETE - single operator
 │
 ├── sales-reps/
-│ ├── route.ts # GET - list reps | POST - create rep
+│ ├── route.ts # GET - list reps | POST - create rep (Admin only)
 │ └── [repId]/
-│ ├── route.ts # GET | PATCH | DELETE - single rep
+│ ├── route.ts # GET - single rep | PATCH/DELETE - Admin only
 │ ├── customers/
 │ │ └── route.ts # GET - all customers under this rep
 │ ├── invoices/
