@@ -17,14 +17,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify caller is Chairman
+    // Verify caller is Admin
     const caller = await prisma.user.findUnique({
       where: { clerk_id: userId },
       include: { role: true }
     });
 
-    if (!caller || caller.role.role_name.toLowerCase() !== 'chairman') {
-      return NextResponse.json({ error: 'Forbidden. Chairman access required.' }, { status: 403 });
+    if (!caller || caller.role.role_name.toLowerCase() !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden. Admin access required.' }, { status: 403 });
     }
 
     const body = await req.json();
