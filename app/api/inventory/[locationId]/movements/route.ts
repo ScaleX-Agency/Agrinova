@@ -45,7 +45,7 @@ export async function POST(
       );
     }
 
-    // Business rule: RETURN requires manager/chairman role
+    // Business rule: RETURN requires manager/admin role
     // if (body.movement_type === "RETURN" && session.user.role !== "admin") {
     //   return NextResponse.json({ error: "Returns require admin approval" }, { status: 403 });
     // }

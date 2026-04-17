@@ -16,26 +16,26 @@
 | **Email** | info.agrinova@gmail.com |
 | **Users** | Max 4 concurrent users |
 | **Scale** | ~250 invoices/month |
-| **Roles** | Chairman · Operator · Sales Representative · Customer |
+| **Roles** | Admin · Operator · Sales Representative · Customer |
 
 ---
 
 ## 2. Roles & Access
 
-There are four roles in the system. **Only Chairman and Operator have login accounts.** Sales Representatives and Customers are data entities managed within the system — they do not log in.
+There are four roles in the system. **Only Admin and Operator have login accounts.** Sales Representatives and Customers are data entities managed within the system — they do not log in.
 
 ### 2.1 Role Definitions
 
 | Role | Login | Description |
 |---|---|---|
-| **Chairman** | ✅ Yes | Full system access. Can manage users, view all reports, approve returns, access commission and financial data. |
+| **Admin** | ✅ Yes | Full system access. Can manage users, view all reports, approve returns, access commission and financial data. |
 | **Operator** | ✅ Yes | Day-to-day operational access. Can manage inventory, customers, invoices, receipts, and reminders. Cannot manage user accounts or delete core records. |
-| **Sales Representative** | ❌ No | Exists as a data entity only. Assigned to customers. Linked to invoices and commission records. Managed by Chairman/Operator via the Sales Reps section. |
-| **Customer** | ❌ No | Exists as a data entity only. Assigned to a Sales Representative. Has invoices, receipts, outstanding balances, and reminders. Managed by Chairman/Operator. |
+| **Sales Representative** | ❌ No | Exists as a data entity only. Assigned to customers. Linked to invoices and commission records. Managed by Admin/Operator via the Sales Reps section. |
+| **Customer** | ❌ No | Exists as a data entity only. Assigned to a Sales Representative. Has invoices, receipts, outstanding balances, and reminders. Managed by Admin/Operator. |
 
 ### 2.2 Permission Matrix
 
-| Feature | Chairman | Operator |
+| Feature | Admin | Operator |
 |---|---|---|
 | Dashboard | ✅ Full | ✅ Full |
 | Inventory — view | ✅ | ✅ |
@@ -66,8 +66,8 @@ There are four roles in the system. **Only Chairman and Operator have login acco
 - `middleware.ts` guards all `/(dashboard)` routes and API routes (except `/api/webhooks`) — redirects to `/login` if no valid session.
 - The `/users` page (user account management) is hidden in the sidebar and blocked at the API level for Operators.
 - Session stores `userId`. The backend maps this `clerk_id` to the local PostgreSQL `USER` model where the `role_id` is verified.
-- No password reset flow needed for the initial build (max 4 users, managed by Chairman directly).
-- **Chairman User Generation**: The Chairman creates new accounts by filling a form in `/users`, which makes a POST request to `/api/users`. This endpoint calls `clerkClient.users.createUser()` backend and inserts the user directly into the database.
+- No password reset flow needed for the initial build (max 4 users, managed by Admin directly).
+- **Admin User Generation**: The Admin creates new accounts by filling a form in `/users`, which makes a POST request to `/api/users`. This endpoint calls `clerkClient.users.createUser()` backend and inserts the user directly into the database.
 
 ---
 
@@ -78,7 +78,7 @@ There are four roles in the system. **Only Chairman and Operator have login acco
 **Core principles:**
 - Data density without clutter — show what matters, hide the rest in drawers
 - Green + Navy brand colors thread through every screen (from logo)
-- Role-based UI — Chairman sees everything; Operator sees operational features only
+- Role-based UI — Admin sees everything; Operator sees operational features only
 - Offline-tolerant feel — avoid spinners everywhere; skeleton states preferred
 - Print-ready — invoice and receipt pages must look clean when printed (`@media print`)
 
@@ -210,8 +210,8 @@ REPORTS
   Export
 
 ─────────────────
-  Settings          (Chairman only)
-  User Accounts     (Chairman only — hidden for Operator)
+  Settings          (Admin only)
+  User Accounts     (Admin only — hidden for Operator)
   [User Avatar + Name + Role badge]
 ```
 
@@ -558,7 +558,7 @@ commission_amount = invoice_total × commission_rate
 
 **Footer row:** Grand total commission for the month.
 
-**Export:** Print-ready page + Excel export button (Chairman only).
+**Export:** Print-ready page + Excel export button (Admin only).
 
 ---
 
@@ -575,21 +575,21 @@ commission_amount = invoice_total × commission_rate
 
 ---
 
-### 8.15 User Accounts (Chairman only)
+### 8.15 User Accounts (Admin only)
 
-**Table:** User ID · Name · Username · Role (Chairman / Operator) · Last Login · Actions
+**Table:** User ID · Name · Username · Role (Admin / Operator) · Last Login · Actions
 
 **Add/edit user modal fields:**
 - Full Name *
 - Username *
-- Role * (Chairman / Operator only — Sales Rep and Customer are not login roles)
+- Role * (Admin / Operator only — Sales Rep and Customer are not login roles)
 - Password (set on create; reset option on edit)
 
 > This page is not visible to Operators. Route is blocked in `middleware.ts` for the `operator` role.
 
 ---
 
-### 8.16 Settings (Chairman only)
+### 8.16 Settings (Admin only)
 
 - **Company Info:** Name, address, logo, contact (used on invoices and receipts)
 - **Inventory Locations:** Manage IGRN 1–4 names and details
@@ -600,10 +600,10 @@ commission_amount = invoice_total × commission_rate
 ## 9. Data Model
 
 ```
-ROLE              id, role_name  ('chairman' | 'operator' | 'sales_rep' | 'customer')
+ROLE              id, role_name  ('admin' | 'operator' | 'sales_rep' | 'customer')
 
 USER              id, clerk_id(String?, unique), role_id(FK→ROLE), full_name, username, password_hash
-                  — only chairman and operator rows exist here
+                  — only admin and operator rows exist here
 
 SALES_REP         id, full_name, phone, email
                   — no login credentials; linked to customers and invoices
@@ -668,7 +668,7 @@ REMINDER          id, customer_id(FK→CUSTOMER), triggered_by(FK→USER),
 7. **Date format** — always `DD MMM YYYY` (e.g. `09 Apr 2026`)
 8. **Currency format** — always `LKR #,###,###.00`
 9. **Print invoices** — `window.print()` button, hides sidebar/topbar via `@media print`
-10. **Returns** — only Chairman can approve returns; show `Pending Approval` badge until approved
+10. **Returns** — only Admin can approve returns; show `Pending Approval` badge until approved
 11. **Role-gated UI** — buttons for restricted actions (delete invoice, approve return, export commission) are hidden entirely for Operator, not just disabled
 12. **Number formats** — Invoice IDs, Product IDs, Receipt IDs use monospace font (`--font-mono`)
 
@@ -726,8 +726,8 @@ agrinova/
 │   │   ├── receipts/[receiptId]/page.tsx
 │   │   ├── commission/page.tsx
 │   │   ├── reminders/page.tsx
-│   │   ├── users/page.tsx              # chairman only
-│   │   └── settings/page.tsx           # chairman only
+│   │   ├── users/page.tsx              # admin only
+│   │   └── settings/page.tsx           # admin only
 │   └── api/
 │       ├── auth/login/route.ts
 │       ├── auth/logout/route.ts
