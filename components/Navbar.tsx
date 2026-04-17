@@ -1,18 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "@clerk/nextjs";
 import { Badge, Avatar, Input, Tooltip, Skeleton } from "antd";
 import {
   Bell,
   Search,
-  Leaf,
   PanelLeftClose,
   X,
   AlertTriangle,
   CheckCircle2,
-  Package,
   ChevronRight,
 } from "lucide-react";
 
@@ -55,13 +54,61 @@ interface NavbarProps {
   onToggleSidebar?: () => void;
 }
 
+interface AccountApiResponse {
+  account: {
+    role_name: string;
+  };
+}
+
+function formatRole(roleName: string) {
+  return roleName
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
 export default function Navbar({ onToggleSidebar }: NavbarProps) {
   const [notifOpen, setNotifOpen] = useState(false);
+  const [roleName, setRoleName] = useState("");
   const { user, isLoaded } = useUser();
 
-  const userInitial = user?.firstName?.charAt(0) || user?.username?.charAt(0).toUpperCase() || "U";
-  const userFullName = user?.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : "System User";
-  const userSubtitle = user?.username || "Staff";
+  useEffect(() => {
+    if (!isLoaded || !user) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const loadRole = async () => {
+      try {
+        const response = await fetch("/api/account", { cache: "no-store" });
+        if (!response.ok) {
+          return;
+        }
+        const data = (await response.json()) as AccountApiResponse;
+        if (!isCancelled) {
+          setRoleName(data.account.role_name);
+        }
+      } catch {
+        // Keep fallback subtitle if role fetch fails
+      }
+    };
+
+    void loadRole();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isLoaded, user]);
+
+  const userInitial =
+    user?.firstName?.charAt(0) ||
+    user?.username?.charAt(0).toUpperCase() ||
+    "U";
+  const userFullName = user?.firstName
+    ? `${user.firstName} ${user.lastName || ""}`.trim()
+    : "System User";
+  const userSubtitle = roleName ? formatRole(roleName) : "Staff";
 
   return (
     <>
@@ -200,7 +247,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
           </div>
 
           {/* User */}
-          <div className="flex items-center gap-2 pl-1 cursor-pointer group">
+          <Link href="/account" className="flex items-center gap-2 pl-1 group">
             {isLoaded ? (
               <>
                 <Avatar
@@ -222,11 +269,15 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
               <div className="flex items-center gap-2">
                 <Skeleton.Avatar active size={36} shape="circle" />
                 <div className="hidden md:block">
-                  <Skeleton title={false} paragraph={{ rows: 2, width: [80, 50] }} active />
+                  <Skeleton
+                    title={false}
+                    paragraph={{ rows: 2, width: [80, 50] }}
+                    active
+                  />
                 </div>
               </div>
             )}
-          </div>
+          </Link>
         </div>
       </motion.header>
     </>

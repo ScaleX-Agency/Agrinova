@@ -10,6 +10,7 @@ import {
   Package,
   ArrowLeftRight,
   Users,
+  UserCog,
   Receipt,
   FileText,
   UserCheck,
@@ -68,6 +69,11 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/invoices", icon: <FileText size={15} />, label: "Invoices" },
       { href: "/receipts", icon: <Receipt size={15} />, label: "Receipts" },
       { href: "/customers", icon: <Users size={15} />, label: "Customers" },
+      {
+        href: "/operators",
+        icon: <UserCog size={15} />,
+        label: "Operators",
+      },
       {
         href: "/sales-reps",
         icon: <UserCheck size={15} />,
