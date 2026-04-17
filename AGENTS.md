@@ -615,6 +615,13 @@ Recorded after physical issue. Fields: Date · Products table · Issued To (Cust
 
 **Customer detail drawer:** full profile + invoice history + payment history + outstanding balance summary
 
+**Add/edit customer form fields:**
+
+- Name \*
+- Phone \*
+- Address
+- Assigned Sales Rep \*
+
 ---
 
 ### 8.10 Outstanding Balances
