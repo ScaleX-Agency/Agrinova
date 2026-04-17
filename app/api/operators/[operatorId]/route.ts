@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
+import { Prisma } from "@prisma/client";
 import * as z from "zod";
 import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -7,9 +8,17 @@ import { prisma } from "@/lib/prisma";
 const OPERATOR_ROLE_ID = 2;
 
 const updateOperatorSchema = z.object({
-  firstName: z.string().trim().min(1),
-  lastName: z.string().trim().min(1),
-  password: z.string().min(8).optional(),
+  firstName: z.string().trim().min(1, "First name is required."),
+  lastName: z.string().trim().min(1, "Last name is required."),
+  email: z
+    .string()
+    .trim()
+    .email("Please enter a valid email address.")
+    .transform((value) => value.toLowerCase()),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters long.")
+    .optional(),
 });
 
 function splitFullName(fullName: string) {
@@ -40,6 +49,20 @@ function getErrorMessage(error: unknown): string {
   }
 
   return "Internal error";
+}
+
+function getValidationError(error: z.ZodError) {
+  const issue = error.issues[0];
+  if (!issue) {
+    return "Invalid input";
+  }
+
+  const field = issue.path[0];
+  if (field === "password") {
+    return "Password must be at least 8 characters long.";
+  }
+
+  return issue.message;
 }
 
 function parseOperatorId(value: string) {
@@ -121,6 +144,16 @@ export async function GET(
       },
     });
   } catch (error: unknown) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return NextResponse.json(
+        { error: "An operator with this email already exists." },
+        { status: 409 },
+      );
+    }
+
     return NextResponse.json(
       { error: getErrorMessage(error) },
       { status: 500 },
@@ -150,11 +183,34 @@ export async function PATCH(
   const body = await req.json();
   const parsed = updateOperatorSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+    return NextResponse.json(
+      { error: getValidationError(parsed.error) },
+      { status: 400 },
+    );
   }
 
-  const { firstName, lastName, password } = parsed.data;
+  const { firstName, lastName, email, password } = parsed.data;
+  const normalizedEmail = email.toLowerCase();
   const fullName = `${firstName} ${lastName}`.trim();
+  const hasEmailChanged =
+    normalizedEmail !== operator.username.trim().toLowerCase();
+
+  if (hasEmailChanged) {
+    const existingOperator = await prisma.user.findFirst({
+      where: {
+        username: normalizedEmail,
+        NOT: { user_id: operator.user_id },
+      },
+      select: { user_id: true },
+    });
+
+    if (existingOperator) {
+      return NextResponse.json(
+        { error: "An operator with this email already exists." },
+        { status: 409 },
+      );
+    }
+  }
 
   try {
     if (!operator.clerk_id) {
@@ -174,9 +230,55 @@ export async function PATCH(
       ...(password ? { password } : {}),
     });
 
+    if (hasEmailChanged) {
+      const clerkUser = await client.users.getUser(operator.clerk_id);
+      const existingEmailAddress = clerkUser.emailAddresses.find(
+        (emailAddress) =>
+          emailAddress.emailAddress.toLowerCase() === normalizedEmail,
+      );
+
+      let primaryEmailAddressId = existingEmailAddress?.id;
+
+      if (existingEmailAddress) {
+        await client.emailAddresses.updateEmailAddress(existingEmailAddress.id, {
+          verified: true,
+        });
+      } else {
+        const createdEmailAddress = await client.emailAddresses.createEmailAddress(
+          {
+            userId: operator.clerk_id,
+            emailAddress: normalizedEmail,
+            verified: true,
+          },
+        );
+        primaryEmailAddressId = createdEmailAddress.id;
+      }
+
+      if (primaryEmailAddressId) {
+        await client.users.updateUser(operator.clerk_id, {
+          primaryEmailAddressID: primaryEmailAddressId,
+          notifyPrimaryEmailAddressChanged: false,
+        });
+      }
+
+      const previousEmailAddress = clerkUser.emailAddresses.find(
+        (emailAddress) =>
+          emailAddress.emailAddress.toLowerCase() ===
+            operator.username.trim().toLowerCase() &&
+          emailAddress.id !== primaryEmailAddressId,
+      );
+
+      if (previousEmailAddress) {
+        await client.emailAddresses.deleteEmailAddress(previousEmailAddress.id);
+      }
+    }
+
     const updatedOperator = await prisma.user.update({
       where: { user_id: operator.user_id },
-      data: { full_name: fullName },
+      data: {
+        full_name: fullName,
+        username: normalizedEmail,
+      },
       select: {
         user_id: true,
         clerk_id: true,

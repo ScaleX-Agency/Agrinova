@@ -8,10 +8,16 @@ import { prisma } from "@/lib/prisma";
 const OPERATOR_ROLE_ID = 2;
 
 const createOperatorSchema = z.object({
-  email: z.string().trim().email().transform((value) => value.toLowerCase()),
-  password: z.string().min(8),
-  firstName: z.string().trim().min(1),
-  lastName: z.string().trim().min(1),
+  email: z
+    .string()
+    .trim()
+    .email("Please enter a valid email address.")
+    .transform((value) => value.toLowerCase()),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters long."),
+  firstName: z.string().trim().min(1, "First name is required."),
+  lastName: z.string().trim().min(1, "Last name is required."),
 });
 
 function splitFullName(fullName: string) {
@@ -42,6 +48,20 @@ function getErrorMessage(error: unknown): string {
   }
 
   return "Internal error";
+}
+
+function getValidationError(error: z.ZodError) {
+  const issue = error.issues[0];
+  if (!issue) {
+    return "Invalid input";
+  }
+
+  const field = issue.path[0];
+  if (field === "password") {
+    return "Password must be at least 8 characters long.";
+  }
+
+  return issue.message;
 }
 
 async function requireAdmin() {
@@ -108,7 +128,10 @@ export async function POST(req: Request) {
   const body = await req.json();
   const parsed = createOperatorSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+    return NextResponse.json(
+      { error: getValidationError(parsed.error) },
+      { status: 400 },
+    );
   }
 
   const { email, password, firstName, lastName } = parsed.data;
