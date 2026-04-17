@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Badge, Avatar, Input, Tooltip } from "antd";
+import { useUser } from "@clerk/nextjs";
+import { Badge, Avatar, Input, Tooltip, Skeleton } from "antd";
 import {
   Bell,
   Search,
@@ -56,6 +57,11 @@ interface NavbarProps {
 
 export default function Navbar({ onToggleSidebar }: NavbarProps) {
   const [notifOpen, setNotifOpen] = useState(false);
+  const { user, isLoaded } = useUser();
+
+  const userInitial = user?.firstName?.charAt(0) || user?.username?.charAt(0).toUpperCase() || "U";
+  const userFullName = user?.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : "System User";
+  const userSubtitle = user?.username || "Staff";
 
   return (
     <>
@@ -195,20 +201,31 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
 
           {/* User */}
           <div className="flex items-center gap-2 pl-1 cursor-pointer group">
-            <Avatar
-              size={36}
-              className="!bg-blue-50 !text-blue-800 !text-[14px] !font-semibold"
-            >
-              A
-            </Avatar>
-            <div className="hidden md:block leading-tight">
-              <p className="text-[13px] font-semibold text-stone-800 [font-family:var(--font-dmsans)] group-hover:text-blue-800 transition-colors">
-                Admin User
-              </p>
-              <p className="text-[11px] text-stone-400 [font-family:var(--font-dmsans)]">
-                Administrator
-              </p>
-            </div>
+            {isLoaded ? (
+              <>
+                <Avatar
+                  size={36}
+                  className="!bg-blue-50 !text-blue-800 !text-[14px] !font-semibold"
+                >
+                  {userInitial}
+                </Avatar>
+                <div className="hidden md:block leading-tight">
+                  <p className="text-[13px] font-semibold text-stone-800 [font-family:var(--font-dmsans)] group-hover:text-blue-800 transition-colors">
+                    {userFullName}
+                  </p>
+                  <p className="text-[11px] text-stone-400 [font-family:var(--font-dmsans)]">
+                    {userSubtitle}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Skeleton.Avatar active size={36} shape="circle" />
+                <div className="hidden md:block">
+                  <Skeleton title={false} paragraph={{ rows: 2, width: [80, 50] }} active />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </motion.header>
