@@ -1,0 +1,128 @@
+erDiagram
+  ROLE {
+    int role_id PK
+    string role_name
+  }
+
+  USER {
+    int user_id PK
+    int role_id FK
+    string full_name
+    string username
+    string password_hash
+  }
+
+  SALES_REP {
+    int rep_id PK
+    string full_name
+    string phone
+    string email
+  }
+
+  CUSTOMER {
+    int customer_id PK
+    int assigned_rep_id FK
+    string name
+    string address
+    string phone
+    decimal outstanding_balance
+  }
+
+  INVENTORY_LOCATION {
+    int location_id PK
+    string code
+    string name
+  }
+
+  PRODUCT {
+    int product_id PK
+    string product_name
+    string pack_size
+  }
+
+  STOCK {
+    int stock_id PK
+    int product_id FK
+    int location_id FK
+    int quantity_on_hand
+  }
+
+  STOCK_MOVEMENT {
+    int movement_id PK
+    int stock_id FK
+    int created_by FK
+    string movement_type
+    int quantity
+    datetime movement_date
+    string notes
+  }
+
+  INVOICE {
+    int invoice_id PK
+    int customer_id FK
+    int rep_id FK
+    int created_by FK
+    datetime invoice_date
+    decimal total_amount
+    string status
+  }
+
+  INVOICE_LINE {
+    int line_id PK
+    int invoice_id FK
+    int product_id FK
+    int quantity
+    decimal unit_price
+    decimal line_total
+  }
+
+  RECEIPT {
+    int receipt_id PK
+    int invoice_id FK
+    int collected_by FK
+    datetime receipt_date
+    decimal amount_received
+    string payment_method
+  }
+
+  COMMISSION {
+    int commission_id PK
+    int rep_id FK
+    int receipt_id FK
+    decimal commission_rate
+    decimal commission_amount
+    int days_to_pay
+  }
+
+  REMINDER {
+    int reminder_id PK
+    int customer_id FK
+    int triggered_by FK
+    datetime reminder_date
+    string message
+    string status
+  }
+
+  USER }o--|| ROLE : "has"
+  USER ||--o{ STOCK_MOVEMENT : "creates"
+  USER ||--o{ INVOICE : "created by"
+  USER ||--o{ RECEIPT : "collects"
+  USER ||--o{ REMINDER : "triggers"
+
+  SALES_REP ||--o{ CUSTOMER : "manages"
+  SALES_REP ||--o{ INVOICE : "linked to"
+  SALES_REP ||--o{ COMMISSION : "earns"
+
+  CUSTOMER ||--o{ INVOICE : "receives"
+  CUSTOMER ||--o{ REMINDER : "gets"
+
+  STOCK }o--|| PRODUCT : "tracks"
+  STOCK }o--|| INVENTORY_LOCATION : "at"
+  STOCK ||--o{ STOCK_MOVEMENT : "records"
+
+  INVOICE ||--o{ INVOICE_LINE : "contains"
+  INVOICE ||--o{ RECEIPT : "paid via"
+
+  INVOICE_LINE }o--|| PRODUCT : "for"
+
+  RECEIPT ||--o| COMMISSION : "generates"
