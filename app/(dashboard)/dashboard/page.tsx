@@ -182,10 +182,10 @@ const QUICK_ACTIONS: QuickAction[] = [
     accent: "bg-violet-50 text-violet-700 border-violet-100",
   },
   {
-    href: "/sales-reps",
+    href: "/commission",
     icon: <UserCheck size={20} />,
-    label: "Sales Reps",
-    description: "View rep performance & commission",
+    label: "Commission",
+    description: "View sales rep commission breakdown",
     accent: "bg-amber-50 text-amber-700 border-amber-100",
   },
 ];
