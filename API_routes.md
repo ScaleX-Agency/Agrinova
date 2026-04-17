@@ -3,7 +3,7 @@ app/
     │
     ├── auth/
     │   ├── login/
-    │   │   └── route.ts           # POST - login (chairman & operator only)
+    │   │   └── route.ts           # POST - login (admin & operator only)
     │   └── logout/
     │       └── route.ts           # POST - logout / clear session
     │
