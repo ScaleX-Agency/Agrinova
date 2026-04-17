@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Playfair_Display, DM_Sans, JetBrains_Mono } from "next/font/google";
 import "../globals.css";
 import AppShell from "@/components/AppShell";
+import QueryProvider from "@/components/QueryProvider";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -44,7 +45,9 @@ export default function RootLayout({
       className={`${playfair.variable} ${dmSans.variable} ${jetbrains.variable} h-full antialiased`}
     >
       <body className="h-full bg-stone-50 text-stone-900 [font-family:var(--font-dmsans)]">
-        <AppShell>{children}</AppShell>
+        <QueryProvider>
+          <AppShell>{children}</AppShell>
+        </QueryProvider>
       </body>
     </html>
   );
