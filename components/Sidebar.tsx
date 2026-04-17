@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useClerk } from "@clerk/nextjs";
 import {
   LayoutDashboard,
   Boxes,
@@ -82,6 +83,7 @@ export default function Sidebar({
   onClose,
 }: SidebarProps) {
   const pathname = usePathname();
+  const { signOut } = useClerk();
 
   const content = (
     <motion.aside
@@ -180,6 +182,7 @@ export default function Sidebar({
           {!collapsed && <span>Settings</span>}
         </Link>
         <button
+          onClick={() => signOut()}
           className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[13px] font-medium text-stone-500 hover:bg-red-50 hover:text-red-700 transition-all [font-family:var(--font-dmsans)] ${collapsed ? "justify-center" : ""}`}
           title={collapsed ? "Sign out" : undefined}
         >
