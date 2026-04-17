@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Mail, Plus, Search, ShieldUser, UserRound, X } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Mail,
+  Plus,
+  Search,
+  ShieldUser,
+  UserRound,
+  X,
+} from "lucide-react";
 
 interface Operator {
   user_id: number;
@@ -49,6 +58,7 @@ export default function OperatorsPageClient() {
   const [createForm, setCreateForm] =
     useState<CreateOperatorForm>(DEFAULT_CREATE_FORM);
   const [isCreating, setIsCreating] = useState(false);
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
   const [createError, setCreateError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -109,6 +119,7 @@ export default function OperatorsPageClient() {
       }
 
       setCreateForm(DEFAULT_CREATE_FORM);
+      setShowCreatePassword(false);
       setIsCreateOpen(false);
       setSuccessMessage("Operator created successfully.");
       await fetchOperators();
@@ -138,6 +149,7 @@ export default function OperatorsPageClient() {
         <button
           onClick={() => {
             setCreateError("");
+            setShowCreatePassword(false);
             setIsCreateOpen(true);
           }}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-green-700 text-white text-[13px] font-semibold hover:bg-green-800 transition-colors [font-family:var(--font-dmsans)]"
@@ -188,14 +200,16 @@ export default function OperatorsPageClient() {
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-stone-100">
-                {["Name", "Email", "Clerk ID", "Actions"].map((heading) => (
+                {["User ID", "Name", "Email", "Clerk ID", "Actions"].map(
+                  (heading) => (
                   <th
                     key={heading}
                     className="px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-stone-400 text-left bg-white [font-family:var(--font-dmsans)]"
                   >
                     {heading}
                   </th>
-                ))}
+                  ),
+                )}
               </tr>
             </thead>
             <tbody>
@@ -205,6 +219,9 @@ export default function OperatorsPageClient() {
                     key={`operator-skeleton-${index}`}
                     className="border-b border-stone-50"
                   >
+                    <td className="px-4 py-3">
+                      <div className="h-4 w-16 rounded bg-stone-100 animate-pulse" />
+                    </td>
                     <td className="px-4 py-3">
                       <div className="h-4 w-36 rounded bg-stone-100 animate-pulse" />
                     </td>
@@ -221,7 +238,7 @@ export default function OperatorsPageClient() {
                 ))
               ) : filteredOperators.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-14 text-center">
+                  <td colSpan={5} className="px-4 py-14 text-center">
                     <div className="w-11 h-11 mx-auto mb-3 rounded-xl bg-stone-100 text-stone-400 flex items-center justify-center">
                       <UserRound size={18} />
                     </div>
@@ -239,6 +256,11 @@ export default function OperatorsPageClient() {
                     key={operator.user_id}
                     className="border-b border-stone-50 hover:bg-stone-50/70 transition-colors"
                   >
+                    <td className="px-4 py-3">
+                      <span className="[font-family:var(--font-jetbrains)] text-[11.5px] text-blue-700">
+                        {operator.user_id}
+                      </span>
+                    </td>
                     <td className="px-4 py-3">
                       <Link
                         href={`/operators/${operator.user_id}`}
@@ -279,6 +301,7 @@ export default function OperatorsPageClient() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-[1px] p-4"
           onClick={(event) => {
             if (event.target === event.currentTarget && !isCreating) {
+              setShowCreatePassword(false);
               setIsCreateOpen(false);
             }
           }}
@@ -289,7 +312,10 @@ export default function OperatorsPageClient() {
                 Create Operator
               </h2>
               <button
-                onClick={() => setIsCreateOpen(false)}
+                onClick={() => {
+                  setShowCreatePassword(false);
+                  setIsCreateOpen(false);
+                }}
                 disabled={isCreating}
                 className="w-8 h-8 rounded-lg border border-stone-200 text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors"
               >
@@ -356,19 +382,35 @@ export default function OperatorsPageClient() {
                 <label className="text-[12.5px] font-medium text-stone-700 [font-family:var(--font-dmsans)]">
                   Initial password
                 </label>
-                <input
-                  type="password"
-                  minLength={8}
-                  value={createForm.password}
-                  onChange={(event) =>
-                    setCreateForm((prev) => ({
-                      ...prev,
-                      password: event.target.value,
-                    }))
-                  }
-                  required
-                  className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-white text-[13px] text-stone-800 placeholder:text-stone-300 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-50 [font-family:var(--font-dmsans)]"
-                />
+                <div className="relative">
+                  <input
+                    type={showCreatePassword ? "text" : "password"}
+                    minLength={8}
+                    value={createForm.password}
+                    onChange={(event) =>
+                      setCreateForm((prev) => ({
+                        ...prev,
+                        password: event.target.value,
+                      }))
+                    }
+                    required
+                    className="w-full px-3 pr-11 py-2 rounded-xl border border-stone-200 bg-white text-[13px] text-stone-800 placeholder:text-stone-300 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-50 [font-family:var(--font-dmsans)]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowCreatePassword(
+                        (previousValue) => !previousValue,
+                      )
+                    }
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg border border-stone-200 text-stone-500 hover:text-stone-700 hover:bg-stone-100 transition-colors flex items-center justify-center"
+                    aria-label={
+                      showCreatePassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showCreatePassword ? <EyeOff size={13} /> : <Eye size={13} />}
+                  </button>
+                </div>
               </div>
 
               {createError && (
@@ -381,7 +423,10 @@ export default function OperatorsPageClient() {
                 <button
                   type="button"
                   disabled={isCreating}
-                  onClick={() => setIsCreateOpen(false)}
+                  onClick={() => {
+                    setShowCreatePassword(false);
+                    setIsCreateOpen(false);
+                  }}
                   className="px-4 py-2 rounded-xl border border-stone-200 text-[13px] font-medium text-stone-600 hover:bg-stone-100 transition-colors [font-family:var(--font-dmsans)]"
                 >
                   Cancel

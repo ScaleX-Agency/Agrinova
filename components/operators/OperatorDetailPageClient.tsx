@@ -28,6 +28,7 @@ interface OperatorDetailApiResponse {
 interface EditOperatorForm {
   firstName: string;
   lastName: string;
+  email: string;
   password: string;
 }
 
@@ -60,6 +61,7 @@ export default function OperatorDetailPageClient({
   const [form, setForm] = useState<EditOperatorForm>({
     firstName: "",
     lastName: "",
+    email: "",
     password: "",
   });
 
@@ -96,6 +98,7 @@ export default function OperatorDetailPageClient({
       setForm({
         firstName: data.operator.first_name,
         lastName: data.operator.last_name,
+        email: data.operator.username,
         password: "",
       });
     } catch (error: unknown) {
@@ -125,6 +128,7 @@ export default function OperatorDetailPageClient({
       const payload = {
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
+        email: form.email.trim().toLowerCase(),
         ...(form.password.trim() ? { password: form.password } : {}),
       };
 
@@ -228,6 +232,9 @@ export default function OperatorDetailPageClient({
           <h1 className="mt-2 text-[26px] font-semibold text-stone-900 [font-family:var(--font-playfair)] leading-tight">
             {operator.full_name}
           </h1>
+          <p className="mt-1 text-[12px] text-blue-700 [font-family:var(--font-jetbrains)]">
+            User ID: {operator.user_id}
+          </p>
           <p className="text-[13px] text-stone-400 mt-1 [font-family:var(--font-dmsans)]">
             Update operator profile details or remove this account.
           </p>
@@ -317,9 +324,13 @@ export default function OperatorDetailPageClient({
                 Email
               </label>
               <input
-                value={operator.username}
-                disabled
-                className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-stone-50 text-[13px] text-stone-500 [font-family:var(--font-dmsans)]"
+                type="email"
+                value={form.email}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, email: event.target.value }))
+                }
+                required
+                className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-white text-[13px] text-stone-800 placeholder:text-stone-300 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-50 [font-family:var(--font-dmsans)]"
               />
             </div>
 
@@ -347,6 +358,7 @@ export default function OperatorDetailPageClient({
                   setForm({
                     firstName: operator.first_name,
                     lastName: operator.last_name,
+                    email: operator.username,
                     password: "",
                   });
                   setSaveError("");
@@ -366,6 +378,15 @@ export default function OperatorDetailPageClient({
           </form>
         ) : (
           <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
+              <p className="text-[10.5px] uppercase tracking-[0.1em] text-stone-400 [font-family:var(--font-dmsans)]">
+                User ID
+              </p>
+              <p className="mt-1 text-[12px] text-blue-700 [font-family:var(--font-jetbrains)]">
+                {operator.user_id}
+              </p>
+            </div>
+
             <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
               <p className="text-[10.5px] uppercase tracking-[0.1em] text-stone-400 [font-family:var(--font-dmsans)]">
                 Full Name
