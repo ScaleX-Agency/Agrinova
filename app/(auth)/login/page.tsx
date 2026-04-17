@@ -490,7 +490,6 @@ export default function LoginPage() {
                   backgroundColor: "var(--color-bg)",
                   color: "var(--color-text-primary)",
                 }}
-                placeholder="••••••••"
               />
               {passwordForm.formState.errors.password && (
                 <span
