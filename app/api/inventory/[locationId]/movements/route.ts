@@ -10,7 +10,7 @@ interface Props {
   params: Promise<{ locationId: string }>;
 }
 
-export async function GET(_req: Request, { params }: Props) {
+export async function GET(req: Request, { params }: Props) {
   const { locationId } = await params;
   const id = Number(locationId);
 
@@ -19,8 +19,14 @@ export async function GET(_req: Request, { params }: Props) {
   }
 
   try {
-    const movements = await getMovementsByLocation(id);
-    return NextResponse.json({ movements });
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const pageSize = parseInt(searchParams.get("pageSize") || "20", 10);
+    const movement_type = searchParams.get("movement_type") || undefined;
+    const search = searchParams.get("search") || undefined;
+
+    const data = await getMovementsByLocation(id, page, pageSize, { movement_type, search });
+    return NextResponse.json({ items: data.items, pagination: data.pagination });
   } catch (err) {
     console.error(`[GET /api/inventory/${id}/movements]`, err);
     return NextResponse.json({ error: "Failed to fetch movements" }, { status: 500 });

@@ -283,27 +283,28 @@ function greeting() {
 
 export default function DashboardPage() {
   // ── Real data via React Query (no mock constants) ─────────
-  const { data: stock      = [] } = useAllStock();
+  const { data: stockResponse = { stock: [], pagination: { total: 0 } } } = useAllStock();
+  const stock = stockResponse.stock;
   const { data: summaries  = [] } = useLocationSummaries();
-  const { data: allMovements = [] } = useAllMovements();
+  const { data: allMovements = { items: [], pagination: { total: 0 } } as any } = useAllMovements();
   const qc = useQueryClient();
 
   const [showMovModal, setShowMovModal] = useState(false);
   const [movements, setMovements]       = useState<MovementRow[]>([]);
 
   // Sync incoming React Query movements to local list for instant row animation
-  const displayMovements = movements.length > 0 ? movements : allMovements.slice(0, 5);
+  const displayMovements = movements.length > 0 ? movements : (allMovements.items || []).slice(0, 5);
 
   const today = new Date().toLocaleDateString("en-GB", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
 
   const stats = useMemo(() => ({
-    totalProducts: stock.length,
-    totalUnits:    stock.reduce((a, b) => a + b.quantity_on_hand, 0),
-    lowCount:      stock.filter((r) => r.status === "low").length,
-    outCount:      stock.filter((r) => r.status === "out").length,
-  }), [stock]);
+    totalProducts: summaries.reduce((acc, s) => acc + s.total_products, 0) || stockResponse.pagination.total,
+    totalUnits:    summaries.reduce((acc, s) => acc + Number(s.total_units), 0),
+    lowCount:      summaries.reduce((acc, s) => acc + Number(s.low_count), 0),
+    outCount:      summaries.reduce((acc, s) => acc + Number(s.out_count), 0),
+  }), [summaries, stockResponse.pagination.total]);
 
   const handleMovSaved = (mov: MovementRow) => {
     setMovements((prev) => [mov, ...prev].slice(0, 5));
@@ -388,7 +389,7 @@ export default function DashboardPage() {
             </thead>
             <tbody>
               <AnimatePresence initial={false}>
-                {displayMovements.map((m) => {
+                {displayMovements.map((m: MovementRow) => {
                   const isNeg = m.qty_delta < 0;
                   return (
                     <motion.tr

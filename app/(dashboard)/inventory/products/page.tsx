@@ -3,12 +3,15 @@
 import { Plus } from "lucide-react";
 import ProductsPageClient from "@/components/ProductsPage";
 import type { Metadata } from "next";
-import { getAllProducts } from "@/lib/inventoryService";
+import { getAllProducts, getProductStats } from "@/lib/inventoryService";
 
 export const metadata: Metadata = { title: "Products" };
 
 export default async function ProductsRoute() {
-  const products = await getAllProducts();
+  const [products, stats] = await Promise.all([
+    getAllProducts(),
+    getProductStats()
+  ]);
 
   return (
     <div className="space-y-6">
@@ -31,7 +34,7 @@ export default async function ProductsRoute() {
       </div>
 
       {/* ── Client page ── */}
-      <ProductsPageClient initialProducts={products} />
+      <ProductsPageClient initialProducts={{ ...products, stats } as any} />
     </div>
   );
 }

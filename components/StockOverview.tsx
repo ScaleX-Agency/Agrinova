@@ -33,24 +33,20 @@ import type {
 } from "@/types/inventory";
 
 interface StockOverviewProps {
-  initialStock?:     StockOverviewRow[];
+  initialStock?:     { stock: StockOverviewRow[], pagination: any };
   initialSummaries?: LocationSummary[];
-  initialMovements?: MovementRow[];
+  initialMovements?: { items: MovementRow[], pagination: any };
 }
 
 export default function StockOverview({
-  initialStock     = [],
+  initialStock     = { stock: [], pagination: { total: 0 } },
   initialSummaries = [],
-  initialMovements = [],
+  initialMovements = { items: [], pagination: { total: 0 } },
 }: StockOverviewProps) {
 
   const qc = useQueryClient();
 
   // ── Data from React Query (seeded by RSC initialData) ────────
-  const { data: stock     = [] } = useAllStock(initialStock);
-  const { data: summaries = [] } = useLocationSummaries(initialSummaries);
-  const { data: movements = [] } = useAllMovements(initialMovements);
-
   // ── UI-only state ─────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<"overview" | "movements">(
     "overview",
@@ -60,41 +56,46 @@ export default function StockOverview({
     search:      "",
     status:      "all",
   });
+  
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
+  const { data: stockResponse = { stock: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 1 } } } = useAllStock(
+    { page, pageSize, search: filter.search, status: filter.status, location_id: filter.location_id || undefined }, 
+    initialStock
+  );
+  const stock = stockResponse.stock;
+
+  const { data: summaries = [] } = useLocationSummaries(initialSummaries);
+  const [movementsPage, setMovementsPage] = useState(1);
+  const movementsPageSize = 20;
+  const [movTypeFilter, setMovTypeFilter] = useState<any>("ALL");
+
+  const { data: movements = { items: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 1 } } } = useAllMovements(
+    { page: movementsPage, pageSize: movementsPageSize, movement_type: movTypeFilter !== "ALL" ? movTypeFilter : undefined }, 
+    initialMovements
+  );
   const [movementTarget, setMovementTarget] = useState<StockOverviewRow | null>(null);
   const [showNewStock,   setShowNewStock]   = useState(false);
   const [showImport,     setShowImport]     = useState(false);
 
   // ── Derived data ──────────────────────────────────────────────
-  const filteredStock = useMemo(
-    () =>
-      stock.filter((row) => {
-        const matchLoc    = filter.location_id == null || row.location_id === filter.location_id;
-        const matchSearch = !filter.search ||
-          row.product_name.toLowerCase().includes(filter.search.toLowerCase()) ||
-          row.product_code.toLowerCase().includes(filter.search.toLowerCase());
-        const matchStatus = filter.status === "all" || row.status === filter.status;
-        return matchLoc && matchSearch && matchStatus;
-      }),
-    [stock, filter],
-  );
+  // The server now handles filtering. stock contains the paginated+filtered rows.
+  const filteredStock = stock;
 
   const stats = useMemo(() => ({
-    totalProducts: stock.length,
-    totalUnits:    stock.reduce((a, b) => a + b.quantity_on_hand, 0),
-    lowCount:      stock.filter((r) => r.status === "low").length,
-    outCount:      stock.filter((r) => r.status === "out").length,
-  }), [stock]);
+    totalProducts: summaries.reduce((acc, s) => acc + s.total_products, 0) || stockResponse.pagination.total,
+    totalUnits:    summaries.reduce((acc, s) => acc + Number(s.total_units), 0),
+    lowCount:      summaries.reduce((acc, s) => acc + Number(s.low_count), 0),
+    outCount:      summaries.reduce((acc, s) => acc + Number(s.out_count), 0),
+  }), [summaries, stockResponse.pagination.total]);
 
   // ── Cache update helpers (passed to modals) ───────────────────
   // Modals keep their existing callback signatures — we just mirror the
   // update into the RQ cache and fire an invalidation for server sync.
 
   const handleMovementSaved = (updated: StockOverviewRow, newMov: MovementRow) => {
-    qc.setQueryData<StockOverviewRow[]>(KEYS.allStock, (old) =>
-      old?.map((r) => (r.stock_id === updated.stock_id ? updated : r)) ?? [updated],
-    );
-    qc.setQueryData<MovementRow[]>(KEYS.allMovements, (old) => [newMov, ...(old ?? [])]);
-    // Background server sync
+    // Invalidate instead of manually updating to support pagination
     qc.invalidateQueries({ queryKey: ["stock"] });
     qc.invalidateQueries({ queryKey: ["movements"] });
   };
@@ -103,19 +104,7 @@ export default function StockOverview({
     updatedRows: StockOverviewRow[],
     newMovements: MovementRow[],
   ) => {
-    qc.setQueryData<StockOverviewRow[]>(KEYS.allStock, (old) => {
-      const next = [...(old ?? [])];
-      for (const row of updatedRows) {
-        const idx = next.findIndex((r) => r.stock_id === row.stock_id);
-        if (idx >= 0) next[idx] = row;
-        else next.push(row);
-      }
-      return next;
-    });
-    qc.setQueryData<MovementRow[]>(KEYS.allMovements, (old) => [
-      ...newMovements,
-      ...(old ?? []),
-    ]);
+    // Invalidate instead of manually updating to support pagination
     qc.invalidateQueries({ queryKey: ["stock"] });
     qc.invalidateQueries({ queryKey: ["movements"] });
   };
@@ -209,13 +198,31 @@ export default function StockOverview({
         <StockTable
           rows={filteredStock}
           filter={filter}
-          onFilterChange={setFilter}
+          onFilterChange={(f) => { setFilter(f); setPage(1); }}
           onRecordMovement={setMovementTarget}
           onNewStockEntry={() => setShowNewStock(true)}
+          pagination={{
+            page,
+            pageSize,
+            total: stockResponse.pagination.total,
+            setPage,
+          }}
         />
       )}
 
-      {activeTab === "movements" && <MovementsLog movements={movements} />}
+      {activeTab === "movements" && (
+        <MovementsLog 
+          movements={movements.items} 
+          filterType={movTypeFilter}
+          onFilterChange={(t) => { setMovTypeFilter(t); setMovementsPage(1); }}
+          pagination={{
+            page: movementsPage,
+            pageSize: movementsPageSize,
+            total: movements.pagination.total,
+            setPage: setMovementsPage
+          }}
+        />
+      )}
 
       {/* ── Modals ── */}
       {movementTarget && (

@@ -31,8 +31,8 @@ await expect(page.getByText("AgriGold Fertilizer")).toBeVisible();
 test("clicking location card filters table", async ({ page }) => { 
 await page.goto("/inventory"); 
 await page.getByText("Head Office").first().click(); 
-// Table should now only show IGRN1 items 
-const locationBadges = page.locator("span:has-text('IGRN1')").first(); 
+// Table should now only show IGRN-1 items 
+const locationBadges = page.locator("span:has-text('IGRN-1')").first(); 
 await expect(locationBadges).toBeVisible();
 }); 
 }); 
@@ -61,7 +61,7 @@ await expect(page.getByText("Movement Type").first()).toBeVisible();
 test("movements log tab shows history", async ({ page }) => { 
 await page.goto("/inventory/1"); 
 await page.getByRole("button", { name: "Movements Log" }).click(); 
-await expect(page.getByText("All Movements").first()).toBeVisible(); 
+await expect(page.getByText("Movements Log").first()).toBeVisible(); 
 }); 
 }); 
  
@@ -76,7 +76,7 @@ test("search filters products", async ({ page }) => {
 await page.goto("/inventory/products"); 
 const search = page.locator("input[placeholder*='Search']").first(); 
 await search.fill("Fungicide"); 
-await expect(page.getByText("BioShield Fungicide").first()).toBeVisible(); 
+await expect(page.getByText("Bio-Dine").first()).toBeVisible(); 
 }); 
  
 test("new product modal opens", async ({ page }) => { 

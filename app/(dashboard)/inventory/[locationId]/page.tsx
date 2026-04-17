@@ -28,7 +28,7 @@ export default async function LocationStockRoute({ params }: Props) {
   if (!loc) notFound();
 
   // Both calls hit unstable_cache — fast on repeated visits
-  const [stock, movements] = await Promise.all([
+  const [stock, movementsResult] = await Promise.all([
     getStockByLocation(id),
     getMovementsByLocation(id),
   ]);
@@ -38,8 +38,8 @@ export default async function LocationStockRoute({ params }: Props) {
       locationId={id}
       locationCode={loc.code}
       locationName={loc.name}
-      initialStock={stock}       // seeds useLocationStock(id) cache
-      initialMovements={movements} // seeds useLocationMovements(id) cache
+      initialStock={stock as any}
+      initialMovements={movementsResult as any}
     />
   );
 }

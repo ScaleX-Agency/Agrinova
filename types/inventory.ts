@@ -26,6 +26,16 @@ low_count: number;
 out_count: number; 
 } 
  
+export interface PaginatedResult<T> {
+  items: T[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export interface MovementRow { 
 movement_id: number; 
 movement_date: string; // ISO string 

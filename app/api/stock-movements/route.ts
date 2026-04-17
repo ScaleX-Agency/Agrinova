@@ -6,10 +6,17 @@ import { NextResponse } from "next/server";
 import { getAllMovements, createMovement } from "@/lib/inventoryService";
 import type { CreateMovementDto } from "@/types/inventory";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const movements = await getAllMovements();
-    return NextResponse.json({ movements });
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const pageSize = parseInt(searchParams.get("pageSize") || "20", 10);
+    const movement_type = searchParams.get("movement_type") || undefined;
+    const search = searchParams.get("search") || undefined;
+    const location_id = searchParams.get("location_id") ? parseInt(searchParams.get("location_id") as string, 10) : undefined;
+
+    const data = await getAllMovements(page, pageSize, { movement_type, search, location_id });
+    return NextResponse.json({ items: data.items, pagination: data.pagination });
   } catch (err) {
     console.error("[GET /api/stock-movements]", err);
     return NextResponse.json({ error: "Failed to fetch movements" }, { status: 500 });

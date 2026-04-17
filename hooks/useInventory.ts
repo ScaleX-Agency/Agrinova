@@ -13,11 +13,11 @@ import type {
 // ── Query key registry ────────────────────────────────────────
 // Centralised so invalidation is consistent everywhere.
 export const KEYS = {
-  allStock:          ["stock", "all"]         as const,
+  allStock:          (filters?: any) => ["stock", "all", filters] as const,
   summaries:         ["stock", "summaries"]   as const,
-  allMovements:      ["movements", "all"]     as const,
-  locationStock:     (id: number) => ["stock",     "location", id] as const,
-  locationMovements: (id: number) => ["movements", "location", id] as const,
+  allMovements:      (filters?: any) => ["movements", "all", filters] as const,
+  locationStock:     (id: number, filters?: any) => ["stock",     "location", id, filters] as const,
+  locationMovements: (id: number, filters?: any) => ["movements", "location", id, filters] as const,
   products:          ["products"]             as const,
 };
 
@@ -45,10 +45,22 @@ async function fetchJSON<T>(url: string): Promise<T> {
  * All stock across all locations.
  * `initialData` is passed from the RSC page so there's no loading flash on first visit.
  */
-export function useAllStock(initialData?: StockOverviewRow[]) {
+export function useAllStock(
+  params: { page?: number; pageSize?: number; search?: string; location_id?: number; status?: string } = {},
+  initialData?: { stock: StockOverviewRow[], pagination: any }
+) {
   return useQuery({
-    queryKey: KEYS.allStock,
-    queryFn:  () => fetchJSON<{ stock: StockOverviewRow[] }>("/api/inventory").then((d) => d.stock),
+    queryKey: KEYS.allStock(params),
+    queryFn:  () => {
+      const searchParams = new URLSearchParams();
+      if (params.page) searchParams.set("page", params.page.toString());
+      if (params.pageSize) searchParams.set("pageSize", params.pageSize.toString());
+      if (params.search) searchParams.set("search", params.search);
+      if (params.location_id) searchParams.set("location_id", params.location_id.toString());
+      if (params.status && params.status !== "all") searchParams.set("status", params.status);
+
+      return fetchJSON<{ stock: StockOverviewRow[], pagination: any }>(`/api/inventory?${searchParams.toString()}`);
+    },
     initialData,
     staleTime: 30_000,
   });
@@ -69,11 +81,22 @@ export function useLocationSummaries(initialData?: LocationSummary[]) {
 /**
  * Stock for a single location.
  */
-export function useLocationStock(locationId: number, initialData?: StockOverviewRow[]) {
+export function useLocationStock(
+  locationId: number,
+  params: { page?: number; pageSize?: number; search?: string; status?: string } = {},
+  initialData?: { stock: StockOverviewRow[], pagination: any }
+) {
   return useQuery({
-    queryKey: KEYS.locationStock(locationId),
-    queryFn:  () =>
-      fetchJSON<{ stock: StockOverviewRow[] }>(`/api/inventory/${locationId}`).then((d) => d.stock),
+    queryKey: KEYS.locationStock(locationId, params),
+    queryFn:  () => {
+      const searchParams = new URLSearchParams();
+      if (params.page) searchParams.set("page", params.page.toString());
+      if (params.pageSize) searchParams.set("pageSize", params.pageSize.toString());
+      if (params.search) searchParams.set("search", params.search);
+      if (params.status && params.status !== "all") searchParams.set("status", params.status);
+
+      return fetchJSON<{ stock: StockOverviewRow[], pagination: any }>(`/api/inventory/${locationId}?${searchParams.toString()}`);
+    },
     initialData,
     staleTime: 30_000,
     enabled: locationId > 0,
@@ -82,14 +105,26 @@ export function useLocationStock(locationId: number, initialData?: StockOverview
 
 // ── Movements hooks ───────────────────────────────────────────
 
+import type { PaginatedResult } from "@/types/inventory";
+
 /**
- * Full movements log (latest 200).
+ * Full movements log
  */
-export function useAllMovements(initialData?: MovementRow[]) {
+export function useAllMovements(
+  params: { page?: number; pageSize?: number; movement_type?: string; search?: string } = {},
+  initialData?: PaginatedResult<MovementRow>
+) {
   return useQuery({
-    queryKey: KEYS.allMovements,
-    queryFn:  () =>
-      fetchJSON<{ movements: MovementRow[] }>("/api/stock-movements").then((d) => d.movements),
+    queryKey: KEYS.allMovements(params),
+    queryFn:  () => {
+      const searchParams = new URLSearchParams();
+      if (params.page) searchParams.set("page", params.page.toString());
+      if (params.pageSize) searchParams.set("pageSize", params.pageSize.toString());
+      if (params.movement_type && params.movement_type !== "ALL") searchParams.set("movement_type", params.movement_type);
+      if (params.search) searchParams.set("search", params.search);
+
+      return fetchJSON<PaginatedResult<MovementRow>>(`/api/stock-movements?${searchParams.toString()}`);
+    },
     initialData,
     staleTime: 30_000,
   });
@@ -98,13 +133,22 @@ export function useAllMovements(initialData?: MovementRow[]) {
 /**
  * Movements for a single location.
  */
-export function useLocationMovements(locationId: number, initialData?: MovementRow[]) {
+export function useLocationMovements(
+  locationId: number,
+  params: { page?: number; pageSize?: number; movement_type?: string; search?: string } = {},
+  initialData?: PaginatedResult<MovementRow>
+) {
   return useQuery({
-    queryKey: KEYS.locationMovements(locationId),
-    queryFn:  () =>
-      fetchJSON<{ movements: MovementRow[] }>(`/api/inventory/${locationId}/movements`).then(
-        (d) => d.movements,
-      ),
+    queryKey: KEYS.locationMovements(locationId, params),
+    queryFn:  () => {
+      const searchParams = new URLSearchParams();
+      if (params.page) searchParams.set("page", params.page.toString());
+      if (params.pageSize) searchParams.set("pageSize", params.pageSize.toString());
+      if (params.movement_type && params.movement_type !== "ALL") searchParams.set("movement_type", params.movement_type);
+      if (params.search) searchParams.set("search", params.search);
+
+      return fetchJSON<PaginatedResult<MovementRow>>(`/api/inventory/${locationId}/movements?${searchParams.toString()}`);
+    },
     initialData,
     staleTime: 30_000,
     enabled: locationId > 0,
@@ -121,63 +165,31 @@ export function useRecordMovement() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (dto: CreateMovementDto) =>
-      fetchJSON<{ updatedStock: { stock_id: number; quantity_on_hand: number }; movement_id: number }>(
-        // fetchJSON only does GET — use raw fetch for mutations
-        // (overriding here to avoid duplicating fetchJSON)
-        "/api/stock-movements" // handled in the block below
-      ).then(() => null as never), // placeholder — real call below
-
-    // Override the above with the real POST
-    // (React Query doesn't support async mutationFn override inline,
-    //  so we redefine properly:)
-    ...(true && {
-      mutationFn: async (dto: CreateMovementDto) => {
-        const res = await fetch("/api/stock-movements", {
-          method:  "POST",
-          headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify(dto),
-        });
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(body.error ?? "Failed to save movement");
-        }
-        return res.json() as Promise<{
-          updatedStock: { stock_id: number; quantity_on_hand: number };
-          movement_id:  number;
-        }>;
-      },
-    }),
+    mutationFn: async (dto: CreateMovementDto) => {
+      const res = await fetch("/api/stock-movements", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify(dto),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? "Failed to save movement");
+      }
+      return res.json() as Promise<{
+        updatedStock: { stock_id: number; quantity_on_hand: number };
+        movement_id:  number;
+      }>;
+    },
 
     onMutate: async (dto) => {
       // Prevent stale refetch overwriting our optimistic data
-      await qc.cancelQueries({ queryKey: KEYS.allStock });
+      await qc.cancelQueries({ queryKey: ["stock"] });
 
-      const prevStock = qc.getQueryData<StockOverviewRow[]>(KEYS.allStock);
-      const delta =
-        dto.movement_type === "ISSUE" || dto.movement_type === "ADJUSTMENT"
-          ? -dto.quantity
-          : dto.quantity;
-
-      // Apply optimistic update immediately
-      qc.setQueryData<StockOverviewRow[]>(KEYS.allStock, (old) =>
-        old?.map((r) =>
-          r.stock_id === dto.stock_id
-            ? {
-                ...r,
-                quantity_on_hand: Math.max(0, r.quantity_on_hand + delta),
-                status:           deriveStatus(r.quantity_on_hand + delta, r.reorder_threshold),
-              }
-            : r,
-        ) ?? [],
-      );
-
-      return { prevStock };
+      return {};
     },
 
     onError: (_, __, ctx) => {
-      // Rollback on failure
-      if (ctx?.prevStock) qc.setQueryData(KEYS.allStock, ctx.prevStock);
+      // no-op, just invalidate
     },
 
     onSettled: () => {

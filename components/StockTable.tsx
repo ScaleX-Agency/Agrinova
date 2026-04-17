@@ -3,6 +3,8 @@
 import { Search, ArrowLeftRight, Download } from "lucide-react";
 import { StockOverviewRow, StockFilter, StockStatus } from "@/types/inventory";
 import { useLocations } from "@/hooks/useInventory";
+import Pagination from "rc-pagination";
+import "rc-pagination/assets/index.css";
 
 const STATUS_CONFIG: Record<
   StockStatus,
@@ -37,6 +39,12 @@ interface Props {
   onFilterChange: (f: StockFilter) => void;
   onRecordMovement: (row: StockOverviewRow) => void;
   onNewStockEntry: () => void;
+  pagination?: {
+    page: number;
+    pageSize: number;
+    total: number;
+    setPage: (p: number) => void;
+  };
 }
 
 export default function StockTable({
@@ -44,9 +52,14 @@ export default function StockTable({
   filter,
   onFilterChange,
   onRecordMovement,
+  pagination,
 }: Props) {
-  const set = (k: keyof StockFilter, v: StockFilter[keyof StockFilter]) =>
+  const set = (k: keyof StockFilter, v: StockFilter[keyof StockFilter]) => {
     onFilterChange({ ...filter, [k]: v });
+    if (pagination) {
+      pagination.setPage(1);
+    }
+  };
 
   const { data: LOCATIONS = [] } = useLocations();
 
@@ -148,7 +161,7 @@ export default function StockTable({
             Inventory
           </span>
           <span className="text-[11px] text-stone-400 bg-stone-100 px-2.5 py-0.5 rounded-full">
-            {rows.length} items
+            {pagination?.total ?? rows.length} items
           </span>
         </div>
 
@@ -263,6 +276,22 @@ export default function StockTable({
             )}
           </tbody>
         </table>
+        
+        {/* Pagination Controls */}
+        {pagination && pagination.total > pagination.pageSize && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-stone-100 bg-stone-50">
+            <span className="text-[12px] text-stone-500">
+              Showing {(pagination.page - 1) * pagination.pageSize + 1} to {Math.min(pagination.page * pagination.pageSize, pagination.total)} of {pagination.total} entries
+            </span>
+            <Pagination
+              current={pagination.page}
+              total={pagination.total}
+              pageSize={pagination.pageSize}
+              onChange={(p) => pagination.setPage(p)}
+              className="text-[12px]"
+            />
+          </div>
+        )}
       </div>
     </>
   );

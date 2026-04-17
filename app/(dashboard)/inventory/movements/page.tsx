@@ -27,30 +27,32 @@ function fmtDate(iso: string) {
   });
 }
 
+import Pagination from "rc-pagination";
+import "rc-pagination/assets/index.css";
+
 export default function MovementsPage() {
-  const { data: movements = [], isLoading } = useAllMovements();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [typeFilter, setTypeFilter] = useState<FilterType>("ALL");
-  const [search,     setSearch]     = useState("");
+  const [search, setSearch] = useState("");
 
-  const filtered = useMemo(
-    () =>
-      movements.filter((m) => {
-        const matchType   = typeFilter === "ALL" || m.movement_type === typeFilter;
-        const q           = search.toLowerCase();
-        const matchSearch = !search ||
-          m.product_name.toLowerCase().includes(q) ||
-          m.product_code.toLowerCase().includes(q);
-        return matchType && matchSearch;
-      }),
-    [movements, typeFilter, search],
-  );
+  const { data: response = { items: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 1 } }, isLoading } = useAllMovements({
+    page,
+    pageSize,
+    movement_type: typeFilter !== "ALL" ? typeFilter : undefined,
+    search: search || undefined
+  });
 
+  const filtered = response.items || [];
+
+  // With pagination, total stats are only approximate for the current page unless fetched separately.
+  // For simplicity, we show current page stats here or omit them. We will show overall total from pagination.
   const stats = useMemo(() => ({
-    total:     movements.length,
-    issues:    movements.filter((m) => m.movement_type === "ISSUE").length,
-    purchases: movements.filter((m) => m.movement_type === "PURCHASE").length,
-    returns:   movements.filter((m) => m.movement_type === "RETURN").length,
-  }), [movements]);
+    total:     response.pagination.total,
+    issues:    filtered.filter((m: MovementRow) => m.movement_type === "ISSUE").length,
+    purchases: filtered.filter((m: MovementRow) => m.movement_type === "PURCHASE").length,
+    returns:   filtered.filter((m: MovementRow) => m.movement_type === "RETURN").length,
+  }), [response, filtered]);
 
   return (
     <div className="space-y-5">
@@ -97,14 +99,14 @@ export default function MovementsPage() {
             className="w-full pl-9 pr-3 py-2 text-[13px] border border-stone-200 rounded-xl bg-white placeholder:text-stone-300 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-50 transition-all [font-family:var(--font-dmsans)]"
             placeholder="Search product…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           />
         </div>
         <div className="flex border border-stone-200 rounded-xl overflow-hidden bg-white">
           {TYPES.map((t) => (
             <button
               key={t}
-              onClick={() => setTypeFilter(t)}
+              onClick={() => { setTypeFilter(t); setPage(1); }}
               className={`px-3 py-2 text-[12px] font-medium border-r border-stone-200 last:border-r-0 transition-colors [font-family:var(--font-dmsans)] ${
                 typeFilter === t ? "bg-green-700 text-white" : "text-stone-500 hover:bg-stone-50"
               }`}
@@ -166,7 +168,7 @@ export default function MovementsPage() {
                 </td>
               </tr>
             ) : (
-              filtered.map((m) => {
+              filtered.map((m: MovementRow) => {
                 const isNeg = m.qty_delta < 0;
                 return (
                   <tr key={m.movement_id} className="border-b border-stone-50 last:border-b-0 hover:bg-stone-50/60 transition-colors">
@@ -204,6 +206,22 @@ export default function MovementsPage() {
             )}
           </tbody>
         </table>
+        
+        {/* Pagination Controls */}
+        {response.pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between px-5 py-3 border-t border-stone-100 bg-stone-50">
+            <span className="text-[12px] text-stone-500 [font-family:var(--font-dmsans)]">
+              Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, response.pagination.total)} of {response.pagination.total} entries
+            </span>
+            <Pagination
+              current={page}
+              total={response.pagination.total}
+              pageSize={pageSize}
+              onChange={(p) => setPage(p)}
+              className="text-[12px] [font-family:var(--font-dmsans)]"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

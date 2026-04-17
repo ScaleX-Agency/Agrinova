@@ -1,8 +1,10 @@
 "use client";
 // src/components/ProductsPage.tsx
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Pagination from "rc-pagination";
+import "rc-pagination/assets/index.css";
 import {
   Search,
   Plus,
@@ -78,44 +80,63 @@ function StatCard({
 
 // ── Main component ────────────────────────────────────────────
 
-export default function ProductsPage({ initialProducts }: { initialProducts: Product[] }) {
-  const [products, setProducts] = useState<Product[]>(initialProducts);
+export default function ProductsPage({ initialProducts }: { initialProducts: { items: Product[], pagination: any, stats: any } | Product[] }) {
   const [search, setSearch] = useState("");
-  const [catFilter, setCatFilter] = useState("ALL");
+  const [catFilter, setCatFilter] = useState<number | "ALL">("ALL");
   const [showAdd, setShowAdd] = useState(false);
   const [editTarget, setEditTarget] = useState<Product | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const categories = [
-    "ALL",
-    ...Array.from(new Set(products.map((p) => p.category.name))),
-  ];
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
-  const filtered = useMemo(
-    () =>
-      products.filter((p) => {
-        const q = search.toLowerCase();
-        const matchSearch =
-          !search ||
-          p.product_name.toLowerCase().includes(q) ||
-          p.product_code.toLowerCase().includes(q);
-        const matchCat = catFilter === "ALL" || p.category.name === catFilter;
-        return matchSearch && matchCat;
-      }),
-    [products, search, catFilter],
-  );
+  const isPaginated = !Array.isArray(initialProducts) && "items" in initialProducts;
+  const initialItems = isPaginated ? (initialProducts as any).items : (initialProducts as Product[]);
+  const initialTotal = isPaginated ? (initialProducts as any).pagination.total : initialItems.length;
+
+  const [products, setProducts] = useState<Product[]>(initialItems);
+  const [totalProducts, setTotalProducts] = useState(initialTotal);
+
+  const [categories, setCategories] = useState<{id: number | "ALL", name: string}[]>([{ id: "ALL", name: "All" }]);
+
+  useEffect(() => {
+    fetch("/api/categories")
+      .then(res => res.json())
+      .then(data => {
+         if (data && data.categories) {
+            setCategories([{ id: "ALL", name: "All" }, ...data.categories.map((c: any) => ({ id: c.category_id, name: c.name }))]);
+         }
+      })
+      .catch(console.error);
+  }, []);
+
+  const initialStats = isPaginated ? (initialProducts as any).stats : { avgPrice: 0, maxPrice: 0 };
+  const [globalStats, setGlobalStats] = useState(initialStats);
+
+  useEffect(() => {
+    const sp = new URLSearchParams();
+    sp.set("page", String(page));
+    sp.set("pageSize", String(pageSize));
+    if (search) sp.set("search", search);
+    if (catFilter !== "ALL") sp.set("category_id", String(catFilter));
+    
+    fetch(`/api/products?${sp.toString()}`)
+      .then(res => res.json())
+      .then(data => {
+         if (data.products) setProducts(data.products);
+         if (data.pagination) setTotalProducts(data.pagination.total);
+         if (data.stats) setGlobalStats(data.stats);
+      })
+      .catch(console.error);
+  }, [page, pageSize, search, catFilter]);
+
+  const filtered = products;
 
   // Stats
-  const avgPrice = products.length
-    ? Math.round(
-        products.reduce((s, p) => s + p.selling_price, 0) / products.length,
-      )
-    : 0;
-  const maxPrice = products.length
-    ? Math.max(...products.map((p) => p.selling_price))
-    : 0;
-  const uniqueCats = new Set(products.map((p) => p.category.name)).size;
+  const avgPrice = globalStats.avgPrice ? Math.round(globalStats.avgPrice) : 0;
+  const maxPrice = globalStats.maxPrice ? Math.round(globalStats.maxPrice) : 0;
+  const uniqueCats = categories.length > 1 ? categories.length - 1 : 0;
 
   const [deleteError, setDeleteError] = useState("");
 
@@ -149,7 +170,7 @@ export default function ProductsPage({ initialProducts }: { initialProducts: Pro
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
           icon={<Package size={16} className="text-green-700" />}
-          value={String(products.length)}
+          value={String(totalProducts)}
           label="Total Products"
           accent="bg-green-50 border-green-100"
         />
@@ -185,7 +206,7 @@ export default function ProductsPage({ initialProducts }: { initialProducts: Pro
             className="w-full pl-9 pr-3 py-2 text-[13px] border border-stone-200 rounded-xl bg-white text-stone-800 placeholder:text-stone-300 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-50 transition-all [font-family:var(--font-dmsans)]"
             placeholder="Search by name or code…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           />
         </div>
 
@@ -193,20 +214,28 @@ export default function ProductsPage({ initialProducts }: { initialProducts: Pro
         <div className="flex gap-1.5 flex-wrap">
           {categories.map((c) => (
             <button
-              key={c}
-              onClick={() => setCatFilter(c)}
+              key={c.id}
+              onClick={() => { setCatFilter(c.id); setPage(1); }}
               className={`px-3 py-1.5 rounded-full border text-[12px] font-medium transition-all [font-family:var(--font-dmsans)] whitespace-nowrap ${
-                catFilter === c
+                catFilter === c.id
                   ? "bg-green-700 text-white border-green-700"
                   : "bg-white text-stone-500 border-stone-200 hover:border-green-300 hover:text-green-700"
               }`}
             >
-              {c === "ALL" ? "All" : c}
+              {c.name}
             </button>
           ))}
         </div>
 
-        {/* Export */}
+        {/* Actions */}
+        <div className="flex items-center gap-2 ml-auto">
+          <button
+            onClick={() => setShowAdd(true)}
+            className="flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-white bg-green-700 border border-transparent rounded-xl hover:bg-green-800 transition-colors [font-family:var(--font-dmsans)]"
+          >
+            <Plus size={12} /> New Product
+          </button>
+          
         <button
           onClick={() => {
             import("@/lib/exportCsv").then(({ exportToCsv }) => {
@@ -240,10 +269,11 @@ export default function ProductsPage({ initialProducts }: { initialProducts: Pro
               }
             });
           }}
-          className="ml-auto flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-stone-500 border border-stone-200 rounded-xl bg-white hover:bg-stone-50 transition-colors [font-family:var(--font-dmsans)]"
+          className="flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-stone-500 border border-stone-200 rounded-xl bg-white hover:bg-stone-50 transition-colors [font-family:var(--font-dmsans)]"
         >
           <Download size={12} /> Export
         </button>
+        </div>
       </div>
 
       {/* ── Table ── */}
@@ -282,7 +312,7 @@ export default function ProductsPage({ initialProducts }: { initialProducts: Pro
           </thead>
           <tbody>
             <AnimatePresence initial={false}>
-              {filtered.length === 0 ? (
+              {products.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-14 text-center">
                     <div className="text-3xl mb-3">📦</div>
@@ -295,7 +325,7 @@ export default function ProductsPage({ initialProducts }: { initialProducts: Pro
                   </td>
                 </tr>
               ) : (
-                filtered.map((p) => (
+                products.map((p) => (
                   <motion.tr
                     key={p.product_id}
                     initial={{ opacity: 0 }}
@@ -369,6 +399,22 @@ export default function ProductsPage({ initialProducts }: { initialProducts: Pro
             </AnimatePresence>
           </tbody>
         </table>
+        
+        {/* Pagination Controls */}
+        {totalProducts > pageSize && (
+          <div className="flex items-center justify-between px-5 py-3 border-t border-stone-100 bg-stone-50">
+            <span className="text-[12px] text-stone-500 [font-family:var(--font-dmsans)]">
+              Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, totalProducts)} of {totalProducts} entries
+            </span>
+            <Pagination
+              current={page}
+              total={totalProducts}
+              pageSize={pageSize}
+              onChange={(p) => setPage(p)}
+              className="text-[12px] [font-family:var(--font-dmsans)]"
+            />
+          </div>
+        )}
       </div>
 
       {/* ── Add Product Modal ── */}

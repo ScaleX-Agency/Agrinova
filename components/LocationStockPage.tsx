@@ -1,7 +1,7 @@
 "use client";
 // src/components/LocationStockPage.tsx
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import {
@@ -53,8 +53,8 @@ interface Props {
   locationId: number;
   locationCode: string;
   locationName: string;
-  initialStock?: StockRow[];
-  initialMovements?: MovementRow[];
+  initialStock?: { stock: StockRow[], pagination: any };
+  initialMovements?: { items: MovementRow[], pagination: any };
 }
 
 // ── Style maps ────────────────────────────────────────────────
@@ -378,44 +378,84 @@ function RecordMovementModal({
 
 // ── Main Page Component ───────────────────────────────────────
 
+import Pagination from "rc-pagination";
+import "rc-pagination/assets/index.css";
+
 export default function LocationStockPage({
   locationId,
   locationCode,
   locationName,
-  initialStock = [],
-  initialMovements = [],
+  initialStock = { items: [], pagination: { total: 0 } } as any,
+  initialMovements = { items: [], pagination: { total: 0 } },
 }: Props) {
-  const [stock, setStock] = useState<StockRow[]>(initialStock);
-  const [movements, setMovements] = useState<MovementRow[]>(initialMovements);
+  const isPaginated = !Array.isArray(initialStock) && ("items" in initialStock || "stock" in initialStock);
+  const initStockItems = isPaginated ? ((initialStock as any).items || (initialStock as any).stock) : (initialStock as any);
+  const initStockTotal = isPaginated ? initialStock.pagination?.total : initStockItems?.length;
+
+  const [stock, setStock] = useState<StockRow[]>(initStockItems || []);
+  const [stockPage, setStockPage] = useState(1);
+  const [stockPageSize, setStockPageSize] = useState(20);
+  const [stockTotal, setStockTotal] = useState(initStockTotal || 0);
+
+  const [movements, setMovements] = useState<MovementRow[]>(initialMovements.items);
+  const [movementsPage, setMovementsPage] = useState(1);
+  const [movementsPageSize, setMovementsPageSize] = useState(20);
+  const [movementsTotal, setMovementsTotal] = useState(initialMovements.pagination?.total || 0);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<
     "all" | "ok" | "low" | "out"
   >("all");
   const [activeTab, setActiveTab] = useState<"stock" | "movements">("stock");
+
+  // Fetch stock when page changes
+  useEffect(() => {
+    if (activeTab === "stock") {
+      const sp = new URLSearchParams();
+      sp.set("page", String(stockPage));
+      sp.set("pageSize", String(stockPageSize));
+      if (search) sp.set("search", search);
+      if (statusFilter !== "all") sp.set("status", statusFilter);
+
+      fetch(`/api/inventory/${locationId}?${sp.toString()}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.stock) {
+            setStock(data.stock);
+            if (data.pagination) setStockTotal(data.pagination.total);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [locationId, activeTab, stockPage, stockPageSize, search, statusFilter]);
+
+  // Fetch movements when page changes
+  useEffect(() => {
+    if (activeTab === "movements") {
+      fetch(`/api/inventory/${locationId}/movements?page=${movementsPage}&pageSize=${movementsPageSize}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.items) {
+            setMovements(data.items);
+            if (data.pagination) setMovementsTotal(data.pagination.total);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [locationId, activeTab, movementsPage, movementsPageSize]);
+
   const [movTarget, setMovTarget] = useState<StockRow | null>(null);
 
-  const filtered = useMemo(
-    () =>
-      stock.filter((r) => {
-        const q = search.toLowerCase();
-        const matchSearch =
-          !search ||
-          r.product_name.toLowerCase().includes(q) ||
-          r.product_code.toLowerCase().includes(q);
-        const matchStatus = statusFilter === "all" || r.status === statusFilter;
-        return matchSearch && matchStatus;
-      }),
-    [stock, search, statusFilter],
-  );
+  const filtered = stock; // Filtering is handled server-side now via the useEffect
 
   const stats = useMemo(
     () => ({
-      total: stock.length,
-      units: stock.reduce((a, b) => a + b.quantity_on_hand, 0),
+      totalProducts: stockTotal,
+      totalUnits: stock.reduce((a, b) => a + b.quantity_on_hand, 0), // Approximation for current page
       low: stock.filter((r) => r.status === "low").length,
       out: stock.filter((r) => r.status === "out").length,
     }),
-    [stock],
+    [stock, stockTotal],
   );
 
   const handleMovSaved = (updated: StockRow, newMov: MovementRow) => {
@@ -467,13 +507,13 @@ export default function LocationStockPage({
         {[
           {
             label: "Products",
-            value: stats.total,
+            value: stats.totalProducts,
             icon: <Package size={16} className="text-green-700" />,
             accent: "bg-green-50 border-green-100",
           },
           {
             label: "Total Units",
-            value: stats.units.toLocaleString(),
+            value: stats.totalUnits.toLocaleString(),
             icon: <TrendingUp size={16} className="text-blue-700" />,
             accent: "bg-blue-50 border-blue-100",
           },
@@ -550,7 +590,7 @@ export default function LocationStockPage({
                 className="w-full pl-9 pr-3 py-2 text-[13px] border border-stone-200 rounded-xl bg-white placeholder:text-stone-300 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all [font-family:var(--font-dmsans)]"
                 placeholder="Search product…"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setMovementsPage(1); setStockPage(1); }}
               />
             </div>
             {(["all", "ok", "low", "out"] as const).map((s) => (
@@ -685,6 +725,22 @@ export default function LocationStockPage({
                 )}
               </tbody>
             </table>
+            
+            {/* Pagination Controls */}
+            {stockTotal > stockPageSize && (
+              <div className="flex items-center justify-between px-5 py-3 border-t border-stone-100 bg-stone-50">
+                <span className="text-[12px] text-stone-500 [font-family:var(--font-dmsans)]">
+                  Showing {(stockPage - 1) * stockPageSize + 1} to {Math.min(stockPage * stockPageSize, stockTotal)} of {stockTotal} entries
+                </span>
+                <Pagination
+                  current={stockPage}
+                  total={stockTotal}
+                  pageSize={stockPageSize}
+                  onChange={(p) => setStockPage(p)}
+                  className="text-[12px] [font-family:var(--font-dmsans)]"
+                />
+              </div>
+            )}
           </div>
         </>
       )}
@@ -767,6 +823,22 @@ export default function LocationStockPage({
               )}
             </tbody>
           </table>
+          
+          {/* Pagination Controls */}
+          {movementsTotal > movementsPageSize && (
+            <div className="flex items-center justify-between px-5 py-3 border-t border-stone-100 bg-stone-50">
+              <span className="text-[12px] text-stone-500 [font-family:var(--font-dmsans)]">
+                Showing {(movementsPage - 1) * movementsPageSize + 1} to {Math.min(movementsPage * movementsPageSize, movementsTotal)} of {movementsTotal} entries
+              </span>
+              <Pagination
+                current={movementsPage}
+                total={movementsTotal}
+                pageSize={movementsPageSize}
+                onChange={(p) => setMovementsPage(p)}
+                className="text-[12px] [font-family:var(--font-dmsans)]"
+              />
+            </div>
+          )}
         </div>
       )}
 

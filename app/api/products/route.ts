@@ -3,13 +3,22 @@
 // POST — create a new product (auto-generates product_code)
 
 import { NextResponse } from "next/server";
-import { getAllProducts, createProduct } from "@/lib/inventoryService";
+import { getAllProducts, createProduct, getProductStats } from "@/lib/inventoryService";
 import type { CreateProductDto } from "@/types/inventory";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const products = await getAllProducts();
-    return NextResponse.json({ products });
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const pageSize = parseInt(searchParams.get("pageSize") || "20", 10);
+    const search = searchParams.get("search") || undefined;
+    const category_id = searchParams.get("category_id") ? parseInt(searchParams.get("category_id") as string, 10) : undefined;
+
+    const [data, stats] = await Promise.all([
+      getAllProducts(page, pageSize, { search, category_id }),
+      getProductStats(),
+    ]);
+    return NextResponse.json({ products: data.items, pagination: data.pagination, stats });
   } catch (err) {
     console.error("[GET /api/products]", err);
     return NextResponse.json({ error: "Failed to fetch products" }, { status: 500 });
