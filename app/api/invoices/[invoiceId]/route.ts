@@ -19,6 +19,8 @@ export async function GET(
         invoice_id: true,
         invoice_number: true,
         invoice_date: true,
+        location_id: true,
+        gin_status: true,
         total_amount: true,
         customer: {
           select: {
@@ -72,6 +74,8 @@ export async function GET(
         customerName: invoice.customer.name,
         repId: invoice.rep.rep_id,
         repName: invoice.rep.full_name,
+        locationId: invoice.location_id,
+        ginStatus: invoice.gin_status,
         totalAmount,
         totalPaid,
         outstandingAmount,

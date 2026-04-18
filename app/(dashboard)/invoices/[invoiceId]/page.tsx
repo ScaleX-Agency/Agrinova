@@ -26,6 +26,12 @@ const STATUS_LABEL: Record<"PAID" | "PARTIAL" | "UNPAID" | "OVERDUE", string> = 
   OVERDUE: "Overdue",
 };
 
+const GIN_STATUS_LABEL: Record<"PENDING" | "ISSUED" | "PARTIAL", string> = {
+  PENDING: "Pending",
+  ISSUED: "Issued",
+  PARTIAL: "Partial",
+};
+
 const InvoiceDetailPage = async ({
   params,
 }: {
@@ -43,6 +49,7 @@ const InvoiceDetailPage = async ({
       invoice_id: true,
       invoice_number: true,
       invoice_date: true,
+      gin_status: true,
       status: true,
       total_amount: true,
       customer: {
@@ -57,10 +64,12 @@ const InvoiceDetailPage = async ({
           full_name: true,
         },
       },
-      goods_issue_note: {
+      goods_issue_notes: {
+        orderBy: { gin_date: "desc" },
         select: {
           gin_id: true,
           gin_number: true,
+          gin_date: true,
           location: {
             select: {
               code: true,
@@ -96,6 +105,8 @@ const InvoiceDetailPage = async ({
     (sum, line) => sum + line.quantity * Number(line.unit_price),
     0,
   );
+  const latestGin = invoice.goods_issue_notes[0] ?? null;
+  const ginStatus = invoice.gin_status;
   const total = Number(invoice.total_amount);
   const discountTotal = Math.max(0, subtotal - total);
 
@@ -132,19 +143,33 @@ const InvoiceDetailPage = async ({
             discountTotal={discountTotal}
             grandTotal={total}
           />
-          <Link
-            href={`/goods-issue-notes/new?invoiceId=${invoice.invoice_id}`}
-            className="inline-flex items-center gap-2 rounded-xl border border-[#c0c3f0] bg-white px-3 py-2 text-[13px] font-medium text-[#2b2d7e] hover:bg-[#eeeffe]"
-          >
-            Create GIN
-          </Link>
-          {invoice.goods_issue_note?.gin_id && (
-            <Link
-              href={`/goods-issue-notes/${invoice.goods_issue_note.gin_id}`}
-              className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] font-medium text-stone-700 hover:bg-stone-50"
+          {ginStatus === "ISSUED" ? (
+            <span
+              className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl border border-stone-200 bg-stone-100 px-3 py-2 text-[13px] font-medium text-stone-400"
+              title={`GIN already ${GIN_STATUS_LABEL[ginStatus].toLowerCase()}`}
             >
-              View GIN
+              Create GIN
+            </span>
+          ) : (
+            <Link
+              href={`/goods-issue-notes/new?invoiceId=${invoice.invoice_id}`}
+              className="inline-flex items-center gap-2 rounded-xl border border-[#c0c3f0] bg-white px-3 py-2 text-[13px] font-medium text-[#2b2d7e] hover:bg-[#eeeffe]"
+            >
+              Create GIN
             </Link>
+          )}
+          {invoice.goods_issue_notes.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              {invoice.goods_issue_notes.map((gin) => (
+                <Link
+                  key={gin.gin_id}
+                  href={`/goods-issue-notes/${gin.gin_id}`}
+                  className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] font-medium text-stone-700 hover:bg-stone-50"
+                >
+                  {gin.gin_number}
+                </Link>
+              ))}
+            </div>
           )}
           <Link
             href={`/receipts/new?invoiceId=${invoice.invoice_id}`}
@@ -232,15 +257,34 @@ const InvoiceDetailPage = async ({
         <h2 className="text-[14px] font-semibold text-stone-900">Linked References</h2>
         <div className="mt-2 grid grid-cols-1 gap-2 text-[13px] text-stone-600 md:grid-cols-2">
           <p>
-            <span className="font-medium text-stone-800">GIN:</span>{" "}
-            {invoice.goods_issue_note?.gin_number ?? "Not linked"}
+            <span className="font-medium text-stone-800">Linked GINs:</span>{" "}
+            {invoice.goods_issue_notes.length}
           </p>
+          {invoice.goods_issue_notes.length > 0 && (
+            <p className="md:col-span-2">
+              <span className="font-medium text-stone-800">All GINs:</span>{" "}
+              {invoice.goods_issue_notes.map((gin, index) => (
+                <span key={gin.gin_id}>
+                  <Link href={`/goods-issue-notes/${gin.gin_id}`} className="text-[#2b2d7e] underline">
+                    {gin.gin_number}
+                  </Link>
+                  {index < invoice.goods_issue_notes.length - 1 ? ", " : ""}
+                </span>
+              ))}
+            </p>
+          )}
           <p>
             <span className="font-medium text-stone-800">Location:</span>{" "}
-            {invoice.goods_issue_note?.location.code
-              ? `${invoice.goods_issue_note.location.code} - ${invoice.goods_issue_note.location.name}`
+            {latestGin?.location.code
+              ? `${latestGin.location.code} - ${latestGin.location.name}`
               : "Not linked"}
           </p>
+          {latestGin && (
+            <p>
+              <span className="font-medium text-stone-800">Latest GIN:</span>{" "}
+              {latestGin.gin_number}
+            </p>
+          )}
           {invoice.customer.address && (
             <p className="md:col-span-2">
               <span className="font-medium text-stone-800">Customer Address:</span>{" "}

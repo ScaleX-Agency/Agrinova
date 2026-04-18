@@ -17,6 +17,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const unlinkedOnly = searchParams.get("unlinkedOnly") === "true";
+    const issuableOnly = searchParams.get("issuableOnly") === "true";
     const paymentStatus = searchParams.get("paymentStatus");
     const ginStatus = searchParams.get("ginStatus");
     const month = searchParams.get("month");
@@ -64,7 +65,8 @@ export async function GET(request: Request) {
     }
 
     const where: Prisma.InvoiceWhereInput = {
-      ...(unlinkedOnly ? { goods_issue_note: null } : {}),
+      ...(unlinkedOnly ? { goods_issue_notes: { none: {} } } : {}),
+      ...(issuableOnly ? { gin_status: { not: "ISSUED" } } : {}),
       ...(parsedPaymentStatus ? { status: parsedPaymentStatus } : {}),
       ...(parsedGinStatus ? { gin_status: parsedGinStatus } : {}),
       ...(monthDateFilter ? { invoice_date: monthDateFilter } : {}),

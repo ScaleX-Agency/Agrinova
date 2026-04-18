@@ -273,13 +273,21 @@ const InvoicesPage = () => {
                   </td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-2">
-                      
-                      <Link
-                        href={`/goods-issue-notes/new?invoiceId=${invoice.id}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-stone-700 hover:bg-stone-50"
-                      >
-                        Create GIN
-                      </Link>
+                      {invoice.ginStatus === "ISSUED" ? (
+                        <span
+                          className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-100 px-2.5 py-1.5 text-[12px] font-medium text-stone-400"
+                          title="GIN already issued"
+                        >
+                          Create GIN
+                        </span>
+                      ) : (
+                        <Link
+                          href={`/goods-issue-notes/new?invoiceId=${invoice.id}`}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-stone-700 hover:bg-stone-50"
+                        >
+                          Create GIN
+                        </Link>
+                      )}
                       <Link
                         href={`/receipts/new?invoiceId=${invoice.id}`}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"

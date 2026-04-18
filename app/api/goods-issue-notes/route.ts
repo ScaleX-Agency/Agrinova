@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type {
   CreateGoodsIssueNoteRequestDto,
@@ -12,14 +13,57 @@ const toPositiveInt = (value: unknown, fallback = 0) => {
   return Math.max(0, Math.trunc(numberValue));
 };
 
-export async function GET() {
+const getNextGinNumber = async (tx: Prisma.TransactionClient, ginDate: Date) => {
+  const year = ginDate.getFullYear();
+  const month = String(ginDate.getMonth() + 1).padStart(2, "0");
+  const prefix = `GIN-${year}${month}-`;
+
+  const latest = await tx.goodsIssueNote.findFirst({
+    where: {
+      gin_number: {
+        startsWith: prefix,
+      },
+    },
+    orderBy: {
+      gin_number: "desc",
+    },
+    select: {
+      gin_number: true,
+    },
+  });
+
+  const latestSequence = latest
+    ? Number(latest.gin_number.split("-").at(-1) ?? "0")
+    : 0;
+  return `${prefix}${String((Number.isFinite(latestSequence) ? latestSequence : 0) + 1).padStart(3, "0")}`;
+};
+
+export async function GET(request: Request) {
   try {
+    const url = new URL(request.url);
+    const invoiceIdParam = url.searchParams.get("invoiceId");
+    const includeLines = url.searchParams.get("includeLines") === "true";
+
+    const invoiceId = invoiceIdParam ? Number(invoiceIdParam) : null;
+    if (invoiceIdParam && (!Number.isInteger(invoiceId) || (invoiceId ?? 0) <= 0)) {
+      return NextResponse.json({ error: "Invalid invoiceId filter." }, { status: 400 });
+    }
+
     const notes = await prisma.goodsIssueNote.findMany({
+      where: invoiceId ? { invoice_id: invoiceId } : undefined,
       orderBy: [{ gin_date: "desc" }, { gin_id: "desc" }],
       include: {
         invoice: { select: { invoice_id: true, invoice_number: true, gin_status: true } },
         customer: { select: { customer_id: true, name: true } },
         location: { select: { location_id: true, code: true } },
+        lines: includeLines
+          ? {
+              select: {
+                product_id: true,
+                quantity: true,
+              },
+            }
+          : false,
         _count: { select: { lines: true } },
       },
     });
@@ -37,6 +81,12 @@ export async function GET() {
         locationId: note.location.location_id,
         locationCode: note.location.code,
         lineCount: note._count.lines,
+        lines: includeLines
+          ? note.lines.map((line) => ({
+              productId: line.product_id,
+              quantity: line.quantity,
+            }))
+          : undefined,
       })),
     };
 
@@ -126,9 +176,22 @@ export async function POST(request: Request) {
         select: {
           invoice_id: true,
           customer_id: true,
-          goods_issue_note: {
+          location_id: true,
+          invoice_lines: {
+            select: {
+              product_id: true,
+              quantity: true,
+            },
+          },
+          goods_issue_notes: {
             select: {
               gin_id: true,
+              lines: {
+                select: {
+                  product_id: true,
+                  quantity: true,
+                },
+              },
             },
           },
         },
@@ -138,8 +201,40 @@ export async function POST(request: Request) {
         throw new Error("Selected invoice not found.");
       }
 
-      if (invoice.goods_issue_note) {
-        throw new Error("Selected invoice already has a linked goods issue note.");
+      if (invoice.location_id !== locationId) {
+        throw new Error("Selected location does not match invoice location.");
+      }
+
+      const invoiceQtyByProduct = invoice.invoice_lines.reduce<Map<number, number>>((map, line) => {
+        map.set(line.product_id, (map.get(line.product_id) ?? 0) + line.quantity);
+        return map;
+      }, new Map());
+
+      const alreadyIssuedQtyByProduct = new Map<number, number>();
+      for (const note of invoice.goods_issue_notes) {
+        for (const line of note.lines) {
+          alreadyIssuedQtyByProduct.set(
+            line.product_id,
+            (alreadyIssuedQtyByProduct.get(line.product_id) ?? 0) + line.quantity,
+          );
+        }
+      }
+
+      for (const [productId, requestedQty] of aggregatedQuantities.entries()) {
+        const invoiceQty = invoiceQtyByProduct.get(productId);
+        const alreadyIssuedQty = alreadyIssuedQtyByProduct.get(productId) ?? 0;
+
+        if (typeof invoiceQty !== "number") {
+          throw new Error(`Product ${productId} does not exist in selected invoice lines.`);
+        }
+
+        const leftToIssue = Math.max(0, invoiceQty - alreadyIssuedQty);
+
+        if (requestedQty > leftToIssue) {
+          throw new Error(
+            `Issued quantity exceeds remaining invoice quantity for product ${productId}. Remaining: ${leftToIssue}, Requested: ${requestedQty}`,
+          );
+        }
       }
 
       const productIds = Array.from(aggregatedQuantities.keys());
@@ -174,27 +269,57 @@ export async function POST(request: Request) {
         }
       }
 
-      const gin = await tx.goodsIssueNote.create({
-        data: {
-          gin_number: ginNumber,
-          gin_date: ginDate,
-          invoice_id: invoice.invoice_id,
-          customer_id: invoice.customer_id,
-          location_id: locationId,
-          prepared_by: body.preparedBy.trim(),
-          received_by: body.receivedBy.trim(),
-          lines: {
-            create: normalizedLines,
-          },
-        },
-        select: {
-          gin_id: true,
-        },
+      let ginNumberToUse = ginNumber;
+      let gin: { gin_id: number } | null = null;
+
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          gin = await tx.goodsIssueNote.create({
+            data: {
+              gin_number: ginNumberToUse,
+              gin_date: ginDate,
+              invoice_id: invoice.invoice_id,
+              customer_id: invoice.customer_id,
+              location_id: locationId,
+              prepared_by: body.preparedBy.trim(),
+              received_by: body.receivedBy.trim(),
+              lines: {
+                create: normalizedLines,
+              },
+            },
+            select: {
+              gin_id: true,
+            },
+          });
+          break;
+        } catch (error) {
+          const isGinNumberConflict =
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2002" &&
+            Array.isArray(error.meta?.target) &&
+            (error.meta?.target as string[]).includes("gin_number");
+
+          if (!isGinNumberConflict) {
+            throw error;
+          }
+
+          ginNumberToUse = await getNextGinNumber(tx, ginDate);
+        }
+      }
+
+      if (!gin) {
+        throw new Error("Unable to generate a unique GIN number. Please retry.");
+      }
+
+      const isFullIssuance = Array.from(invoiceQtyByProduct.entries()).every(([productId, invoiceQty]) => {
+        const alreadyIssuedQty = alreadyIssuedQtyByProduct.get(productId) ?? 0;
+        const newlyIssuedQty = aggregatedQuantities.get(productId) ?? 0;
+        return alreadyIssuedQty + newlyIssuedQty >= invoiceQty;
       });
 
       await tx.invoice.update({
         where: { invoice_id: invoice.invoice_id },
-        data: { gin_status: "ISSUED" },
+        data: { gin_status: isFullIssuance ? "ISSUED" : "PARTIAL" },
       });
 
       for (const [productId, issuedQty] of aggregatedQuantities.entries()) {
@@ -229,11 +354,30 @@ export async function POST(request: Request) {
       const isStockValidationError =
         error.message.includes("Insufficient stock") ||
         error.message.includes("Stock record not found") ||
+        error.message.includes("invoice quantity") ||
+        error.message.includes("invoice lines") ||
+        error.message.includes("invoice location") ||
         error.message.includes("invoice");
 
       if (isStockValidationError) {
         return NextResponse.json({ error: error.message }, { status: 422 });
       }
+
+      if (error.message.includes("unique GIN number")) {
+        return NextResponse.json({ error: error.message }, { status: 409 });
+      }
+    }
+
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002" &&
+      Array.isArray(error.meta?.target) &&
+      (error.meta?.target as string[]).includes("gin_number")
+    ) {
+      return NextResponse.json(
+        { error: "GIN number already exists. Please retry to generate the next number." },
+        { status: 409 },
+      );
     }
 
     console.error("Create goods issue note failed", error);
