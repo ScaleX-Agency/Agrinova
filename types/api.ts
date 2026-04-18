@@ -24,7 +24,9 @@ export type InventoryLocationOptionDto = {
 export type StockByLocationResponse = ApiResult<StockOverviewRow[]>;
 export type SalesRepsResponse = ApiResult<SalesRepOptionDto[]>;
 export type CustomersByRepResponse = ApiResult<CustomerOptionDto[]>;
-export type InventoryLocationsResponse = ApiResult<InventoryLocationOptionDto[]>;
+export type InventoryLocationsResponse = ApiResult<
+  InventoryLocationOptionDto[]
+>;
 
 export type CreateInvoiceLineDto = {
   productId: number;
@@ -200,7 +202,8 @@ export type CreateGoodsIssueNoteSuccessResponse = {
   ginId: number;
 };
 
-export type CreateGoodsIssueNoteResponse = ApiResult<CreateGoodsIssueNoteSuccessResponse>;
+export type CreateGoodsIssueNoteResponse =
+  ApiResult<CreateGoodsIssueNoteSuccessResponse>;
 
 export type GoodsIssueNoteOptionDto = {
   id: number;
@@ -248,6 +251,27 @@ export type GoodsIssueNoteDetailDto = {
 
 export type GoodsIssueNotesResponse = ApiResult<GoodsIssueNoteOptionDto[]>;
 export type GoodsIssueNoteDetailResponse = ApiResult<GoodsIssueNoteDetailDto>;
+
+export type GoodsReceivingEntryType = "LOCAL_PURCHASE" | "FOREIGN_IMPORT";
+
+export type GoodsReceivingNoteOptionDto = {
+  id: number;
+  grnNumber: string;
+  date: string;
+  entryType: GoodsReceivingEntryType;
+  locationId: number;
+  locationCode: string;
+  locationName: string;
+  referenceNo: string | null;
+  notes: string | null;
+  lineCount: number;
+  createdByUserId: number;
+  createdByName: string;
+};
+
+export type GoodsReceivingNotesResponse = ApiResult<
+  GoodsReceivingNoteOptionDto[]
+>;
 
 export type InvoiceOptionDto = {
   id: number;
