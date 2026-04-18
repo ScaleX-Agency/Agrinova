@@ -68,6 +68,8 @@ export type InvoiceDetailDto = {
   customerName: string;
   repId: number;
   repName: string;
+  locationId: number;
+  ginStatus: "PENDING" | "ISSUED" | "PARTIAL";
   totalAmount: number;
   totalPaid: number;
   outstandingAmount: number;
@@ -212,6 +214,10 @@ export type GoodsIssueNoteOptionDto = {
   locationId: number;
   locationCode: string;
   lineCount: number;
+  lines?: {
+    productId: number;
+    quantity: number;
+  }[];
 };
 
 export type GoodsIssueNoteLineDto = {

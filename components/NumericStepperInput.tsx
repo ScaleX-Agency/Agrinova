@@ -91,7 +91,7 @@ const NumericStepperInput = ({
 
   return (
     <div
-      className={`inline-flex items-center gap-1 rounded-lg border border-stone-200 bg-stone-50 px-1.5 py-1 ${className}`.trim()}
+      className={`inline-flex items-center gap-1 rounded-lg border border-stone-200 px-1.5 py-1 ${disabled ? "bg-stone-100" : "bg-white"} ${className}`.trim()}
     >
       <button
         type="button"

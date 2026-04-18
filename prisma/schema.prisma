@@ -71,13 +71,13 @@ model Invoice {
   status         InvoiceStatus @default(UNPAID)
   gin_status     GINStatus     @default(PENDING)
 
-  goods_issue_note GoodsIssueNote?
-  customer         Customer          @relation(fields: [customer_id], references: [customer_id])
-  rep              SalesRep          @relation(fields: [rep_id], references: [rep_id])
-  creator          User              @relation("InvoiceCreatedBy", fields: [created_by], references: [user_id])
-  location         InventoryLocation @relation(fields: [location_id], references: [location_id])
-  invoice_lines    InvoiceLine[]
-  receipts         Receipt[]
+  goods_issue_notes GoodsIssueNote[]
+  customer          Customer          @relation(fields: [customer_id], references: [customer_id])
+  rep               SalesRep          @relation(fields: [rep_id], references: [rep_id])
+  creator           User              @relation("InvoiceCreatedBy", fields: [created_by], references: [user_id])
+  location          InventoryLocation @relation(fields: [location_id], references: [location_id])
+  invoice_lines     InvoiceLine[]
+  receipts          Receipt[]
 
   @@map("INVOICE")
 }
@@ -86,13 +86,13 @@ model GoodsIssueNote {
   gin_id      Int      @id @default(autoincrement())
   gin_number  String   @unique
   gin_date    DateTime
-  invoice_id  Int      @unique
+  invoice_id  Int
   customer_id Int
   location_id Int
   prepared_by String
   received_by String
 
-  invoice  Invoice?             @relation(fields: [invoice_id], references: [invoice_id])
+  invoice  Invoice              @relation(fields: [invoice_id], references: [invoice_id])
   customer Customer             @relation(fields: [customer_id], references: [customer_id])
   location InventoryLocation    @relation(fields: [location_id], references: [location_id])
   lines    GoodsIssueNoteLine[]
