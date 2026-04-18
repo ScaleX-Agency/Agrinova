@@ -77,11 +77,6 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Operators",
       },
       {
-        href: "/operators",
-        icon: <UserCog size={15} />,
-        label: "Operators",
-      },
-      {
         href: "/sales-reps",
         icon: <UserCheck size={15} />,
         label: "Sales Reps",
