@@ -1,4 +1,5 @@
 import SearchableSelect, { type SearchableSelectOption } from "@/components/SearchableSelect";
+import { ClipboardList } from "lucide-react";
 
 type InvoiceDetailsSectionProps = {
   invoiceNo: string;
@@ -50,17 +51,22 @@ const InvoiceDetailsSection = ({
   onLocationChange,
 }: InvoiceDetailsSectionProps) => {
   const editableInputClassName =
-    "rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]";
+    "rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 [font-family:var(--font-dmsans)] outline-none focus:border-[#1a5c2e]";
 
   return (
     <section className="rounded-2xl border border-stone-200 bg-white p-4 md:p-5">
-      <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">
-        Invoice Details
-      </h2>
+      <div className="flex items-center gap-2">
+        <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-indigo-100 bg-indigo-50 text-indigo-700">
+          <ClipboardList size={16} />
+        </span>
+        <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">
+          Invoice Details
+        </h2>
+      </div>
 
       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12px] font-medium text-stone-600">Invoice No.</span>
+          <span className="text-[12px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">Invoice No.</span>
           <input
             type="text"
             placeholder="Auto-generated if left blank"
@@ -68,22 +74,22 @@ const InvoiceDetailsSection = ({
             onChange={(event) => onInvoiceNoChange(event.target.value)}
             className={editableInputClassName}
           />
-          {invoiceNoError && <p className="text-[12px] text-red-700">{invoiceNoError}</p>}
+          {invoiceNoError && <p className="text-[12px] text-red-700 [font-family:var(--font-dmsans)]">{invoiceNoError}</p>}
         </label>
 
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12px] font-medium text-stone-600">Date</span>
+          <span className="text-[12px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">Date</span>
           <input
             type="date"
             value={invoiceDate}
             onChange={(event) => onInvoiceDateChange(event.target.value)}
             className={editableInputClassName}
           />
-          {invoiceDateError && <p className="text-[12px] text-red-700">{invoiceDateError}</p>}
+          {invoiceDateError && <p className="text-[12px] text-red-700 [font-family:var(--font-dmsans)]">{invoiceDateError}</p>}
         </label>
 
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12px] font-medium text-stone-600">Sales Rep</span>
+          <span className="text-[12px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">Sales Rep</span>
           <SearchableSelect
             value={repId}
             onChange={onRepChange}
@@ -92,11 +98,11 @@ const InvoiceDetailsSection = ({
             searchPlaceholder="Search sales reps"
             loading={salesRepLoading}
           />
-          {salesRepError && <p className="text-[12px] text-red-700">{salesRepError}</p>}
+          {salesRepError && <p className="text-[12px] text-red-700 [font-family:var(--font-dmsans)]">{salesRepError}</p>}
         </label>
 
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12px] font-medium text-stone-600">Customer</span>
+          <span className="text-[12px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">Customer</span>
           <SearchableSelect
             value={customerId}
             onChange={onCustomerChange}
@@ -113,11 +119,11 @@ const InvoiceDetailsSection = ({
             disabled={!hasRepSelected}
             loading={customersLoading}
           />
-          {customerError && <p className="text-[12px] text-red-700">{customerError}</p>}
+          {customerError && <p className="text-[12px] text-red-700 [font-family:var(--font-dmsans)]">{customerError}</p>}
         </label>
 
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12px] font-medium text-stone-600">Inventory Location</span>
+          <span className="text-[12px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">Inventory Location</span>
           <SearchableSelect
             value={locationId}
             onChange={onLocationChange}
@@ -126,7 +132,7 @@ const InvoiceDetailsSection = ({
             searchPlaceholder="Search locations"
             loading={locationsLoading}
           />
-          {locationError && <p className="text-[12px] text-red-700">{locationError}</p>}
+          {locationError && <p className="text-[12px] text-red-700 [font-family:var(--font-dmsans)]">{locationError}</p>}
         </label>
       </div>
     </section>

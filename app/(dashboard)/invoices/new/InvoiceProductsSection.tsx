@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Boxes, Plus, Trash2 } from "lucide-react";
 import { createColumnHelper } from "@tanstack/react-table";
 import SearchableSelect, { type SearchableSelectOption } from "@/components/SearchableSelect";
 import NumericStepperInput from "@/components/NumericStepperInput";
@@ -184,23 +184,28 @@ const InvoiceProductsSection = ({
   return (
     <section className="rounded-2xl border border-stone-200 bg-white p-4 md:p-5">
       <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">
-          Products
-        </h2>
+        <div className="flex items-center gap-2">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-blue-100 bg-blue-50 text-blue-700">
+            <Boxes size={16} />
+          </span>
+          <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">
+            Products
+          </h2>
+        </div>
       </div>
 
-      {productsError && <p className="mb-2 text-[12px] text-red-700">{productsError}</p>}
+      {productsError && <p className="mb-2 text-[12px] text-red-700 [font-family:var(--font-dmsans)]">{productsError}</p>}
       {!productsError && !locationId && (
-        <p className="mb-2 text-[12px] text-stone-500">Select an inventory location to load products.</p>
+        <p className="mb-2 text-[12px] text-stone-500 [font-family:var(--font-dmsans)]">Select an inventory location to load products.</p>
       )}
       {!productsError && isLoadingRelevantProducts && locationId && (
-        <p className="mb-2 text-[12px] text-stone-500">Loading products for location...</p>
+        <p className="mb-2 text-[12px] text-stone-500 [font-family:var(--font-dmsans)]">Loading products for location...</p>
       )}
       {!productsError && locationId && !isLoadingRelevantProducts && availableProducts.length === 0 && (
-        <p className="mb-2 text-[12px] text-amber-700">No available products in stock for this location.</p>
+        <p className="mb-2 text-[12px] text-amber-700 [font-family:var(--font-dmsans)]">No available products in stock for this location.</p>
       )}
-      {fieldError && <p className="mb-2 text-[12px] text-red-700">{fieldError}</p>}
-      {productsActionError && <p className="mb-2 text-[12px] text-red-700">{productsActionError}</p>}
+      {fieldError && <p className="mb-2 text-[12px] text-red-700 [font-family:var(--font-dmsans)]">{fieldError}</p>}
+      {productsActionError && <p className="mb-2 text-[12px] text-red-700 [font-family:var(--font-dmsans)]">{productsActionError}</p>}
 
       <TanStackTable data={lines} columns={columns} minWidthPx={840} align="center" />
 
@@ -208,7 +213,7 @@ const InvoiceProductsSection = ({
         <button
           type="button"
           onClick={onAddLine}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] transition hover:bg-[#eeeffe]"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] transition hover:bg-[#eeeffe] [font-family:var(--font-dmsans)]"
         >
           <Plus size={13} />
           Add Row
@@ -216,7 +221,7 @@ const InvoiceProductsSection = ({
         <button
           type="button"
           onClick={onClearProducts}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 px-2.5 py-1.5 text-[12px] font-medium text-stone-700 transition hover:bg-stone-50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 px-2.5 py-1.5 text-[12px] font-medium text-stone-700 transition hover:bg-stone-50 [font-family:var(--font-dmsans)]"
         >
           Clear Products
         </button>
