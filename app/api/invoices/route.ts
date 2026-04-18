@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { GINStatus, InvoiceStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type {
   CreateInvoiceRequestDto,
@@ -16,9 +17,61 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const unlinkedOnly = searchParams.get("unlinkedOnly") === "true";
+    const paymentStatus = searchParams.get("paymentStatus");
+    const ginStatus = searchParams.get("ginStatus");
+    const month = searchParams.get("month");
+
+    const invoiceStatusValues = new Set(Object.values(InvoiceStatus));
+    const ginStatusValues = new Set(Object.values(GINStatus));
+
+    let parsedPaymentStatus: InvoiceStatus | undefined;
+    let parsedGinStatus: GINStatus | undefined;
+
+    if (paymentStatus) {
+      if (!invoiceStatusValues.has(paymentStatus as InvoiceStatus)) {
+        return NextResponse.json({ error: "Invalid payment status filter." }, { status: 400 });
+      }
+      parsedPaymentStatus = paymentStatus as InvoiceStatus;
+    }
+
+    if (ginStatus) {
+      if (!ginStatusValues.has(ginStatus as GINStatus)) {
+        return NextResponse.json({ error: "Invalid GIN status filter." }, { status: 400 });
+      }
+      parsedGinStatus = ginStatus as GINStatus;
+    }
+
+    let monthDateFilter: Prisma.DateTimeFilter | undefined;
+    if (month) {
+      const monthMatch = /^(\d{4})-(\d{2})$/.exec(month);
+      if (!monthMatch) {
+        return NextResponse.json({ error: "Invalid month filter format." }, { status: 400 });
+      }
+
+      const year = Number(monthMatch[1]);
+      const monthNumber = Number(monthMatch[2]);
+      if (!Number.isInteger(year) || !Number.isInteger(monthNumber) || monthNumber < 1 || monthNumber > 12) {
+        return NextResponse.json({ error: "Invalid month filter value." }, { status: 400 });
+      }
+
+      const rangeStart = new Date(Date.UTC(year, monthNumber - 1, 1));
+      const rangeEnd =
+        monthNumber === 12
+          ? new Date(Date.UTC(year + 1, 0, 1))
+          : new Date(Date.UTC(year, monthNumber, 1));
+
+      monthDateFilter = { gte: rangeStart, lt: rangeEnd };
+    }
+
+    const where: Prisma.InvoiceWhereInput = {
+      ...(unlinkedOnly ? { goods_issue_note: null } : {}),
+      ...(parsedPaymentStatus ? { status: parsedPaymentStatus } : {}),
+      ...(parsedGinStatus ? { gin_status: parsedGinStatus } : {}),
+      ...(monthDateFilter ? { invoice_date: monthDateFilter } : {}),
+    };
 
     const invoices = await prisma.invoice.findMany({
-      where: unlinkedOnly ? { goods_issue_note: null } : undefined,
+      where,
       orderBy: [{ invoice_date: "desc" }, { invoice_id: "desc" }],
       select: {
         invoice_id: true,

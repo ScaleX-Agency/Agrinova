@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { InvoiceOptionDto, InvoicesResponse } from "@/types/api";
 
 type StatusFilter = "ALL" | InvoiceOptionDto["status"];
+type GinStatusFilter = "ALL" | InvoiceOptionDto["ginStatus"];
 
 const STATUS_STYLE: Record<InvoiceOptionDto["status"], string> = {
   PAID: "bg-green-50 text-green-700 border-green-100",
@@ -49,30 +50,47 @@ const formatCurrency = (value: number) =>
     maximumFractionDigits: 2,
   }).format(value);
 
-const toMonthKey = (isoDate: string) => {
-  const date = new Date(isoDate);
-  if (Number.isNaN(date.getTime())) return "";
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-};
+const getRecentMonthOptions = (count: number) => {
+  const now = new Date();
+  const options: { key: string; label: string }[] = [];
 
-const formatMonthLabel = (monthKey: string) => {
-  const [year, month] = monthKey.split("-").map(Number);
-  if (!year || !month) return monthKey;
-  return new Date(year, month - 1, 1).toLocaleDateString("en-GB", {
-    month: "short",
-    year: "numeric",
-  });
+  for (let index = 0; index < count; index += 1) {
+    const date = new Date(now.getFullYear(), now.getMonth() - index, 1);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    const label = date.toLocaleDateString("en-GB", {
+      month: "short",
+      year: "numeric",
+    });
+    options.push({ key, label });
+  }
+
+  return options;
 };
 
 const InvoicesClient = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
-  const [monthFilter, setMonthFilter] = useState("ALL");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<StatusFilter>("ALL");
+  const [ginStatusFilter, setGinStatusFilter] = useState<GinStatusFilter>("ALL");
+  const [timeFilter, setTimeFilter] = useState("ALL");
+
+  const monthOptions = useMemo(() => getRecentMonthOptions(12), []);
 
   const invoicesQuery = useQuery<InvoiceOptionDto[], Error>({
-    queryKey: ["invoices-list"],
+    queryKey: ["invoices-list", paymentStatusFilter, ginStatusFilter, timeFilter],
     queryFn: async () => {
-      const response = await fetch("/api/invoices");
+      const params = new URLSearchParams();
+      if (paymentStatusFilter !== "ALL") {
+        params.set("paymentStatus", paymentStatusFilter);
+      }
+      if (ginStatusFilter !== "ALL") {
+        params.set("ginStatus", ginStatusFilter);
+      }
+      if (timeFilter !== "ALL") {
+        params.set("month", timeFilter);
+      }
+
+      const query = params.toString();
+      const response = await fetch(`/api/invoices${query ? `?${query}` : ""}`);
       const result = (await response.json()) as InvoicesResponse;
       if (!response.ok) throw new Error(result.error ?? "Failed to load invoices.");
       return Array.isArray(result.data) ? result.data : [];
@@ -81,24 +99,17 @@ const InvoicesClient = () => {
 
   const invoices = invoicesQuery.data ?? [];
 
-  const monthOptions = useMemo(() => {
-    const unique = new Set(invoices.map((invoice) => toMonthKey(invoice.invoiceDate)).filter(Boolean));
-    return Array.from(unique).sort((a, b) => (a > b ? -1 : 1));
-  }, [invoices]);
-
   const filtered = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
 
     return invoices.filter((invoice) => {
-      const statusMatches = statusFilter === "ALL" || invoice.status === statusFilter;
-      const monthMatches = monthFilter === "ALL" || toMonthKey(invoice.invoiceDate) === monthFilter;
       const searchMatches =
         needle.length === 0 ||
         [invoice.invoiceNo, invoice.customerName, invoice.repName].join(" ").toLowerCase().includes(needle);
 
-      return statusMatches && monthMatches && searchMatches;
+      return searchMatches;
     });
-  }, [invoices, monthFilter, searchTerm, statusFilter]);
+  }, [invoices, searchTerm]);
 
   const totalValue = filtered.reduce((sum, row) => sum + row.totalAmount, 0);
   const paid = filtered.filter((row) => row.status === "PAID").length;
@@ -179,8 +190,8 @@ const InvoicesClient = () => {
 
           <div className="flex items-center gap-2">
             <select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+              value={paymentStatusFilter}
+              onChange={(event) => setPaymentStatusFilter(event.target.value as StatusFilter)}
               className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
             >
               <option value="ALL">All Payment Statuses</option>
@@ -189,15 +200,27 @@ const InvoicesClient = () => {
               <option value="UNPAID">Unpaid</option>
               <option value="OVERDUE">Overdue</option>
             </select>
+
             <select
-              value={monthFilter}
-              onChange={(event) => setMonthFilter(event.target.value)}
+              value={ginStatusFilter}
+              onChange={(event) => setGinStatusFilter(event.target.value as GinStatusFilter)}
               className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
             >
-              <option value="ALL">All Months</option>
-              {monthOptions.map((monthKey) => (
-                <option key={monthKey} value={monthKey}>
-                  {formatMonthLabel(monthKey)}
+              <option value="ALL">All GIN Statuses</option>
+              <option value="PENDING">Pending</option>
+              <option value="ISSUED">Issued</option>
+              <option value="PARTIAL">Partial</option>
+            </select>
+
+            <select
+              value={timeFilter}
+              onChange={(event) => setTimeFilter(event.target.value)}
+              className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+            >
+              <option value="ALL">All Time</option>
+              {monthOptions.map((monthOption) => (
+                <option key={monthOption.key} value={monthOption.key}>
+                  {monthOption.label}
                 </option>
               ))}
             </select>
