@@ -29,6 +29,14 @@ import {
 } from "./invoice-form.utils";
 import { getInvoiceFieldErrors } from "./invoice-form.validation";
 
+type SalesRepListResponse = {
+  salesReps?: Array<{
+    rep_id: number;
+    full_name: string;
+  }>;
+  error?: string;
+};
+
 const NewInvoicePage = () => {
   const router = useRouter();
   const [invoiceNo, setInvoiceNo] = useState("");
@@ -110,11 +118,23 @@ const NewInvoicePage = () => {
     queryKey: ["sales-reps"],
     queryFn: async () => {
       const response = await fetch("/api/sales-reps");
-      const result = (await response.json()) as SalesRepsResponse;
+      const result = (await response.json()) as SalesRepsResponse & SalesRepListResponse;
       if (!response.ok) {
         throw new Error(result.error ?? "Failed to load sales representatives.");
       }
-      return Array.isArray(result.data) ? result.data : [];
+
+      if (Array.isArray(result.data)) {
+        return result.data;
+      }
+
+      if (Array.isArray(result.salesReps)) {
+        return result.salesReps.map((salesRep) => ({
+          id: salesRep.rep_id,
+          label: salesRep.full_name,
+        }));
+      }
+
+      return [];
     },
   });
 
@@ -422,7 +442,10 @@ const NewInvoicePage = () => {
           invoiceDate={invoiceDate}
           invoiceNoError={fieldErrors.invoiceNo}
           invoiceDateError={fieldErrors.invoiceDate}
-          salesRepError={fieldErrors.salesRep}
+          salesRepError={
+            fieldErrors.salesRep ??
+            (salesRepQuery.error instanceof Error ? salesRepQuery.error.message : undefined)
+          }
           customerError={fieldErrors.customer}
           locationError={fieldErrors.location}
           repId={repId}
