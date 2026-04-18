@@ -250,13 +250,7 @@ const InvoicesClient = () => {
                   </td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-2">
-                      <Link
-                        href={`/invoices/${invoice.id}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] hover:bg-[#eeeffe]"
-                      >
-                        <Eye size={12} />
-                        View
-                      </Link>
+                      
                       <Link
                         href={`/goods-issue-notes/new?invoiceId=${invoice.id}`}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-stone-700 hover:bg-stone-50"
@@ -268,6 +262,13 @@ const InvoicesClient = () => {
                         className="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
                       >
                         Record Payment
+                      </Link>
+                      <Link
+                        href={`/invoices/${invoice.id}`}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] hover:bg-[#eeeffe]"
+                      >
+                        <Eye size={12} />
+                        View
                       </Link>
                     </div>
                   </td>
