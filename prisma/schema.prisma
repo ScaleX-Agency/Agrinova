@@ -68,6 +68,7 @@ model Invoice {
   invoice_date   DateTime
   total_amount   Decimal       @db.Decimal(10, 2)
   status         InvoiceStatus
+  gin_status     GINStatus
 
   goods_issue_note GoodsIssueNote?
   customer         Customer        @relation(fields: [customer_id], references: [customer_id])
@@ -83,7 +84,7 @@ model GoodsIssueNote {
   gin_id      Int      @id @default(autoincrement())
   gin_number  String   @unique
   gin_date    DateTime
-  invoice_id  Int?     @unique
+  invoice_id  Int      @unique
   customer_id Int
   location_id Int
   prepared_by String
@@ -266,4 +267,10 @@ enum MovementType {
 enum ReminderStatus {
   PENDING
   COMPLETED
+}
+
+enum GINStatus {
+  PENDING
+  ISSUED
+  PARTIAL
 }
