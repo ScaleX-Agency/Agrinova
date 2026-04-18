@@ -1,40 +1,42 @@
-// src/api/stock-movements/route.ts
-// GET  /api/stock-movements  — Full movement log (all locations)
-// POST /api/stock-movements  — Record a movement (shorthand, also works without locationId)
+// app/api/stock-movements/route.ts
+// GET  — full movements log (all locations, latest 200)
+// POST — record a new movement (used by dashboard modal + StockOverview modal)
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getAllMovements, createMovement } from "@/lib/inventoryService";
+import type { CreateMovementDto } from "@/types/inventory";
 
-export async function GET(req: NextRequest) {
+export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const locationId = searchParams.get("locationId")
-      ? parseInt(searchParams.get("locationId")!)
-      : undefined;
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const pageSize = parseInt(searchParams.get("pageSize") || "20", 10);
+    const movement_type = searchParams.get("movement_type") || undefined;
+    const search = searchParams.get("search") || undefined;
+    const location_id = searchParams.get("location_id") ? parseInt(searchParams.get("location_id") as string, 10) : undefined;
 
-    const data = await getAllMovements(locationId);
-    return NextResponse.json({ data });
-  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const data = await getAllMovements(page, pageSize, { movement_type, search, location_id });
+    return NextResponse.json({ items: data.items, pagination: data.pagination });
+  } catch (err) {
+    console.error("[GET /api/stock-movements]", err);
+    return NextResponse.json({ error: "Failed to fetch movements" }, { status: 500 });
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const userId = 1; // replace with session user id
-    const body = await req.json();
+    const dto = (await req.json()) as CreateMovementDto;
 
-    if (!body.stock_id || !body.product_id || !body.movement_type || !body.quantity) {
-      return NextResponse.json(
-        { error: "stock_id, product_id, movement_type, and quantity are required" },
-        { status: 400 }
-      );
-    }
+    // TODO: replace with real session user ID from auth cookie/token
+    const userId = 1;
 
-    const data = await createMovement(body, userId);
-    return NextResponse.json({ data }, { status: 201 });
-  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
-    const status = err.message.includes("Insufficient") ? 422 : 500;
-    return NextResponse.json({ error: err.message }, { status });
+    const result = await createMovement(dto, userId);
+    // revalidateTag("inventory") fires inside createMovement automatically
+
+    return NextResponse.json(result, { status: 201 });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Failed to save movement";
+    console.error("[POST /api/stock-movements]", err);
+    return NextResponse.json({ error: msg }, { status: 400 });
   }
 }

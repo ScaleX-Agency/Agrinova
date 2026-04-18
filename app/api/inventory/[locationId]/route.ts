@@ -1,23 +1,42 @@
-// src/api/inventory/[locationId]/route.ts
-// GET /api/inventory/[locationId]  — Stock for one location
+// app/api/inventory/[locationId]/route.ts
+// GET /api/inventory/[locationId] — stock for a single location.
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getStockByLocation } from "@/lib/inventoryService";
-import type { StockByLocationResponse } from "@/types/api";
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ locationId: string }> }
-) {
+interface Props {
+  params: Promise<{ locationId: string }>;
+}
+
+export async function GET(req: Request, { params }: Props) {
+  const { locationId } = await params;
+  const id = Number(locationId);
+
+  if (isNaN(id)) {
+    return NextResponse.json({ error: "Invalid locationId" }, { status: 400 });
+  }
+
   try {
-    const locationId = parseInt((await params).locationId);
-    if (isNaN(locationId)) {
-      return NextResponse.json({ error: "Invalid locationId" }, { status: 400 });
-    }
-    const data = await getStockByLocation(locationId);
-    const responseBody: StockByLocationResponse = { data };
-    return NextResponse.json(responseBody);
-  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const pageSize = parseInt(searchParams.get("pageSize") || "20", 10);
+    const search = searchParams.get("search") || undefined;
+    const status = searchParams.get("status") || undefined;
+
+    const stockData = await getStockByLocation(id, page, pageSize, {
+      search,
+      status,
+    });
+
+    return NextResponse.json({
+      stock: stockData.items,
+      pagination: stockData.pagination,
+    });
+  } catch (err) {
+    console.error(`[GET /api/inventory/${id}]`, err);
+    return NextResponse.json(
+      { error: "Failed to fetch location stock" },
+      { status: 500 }
+    );
   }
 }

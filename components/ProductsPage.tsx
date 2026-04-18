@@ -1,8 +1,10 @@
 "use client";
 // src/components/ProductsPage.tsx
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Pagination from "rc-pagination";
+import "rc-pagination/assets/index.css";
 import {
   Search,
   Plus,
@@ -26,77 +28,9 @@ interface Product {
   product_name: string;
   pack_size: string;
   selling_price: number;
-  category: { name: string; tag: string };
+  category_id: number;
+  category: { category_id: number; name: string; tag: string };
 }
-
-// ── Mock data ─────────────────────────────────────────────────
-
-const INITIAL_PRODUCTS: Product[] = [
-  {
-    product_id: 1,
-    product_code: "FERT-0001",
-    product_name: "AgriGold Fertilizer",
-    pack_size: "25 kg",
-    selling_price: 2500,
-    category: { name: "Fertilizer", tag: "FERT" },
-  },
-  {
-    product_id: 2,
-    product_code: "FUNG-0001",
-    product_name: "BioShield Fungicide",
-    pack_size: "500 ml",
-    selling_price: 1800,
-    category: { name: "Fungicide", tag: "FUNG" },
-  },
-  {
-    product_id: 3,
-    product_code: "SUPP-0001",
-    product_name: "RootBoost Supplement",
-    pack_size: "1 L",
-    selling_price: 1200,
-    category: { name: "Supplement", tag: "SUPP" },
-  },
-  {
-    product_id: 4,
-    product_code: "INSC-0001",
-    product_name: "PestOff Insecticide",
-    pack_size: "250 ml",
-    selling_price: 950,
-    category: { name: "Insecticide", tag: "INSC" },
-  },
-  {
-    product_id: 5,
-    product_code: "HERB-0001",
-    product_name: "GreenMax Herbicide",
-    pack_size: "1 L",
-    selling_price: 1600,
-    category: { name: "Herbicide", tag: "HERB" },
-  },
-  {
-    product_id: 6,
-    product_code: "SOIL-0001",
-    product_name: "SoilPro Conditioner",
-    pack_size: "10 kg",
-    selling_price: 3200,
-    category: { name: "Soil", tag: "SOIL" },
-  },
-  {
-    product_id: 7,
-    product_code: "SUPP-0002",
-    product_name: "NutriSpray Foliar",
-    pack_size: "500 ml",
-    selling_price: 1100,
-    category: { name: "Supplement", tag: "SUPP" },
-  },
-  {
-    product_id: 8,
-    product_code: "NEMA-0001",
-    product_name: "CropSafe Nematicide",
-    pack_size: "1 L",
-    selling_price: 4500,
-    category: { name: "Nematicide", tag: "NEMA" },
-  },
-];
 
 // ── Category badge colours ────────────────────────────────────
 
@@ -146,54 +80,88 @@ function StatCard({
 
 // ── Main component ────────────────────────────────────────────
 
-export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+export default function ProductsPage({ initialProducts }: { initialProducts: { items: Product[], pagination: any, stats: any } | Product[] }) {
   const [search, setSearch] = useState("");
-  const [catFilter, setCatFilter] = useState("ALL");
+  const [catFilter, setCatFilter] = useState<number | "ALL">("ALL");
   const [showAdd, setShowAdd] = useState(false);
+  const [editTarget, setEditTarget] = useState<Product | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const categories = [
-    "ALL",
-    ...Array.from(new Set(products.map((p) => p.category.name))),
-  ];
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
-  const filtered = useMemo(
-    () =>
-      products.filter((p) => {
-        const q = search.toLowerCase();
-        const matchSearch =
-          !search ||
-          p.product_name.toLowerCase().includes(q) ||
-          p.product_code.toLowerCase().includes(q);
-        const matchCat = catFilter === "ALL" || p.category.name === catFilter;
-        return matchSearch && matchCat;
-      }),
-    [products, search, catFilter],
-  );
+  const isPaginated = !Array.isArray(initialProducts) && "items" in initialProducts;
+  const initialItems = isPaginated ? (initialProducts as any).items : (initialProducts as Product[]);
+  const initialTotal = isPaginated ? (initialProducts as any).pagination.total : initialItems.length;
+
+  const [products, setProducts] = useState<Product[]>(initialItems);
+  const [totalProducts, setTotalProducts] = useState(initialTotal);
+
+  const [categories, setCategories] = useState<{id: number | "ALL", name: string}[]>([{ id: "ALL", name: "All" }]);
+
+  useEffect(() => {
+    fetch("/api/categories")
+      .then(res => res.json())
+      .then(data => {
+         if (data && data.categories) {
+            setCategories([{ id: "ALL", name: "All" }, ...data.categories.map((c: any) => ({ id: c.category_id, name: c.name }))]);
+         }
+      })
+      .catch(console.error);
+  }, []);
+
+  const initialStats = isPaginated ? (initialProducts as any).stats : { avgPrice: 0, maxPrice: 0 };
+  const [globalStats, setGlobalStats] = useState(initialStats);
+
+  useEffect(() => {
+    const sp = new URLSearchParams();
+    sp.set("page", String(page));
+    sp.set("pageSize", String(pageSize));
+    if (search) sp.set("search", search);
+    if (catFilter !== "ALL") sp.set("category_id", String(catFilter));
+    
+    fetch(`/api/products?${sp.toString()}`)
+      .then(res => res.json())
+      .then(data => {
+         if (data.products) setProducts(data.products);
+         if (data.pagination) setTotalProducts(data.pagination.total);
+         if (data.stats) setGlobalStats(data.stats);
+      })
+      .catch(console.error);
+  }, [page, pageSize, search, catFilter]);
+
+  const filtered = products;
 
   // Stats
-  const avgPrice = products.length
-    ? Math.round(
-        products.reduce((s, p) => s + p.selling_price, 0) / products.length,
-      )
-    : 0;
-  const maxPrice = products.length
-    ? Math.max(...products.map((p) => p.selling_price))
-    : 0;
-  const uniqueCats = new Set(products.map((p) => p.category.name)).size;
+  const avgPrice = globalStats.avgPrice ? Math.round(globalStats.avgPrice) : 0;
+  const maxPrice = globalStats.maxPrice ? Math.round(globalStats.maxPrice) : 0;
+  const uniqueCats = categories.length > 1 ? categories.length - 1 : 0;
+
+  const [deleteError, setDeleteError] = useState("");
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
-    // Real: await fetch(`/api/products/${deleteTarget.product_id}`, { method: "DELETE" });
-    await new Promise((r) => setTimeout(r, 500));
-    setProducts((prev) =>
-      prev.filter((p) => p.product_id !== deleteTarget.product_id),
-    );
-    setDeleting(false);
-    setDeleteTarget(null);
+    setDeleteError("");
+    try {
+      const res = await fetch(`/api/products/${deleteTarget.product_id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to delete product");
+      }
+
+      setProducts((prev) =>
+        prev.filter((p) => p.product_id !== deleteTarget.product_id),
+      );
+      setDeleteTarget(null);
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error ? err.message : "Cannot delete — this product has existing stock. Remove all stock entries first.",
+      );
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -202,7 +170,7 @@ export default function ProductsPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
           icon={<Package size={16} className="text-green-700" />}
-          value={String(products.length)}
+          value={String(totalProducts)}
           label="Total Products"
           accent="bg-green-50 border-green-100"
         />
@@ -238,7 +206,7 @@ export default function ProductsPage() {
             className="w-full pl-9 pr-3 py-2 text-[13px] border border-stone-200 rounded-xl bg-white text-stone-800 placeholder:text-stone-300 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-50 transition-all [font-family:var(--font-dmsans)]"
             placeholder="Search by name or code…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           />
         </div>
 
@@ -246,23 +214,66 @@ export default function ProductsPage() {
         <div className="flex gap-1.5 flex-wrap">
           {categories.map((c) => (
             <button
-              key={c}
-              onClick={() => setCatFilter(c)}
+              key={c.id}
+              onClick={() => { setCatFilter(c.id); setPage(1); }}
               className={`px-3 py-1.5 rounded-full border text-[12px] font-medium transition-all [font-family:var(--font-dmsans)] whitespace-nowrap ${
-                catFilter === c
+                catFilter === c.id
                   ? "bg-green-700 text-white border-green-700"
                   : "bg-white text-stone-500 border-stone-200 hover:border-green-300 hover:text-green-700"
               }`}
             >
-              {c === "ALL" ? "All" : c}
+              {c.name}
             </button>
           ))}
         </div>
 
-        {/* Export */}
-        <button className="ml-auto flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-stone-500 border border-stone-200 rounded-xl bg-white hover:bg-stone-50 transition-colors [font-family:var(--font-dmsans)]">
+        {/* Actions */}
+        <div className="flex items-center gap-2 ml-auto">
+          <button
+            onClick={() => setShowAdd(true)}
+            className="flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-white bg-green-700 border border-transparent rounded-xl hover:bg-green-800 transition-colors [font-family:var(--font-dmsans)]"
+          >
+            <Plus size={12} /> New Product
+          </button>
+          
+        <button
+          onClick={() => {
+            import("@/lib/exportCsv").then(({ exportToCsv }) => {
+              const headers = [
+                "Product Code",
+                "Product Name",
+                "Pack Size",
+                "Category",
+                "Selling Price (LKR)",
+              ];
+              const exportRows = filtered.map((p) => [
+                p.product_code,
+                p.product_name,
+                p.pack_size,
+                p.category.name,
+                String(p.selling_price),
+              ]);
+              exportToCsv(
+                `agrinova-products-${new Date().toISOString().split("T")[0]}.csv`,
+                headers,
+                exportRows,
+              );
+              if (typeof window !== "undefined") {
+                const event = new CustomEvent("toast", {
+                  detail: {
+                    msg: `Exported ${exportRows.length} products to CSV`,
+                    type: "success",
+                  },
+                });
+                window.dispatchEvent(event);
+              }
+            });
+          }}
+          className="flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-stone-500 border border-stone-200 rounded-xl bg-white hover:bg-stone-50 transition-colors [font-family:var(--font-dmsans)]"
+        >
           <Download size={12} /> Export
         </button>
+        </div>
       </div>
 
       {/* ── Table ── */}
@@ -301,7 +312,7 @@ export default function ProductsPage() {
           </thead>
           <tbody>
             <AnimatePresence initial={false}>
-              {filtered.length === 0 ? (
+              {products.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-14 text-center">
                     <div className="text-3xl mb-3">📦</div>
@@ -314,7 +325,7 @@ export default function ProductsPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((p) => (
+                products.map((p) => (
                   <motion.tr
                     key={p.product_id}
                     initial={{ opacity: 0 }}
@@ -368,6 +379,7 @@ export default function ProductsPage() {
                       <div className="flex gap-1.5">
                         <button
                           title="Edit product"
+                          onClick={() => setEditTarget(p)}
                           className="w-7 h-7 flex items-center justify-center rounded-lg border border-stone-200 hover:bg-stone-100 text-stone-400 hover:text-stone-600 transition-colors"
                         >
                           <Pencil size={12} />
@@ -387,14 +399,53 @@ export default function ProductsPage() {
             </AnimatePresence>
           </tbody>
         </table>
+        
+        {/* Pagination Controls */}
+        {totalProducts > pageSize && (
+          <div className="flex items-center justify-between px-5 py-3 border-t border-stone-100 bg-stone-50">
+            <span className="text-[12px] text-stone-500 [font-family:var(--font-dmsans)]">
+              Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, totalProducts)} of {totalProducts} entries
+            </span>
+            <Pagination
+              current={page}
+              total={totalProducts}
+              pageSize={pageSize}
+              onChange={(p) => setPage(p)}
+              className="text-[12px] [font-family:var(--font-dmsans)]"
+            />
+          </div>
+        )}
       </div>
 
       {/* ── Add Product Modal ── */}
       <AnimatePresence>
         {showAdd && (
           <AddProductModal
+            mode="add"
             onClose={() => setShowAdd(false)}
-            onSaved={() => setShowAdd(false)}
+            onSaved={() => {
+              setShowAdd(false);
+              window.location.reload();
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── Edit Product Modal ── */}
+      <AnimatePresence>
+        {editTarget && (
+          <AddProductModal
+            mode="edit"
+            initialValues={{
+              ...editTarget,
+              product_id: editTarget.product_id,
+              category_id: editTarget.category_id,
+            }}
+            onClose={() => setEditTarget(null)}
+            onSaved={() => {
+              setEditTarget(null);
+              window.location.reload();
+            }}
           />
         )}
       </AnimatePresence>
@@ -445,6 +496,12 @@ export default function ProductsPage() {
                   </p>
                 </div>
 
+                {deleteError && (
+                  <div className="bg-[#2a0d0d] border border-[#4a1a1a] text-[#f87171] rounded-lg p-3 text-[12px]">
+                    {deleteError}
+                  </div>
+                )}
+
                 {/* Product code pill */}
                 <div className="flex items-center gap-2 pt-1">
                   <span className="text-[11px] text-stone-400 [font-family:var(--font-dmsans)]">
@@ -460,14 +517,14 @@ export default function ProductsPage() {
               <div className="flex items-center justify-end gap-2 px-5 py-3.5 bg-stone-50 border-t border-stone-100">
                 <button
                   onClick={() => setDeleteTarget(null)}
-                  className="px-4 py-2 text-[13px] font-medium text-stone-600 border border-stone-200 rounded-xl hover:bg-white transition-colors [font-family:var(--font-dmsans)]"
+                  className="px-4 py-2 text-[13px] font-medium text-[#8b91a8] border border-stone-200 rounded-xl hover:bg-[#242840] transition-colors [font-family:var(--font-dmsans)]"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-60 rounded-xl transition-colors [font-family:var(--font-dmsans)]"
+                  className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold text-[#f87171] bg-[#2a0d0d] border border-[#4a1a1a] hover:bg-[#3a1010] disabled:opacity-60 rounded-xl transition-colors [font-family:var(--font-dmsans)]"
                 >
                   {deleting ? (
                     <>

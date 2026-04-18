@@ -90,6 +90,8 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+
+
 export default function Sidebar({
   collapsed = false,
   mobileOpen = false,
@@ -97,6 +99,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const { signOut } = useClerk();
+
 
   const content = (
     <motion.aside
@@ -141,7 +144,14 @@ export default function Sidebar({
             )}
             <ul className="space-y-0.5">
               {group.items.map((item) => {
-                const active = pathname === item.href;
+                let active = false;
+                if (item.href === "/inventory/movements" || item.href === "/inventory?tab=movements") {
+                  active = pathname === "/inventory/movements";
+                } else if (item.href === "/inventory") {
+                  active = pathname === "/inventory";
+                } else {
+                  active = pathname === item.href;
+                }
                 return (
                   <li key={item.href}>
                     <Link

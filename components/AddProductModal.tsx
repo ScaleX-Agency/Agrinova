@@ -5,23 +5,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Package, Info, ChevronDown } from "lucide-react";
 import { CreateProductDto } from "../types/inventory";
-
-const MOCK_CATEGORIES = [
-  { category_id: 1, name: "Fertilizer", tag: "FERT" },
-  { category_id: 2, name: "Fungicide", tag: "FUNG" },
-  { category_id: 3, name: "Herbicide", tag: "HERB" },
-  { category_id: 4, name: "Insecticide", tag: "INSC" },
-  { category_id: 5, name: "Nematicide", tag: "NEMA" },
-  { category_id: 6, name: "Supplement", tag: "SUPP" },
-  { category_id: 7, name: "Soil", tag: "SOIL" },
-];
-
-const MOCK_LOCATIONS = [
-  { location_id: 1, code: "IGRN1", name: "Head Office" },
-  { location_id: 2, code: "IGRN2", name: "Kuliyapitiya" },
-  { location_id: 3, code: "IGRN3", name: "Nuwara Eliya" },
-  { location_id: 4, code: "IGRN4", name: "Peradeniya" },
-];
+import { useCategories, useLocations } from "@/hooks/useInventory";
 
 interface FormState {
   product_name: string;
@@ -34,6 +18,8 @@ interface FormState {
 }
 
 interface Props {
+  mode?: "add" | "edit";
+  initialValues?: Partial<CreateProductDto & { product_code: string; product_id: number; reorder_threshold: number }>;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -104,21 +90,29 @@ const selectCls = (hasError?: boolean) =>
 
 // ── Main modal ────────────────────────────────────────────────
 
-export default function AddProductModal({ onClose, onSaved }: Props) {
+export default function AddProductModal({
+  mode = "add",
+  initialValues,
+  onClose,
+  onSaved,
+}: Props) {
   const [form, setForm] = useState<FormState>({
-    product_name: "",
-    pack_size: "",
-    category_id: "",
-    selling_price: "",
-    reorder_threshold: "50",
+    product_name: initialValues?.product_name || "",
+    pack_size: initialValues?.pack_size || "",
+    category_id: initialValues?.category_id?.toString() || "",
+    selling_price: initialValues?.selling_price?.toString() || "",
+    reorder_threshold: initialValues?.reorder_threshold?.toString() || "50",
     location_id: "1",
     initial_qty: "0",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
+  const { data: categories = [] } = useCategories();
+  const { data: locations = [] } = useLocations();
+
   // Preview the auto-generated product code
-  const categoryTag = MOCK_CATEGORIES.find(
+  const categoryTag = categories.find(
     (c) => String(c.category_id) === form.category_id,
   )?.tag;
   const previewCode = categoryTag ? `${categoryTag}-XXXX` : null;
@@ -150,19 +144,33 @@ export default function AddProductModal({ onClose, onSaved }: Props) {
     }
     setSaving(true);
     try {
-      // ── Real API call ──
-      // const res = await fetch("/api/products", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({
-      //     product_name: form.product_name,
-      //     pack_size: form.pack_size,
-      //     category_id: parseInt(form.category_id),
-      //     selling_price: parseFloat(form.selling_price),
-      //   } as CreateProductDto),
-      // });
-      // if (!res.ok) throw new Error((await res.json()).error);
-      await new Promise((r) => setTimeout(r, 700));
+      const payload: Partial<CreateProductDto & { reorder_threshold?: number }> = {
+        product_name: form.product_name,
+        pack_size: form.pack_size,
+        category_id: parseInt(form.category_id),
+        selling_price: parseFloat(form.selling_price),
+      };
+
+      if (form.reorder_threshold) {
+        payload.reorder_threshold = parseInt(form.reorder_threshold);
+      }
+
+      if (mode === "add") {
+        const res = await fetch("/api/products", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error((await res.json()).error);
+      } else if (mode === "edit" && initialValues?.product_id) {
+        const res = await fetch(`/api/products/${initialValues.product_id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error((await res.json()).error);
+      }
+
       onSaved();
       onClose();
     } catch (err: unknown) {
@@ -183,7 +191,7 @@ export default function AddProductModal({ onClose, onSaved }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-[2px] p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4 min-h-[600px]"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <motion.div
@@ -191,37 +199,36 @@ export default function AddProductModal({ onClose, onSaved }: Props) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.97, y: 8 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
-        className="bg-white border border-stone-200 rounded-2xl shadow-xl w-full max-w-[520px] overflow-hidden"
+        className="bg-[#181c27] border border-[#2a2f45] rounded-2xl w-full max-w-[560px] overflow-hidden flex flex-col"
       >
         {/* ── Header ── */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-stone-100">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-green-50 border border-green-100 flex items-center justify-center">
-              <Package size={15} className="text-green-700" />
-            </div>
-            <div>
-              <p className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-playfair)] leading-none">
-                Add New Product
-              </p>
-              <p className="text-[11.5px] text-stone-400 mt-0.5 [font-family:var(--font-dmsans)]">
-                Product code is auto-generated on save
-              </p>
-            </div>
-          </div>
+        <div className="px-6 py-4 border-b border-[#2a2f45] flex items-center justify-between shrink-0">
+          <p className="text-[16px] font-semibold text-[#e8eaf0] [font-family:var(--font-playfair)] leading-none">
+            {mode === "edit" ? "Edit Product" : "Add New Product"}
+          </p>
           <button
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-lg border border-stone-200 text-stone-400 hover:bg-stone-50 hover:text-stone-600 transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded-lg bg-[#242840] hover:bg-[#2a2f45] text-stone-400 transition-colors"
           >
             <X size={13} />
           </button>
         </div>
 
         {/* ── Body ── */}
-        <div className="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
+        <div className="px-6 py-5 flex-1 overflow-y-auto space-y-4">
           {/* Section: Product details */}
           <p className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-stone-400 pb-2 border-b border-stone-100 [font-family:var(--font-dmsans)]">
             Product details
           </p>
+
+          {mode === "edit" && initialValues?.product_code && (
+            <div className="mb-2">
+              <FieldLabel label="Product Code" />
+              <p className="text-[13px] text-stone-600 font-mono bg-stone-50 px-3 py-2 rounded-lg border border-stone-200">
+                {initialValues.product_code}
+              </p>
+            </div>
+          )}
 
           {/* Product name — full width */}
           <div>
@@ -246,7 +253,7 @@ export default function AddProductModal({ onClose, onSaved }: Props) {
                   onChange={(e) => set("category_id", e.target.value)}
                 >
                   <option value="">Select…</option>
-                  {MOCK_CATEGORIES.map((c) => (
+                  {categories.map((c) => (
                     <option key={c.category_id} value={c.category_id}>
                       {c.name}
                     </option>
@@ -318,47 +325,51 @@ export default function AddProductModal({ onClose, onSaved }: Props) {
           </div>
 
           {/* Section: Initial stock */}
-          <p className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-stone-400 pb-2 border-b border-stone-100 [font-family:var(--font-dmsans)] pt-1">
-            Initial stock{" "}
-            <span className="normal-case font-normal text-stone-300">
-              (optional)
-            </span>
-          </p>
+          {mode === "add" && (
+            <>
+              <p className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-stone-400 pb-2 border-b border-stone-100 [font-family:var(--font-dmsans)] pt-1">
+                Initial stock{" "}
+                <span className="normal-case font-normal text-stone-300">
+                  (optional)
+                </span>
+              </p>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <FieldLabel label="Location" />
-              <div className="relative">
-                <select
-                  className={selectCls()}
-                  value={form.location_id}
-                  onChange={(e) => set("location_id", e.target.value)}
-                >
-                  {MOCK_LOCATIONS.map((l) => (
-                    <option key={l.location_id} value={l.location_id}>
-                      {l.code} — {l.name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={13}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <FieldLabel label="Location" />
+                  <div className="relative">
+                    <select
+                      className={selectCls()}
+                      value={form.location_id}
+                      onChange={(e) => set("location_id", e.target.value)}
+                    >
+                      {locations.map((l) => (
+                        <option key={l.location_id} value={l.location_id}>
+                          {l.code} — {l.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      size={13}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <FieldLabel label="Initial Qty" />
+                  <input
+                    type="number"
+                    min="0"
+                    className={inputCls()}
+                    value={form.initial_qty}
+                    onChange={(e) => set("initial_qty", e.target.value)}
+                  />
+                  <FieldHint>Leave 0 to add stock via Stock Entry</FieldHint>
+                </div>
               </div>
-            </div>
-
-            <div>
-              <FieldLabel label="Initial Qty" />
-              <input
-                type="number"
-                min="0"
-                className={inputCls()}
-                value={form.initial_qty}
-                onChange={(e) => set("initial_qty", e.target.value)}
-              />
-              <FieldHint>Leave 0 to add stock via Stock Entry</FieldHint>
-            </div>
-          </div>
+            </>
+          )}
 
           {/* Global error */}
           <AnimatePresence>
@@ -379,52 +390,47 @@ export default function AddProductModal({ onClose, onSaved }: Props) {
         </div>
 
         {/* ── Footer ── */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-t border-stone-100 bg-stone-50">
-          <p className="text-[11.5px] text-stone-400 flex items-center gap-1.5 [font-family:var(--font-dmsans)]">
-            <Info size={12} className="text-stone-300" />
-            <span className="text-red-400 font-medium">Required</span> fields
-            must be filled
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-[13px] font-medium text-stone-600 border border-stone-200 rounded-xl hover:bg-white transition-colors [font-family:var(--font-dmsans)]"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold text-white bg-green-700 hover:bg-green-800 disabled:opacity-60 rounded-xl transition-colors [font-family:var(--font-dmsans)]"
-            >
-              {saving ? (
-                <>
-                  <svg
-                    className="animate-spin w-3.5 h-3.5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                    />
-                  </svg>
-                  Saving…
-                </>
-              ) : (
-                "Add Product"
-              )}
-            </button>
-          </div>
+        <div className="px-6 py-4 border-t border-[#2a2f45] flex items-center justify-end gap-2 shrink-0">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-[13px] font-medium text-[#8b91a8] hover:bg-[#242840] hover:text-[#e8eaf0] rounded-xl transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold text-white bg-green-700 hover:bg-green-800 disabled:opacity-60 rounded-xl transition-colors"
+          >
+            {saving ? (
+              <>
+                <svg
+                  className="animate-spin w-3.5 h-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                  />
+                </svg>
+                Saving…
+              </>
+            ) : mode === "edit" ? (
+              "Save Changes"
+            ) : (
+              "Add Product"
+            )}
+          </button>
         </div>
       </motion.div>
     </div>

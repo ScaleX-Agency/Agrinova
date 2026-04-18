@@ -1,39 +1,38 @@
-// src/api/products/route.ts
-// GET  /api/products  — List all products
-// POST /api/products  — Create new product
+// app/api/products/route.ts
+// GET  — all products with category
+// POST — create a new product (auto-generates product_code)
 
-import { NextRequest, NextResponse } from "next/server";
-import { getAllProducts, createProduct } from "@/lib/inventoryService";
+import { NextResponse } from "next/server";
+import { getAllProducts, createProduct, getProductStats } from "@/lib/inventoryService";
+import type { CreateProductDto } from "@/types/inventory";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const data = await getAllProducts();
-    return NextResponse.json({ data });
-  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const pageSize = parseInt(searchParams.get("pageSize") || "20", 10);
+    const search = searchParams.get("search") || undefined;
+    const category_id = searchParams.get("category_id") ? parseInt(searchParams.get("category_id") as string, 10) : undefined;
+
+    const [data, stats] = await Promise.all([
+      getAllProducts(page, pageSize, { search, category_id }),
+      getProductStats(),
+    ]);
+    return NextResponse.json({ products: data.items, pagination: data.pagination, stats });
+  } catch (err) {
+    console.error("[GET /api/products]", err);
+    return NextResponse.json({ error: "Failed to fetch products" }, { status: 500 });
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const body = await req.json();
-
-    if (!body.product_name || !body.pack_size || !body.category_id || !body.selling_price) {
-      return NextResponse.json(
-        { error: "product_name, pack_size, category_id, and selling_price are required" },
-        { status: 400 }
-      );
-    }
-
-    const data = await createProduct({
-      category_id: body.category_id,
-      product_name: body.product_name,
-      pack_size: body.pack_size,
-      selling_price: body.selling_price,
-    });
-
-    return NextResponse.json({ data }, { status: 201 });
-  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const dto = (await req.json()) as CreateProductDto;
+    const product = await createProduct(dto);
+    return NextResponse.json(product, { status: 201 });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Failed to create product";
+    console.error("[POST /api/products]", err);
+    return NextResponse.json({ error: msg }, { status: 400 });
   }
 }

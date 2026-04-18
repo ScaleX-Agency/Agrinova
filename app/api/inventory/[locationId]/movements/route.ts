@@ -1,59 +1,91 @@
-// src/api/inventory/[locationId]/movements/route.ts
-// GET  /api/inventory/[locationId]/movements — Movement log for location
-// POST /api/inventory/[locationId]/movements — New issue / return / adjustment
+// app/api/inventory/[locationId]/movements/route.ts
+// GET  — movements for a location
+// POST — record a new movement for a stock item at this location
 
-import { NextRequest, NextResponse } from "next/server";
-import { getAllMovements, createMovement } from "@/lib/inventoryService";
+import { NextResponse } from "next/server";
+import { getMovementsByLocation, createMovement } from "@/lib/inventoryService";
+import type { CreateMovementDto } from "@/types/inventory";
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ locationId: string }> }
-) {
+interface Props {
+  params: Promise<{ locationId: string }>;
+}
+
+export async function GET(req: Request, { params }: Props) {
+  const { locationId } = await params;
+  const id = Number(locationId);
+
+  if (isNaN(id)) {
+    return NextResponse.json({ error: "Invalid locationId" }, { status: 400 });
+  }
+
   try {
-    const locationId = parseInt((await params).locationId);
-    const data = await getAllMovements(locationId);
-    return NextResponse.json({ data });
-  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const pageSize = parseInt(searchParams.get("pageSize") || "20", 10);
+    const movement_type = searchParams.get("movement_type") || undefined;
+    const search = searchParams.get("search") || undefined;
+
+    const data = await getMovementsByLocation(id, page, pageSize, {
+      movement_type,
+      search,
+    });
+
+    return NextResponse.json({
+      items: data.items,
+      pagination: data.pagination,
+    });
+  } catch (err) {
+    console.error(`[GET /api/inventory/${id}/movements]`, err);
+    return NextResponse.json({ error: "Failed to fetch movements" }, { status: 500 });
   }
 }
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ locationId: string }> }
-) {
+export async function POST(req: Request, { params }: Props) {
+  const { locationId } = await params;
+  const id = Number(locationId);
+
+  if (isNaN(id)) {
+    return NextResponse.json({ error: "Invalid locationId" }, { status: 400 });
+  }
+
   try {
-    // In production: get userId from session/JWT
-    // const session = await getServerSession();
-    // const userId = session.user.id;
-    const userId = 1; // placeholder
+    const dto = (await req.json()) as CreateMovementDto;
 
-    const body = await req.json();
-
-    // Basic validation
-    if (!body.stock_id || !body.product_id || !body.movement_type || !body.quantity) {
+    // basic validation
+    if (!dto.stock_id || !dto.movement_type || !dto.quantity) {
       return NextResponse.json(
-        { error: "stock_id, product_id, movement_type, and quantity are required" },
+        { error: "stock_id, movement_type, and quantity are required" },
         { status: 400 }
       );
     }
 
-    if (!["ISSUE", "RETURN", "ADJUSTMENT"].includes(body.movement_type)) {
+    if (!["ISSUE", "RETURN", "PURCHASE", "ADJUSTMENT"].includes(dto.movement_type)) {
       return NextResponse.json(
-        { error: "movement_type must be ISSUE, RETURN, or ADJUSTMENT" },
+        { error: "movement_type must be ISSUE, RETURN, PURCHASE, or ADJUSTMENT" },
         { status: 400 }
       );
     }
 
-    // Business rule: RETURN requires manager/admin role
-    // if (body.movement_type === "RETURN" && session.user.role !== "admin") {
-    //   return NextResponse.json({ error: "Returns require admin approval" }, { status: 403 });
-    // }
+    if (dto.quantity <= 0) {
+      return NextResponse.json(
+        { error: "quantity must be greater than 0" },
+        { status: 400 }
+      );
+    }
 
-    const data = await createMovement(body, userId);
-    return NextResponse.json({ data }, { status: 201 });
-  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
-    const status = err.message.includes("Insufficient") ? 422 : 500;
-    return NextResponse.json({ error: err.message }, { status });
+    // TODO: replace with real session user ID
+    const userId = 1;
+
+    const result = await createMovement(dto, userId);
+    // revalidateTag("inventory") should be handled in service/route flow if already implemented
+
+    return NextResponse.json(result, { status: 201 });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Failed to save movement";
+    const status =
+      err instanceof Error && err.message.includes("Insufficient") ? 422 : 400;
+
+    console.error(`[POST /api/inventory/${locationId}/movements]`, err);
+    return NextResponse.json({ error: msg }, { status });
   }
 }
