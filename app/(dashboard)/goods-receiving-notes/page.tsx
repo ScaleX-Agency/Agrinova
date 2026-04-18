@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { PackagePlus } from "lucide-react";
+import { Eye, PackagePlus } from "lucide-react";
 import type { GoodsReceivingNotesResponse } from "@/types/api";
 
 const ENTRY_TYPE_STYLE: Record<"LOCAL_PURCHASE" | "FOREIGN_IMPORT", string> = {
@@ -88,6 +88,9 @@ const GoodsReceivingNotesPage = () => {
               <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">
                 Created By
               </th>
+              <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">
+                Action
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -118,6 +121,15 @@ const GoodsReceivingNotesPage = () => {
                 <td className="px-4 py-3 text-stone-700">{row.lineCount}</td>
                 <td className="px-4 py-3 text-stone-700">
                   {row.createdByName}
+                </td>
+                <td className="px-4 py-3">
+                  <Link
+                    href={`/goods-receiving-notes/${row.id}`}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] hover:bg-[#eeeffe]"
+                  >
+                    <Eye size={12} />
+                    View
+                  </Link>
                 </td>
               </tr>
             ))}
