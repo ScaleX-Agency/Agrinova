@@ -269,9 +269,37 @@ export type GoodsReceivingNoteOptionDto = {
   createdByName: string;
 };
 
+export type GoodsReceivingNoteLineDto = {
+  lineId: number;
+  productId: number;
+  productCode: string;
+  productName: string;
+  packSize: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+};
+
+export type GoodsReceivingNoteDetailDto = {
+  id: number;
+  grnNumber: string;
+  date: string;
+  entryType: GoodsReceivingEntryType;
+  locationId: number;
+  locationCode: string;
+  locationName: string;
+  referenceNo: string | null;
+  notes: string | null;
+  createdByUserId: number;
+  createdByName: string;
+  createdByUsername: string;
+  lines: GoodsReceivingNoteLineDto[];
+};
+
 export type GoodsReceivingNotesResponse = ApiResult<
   GoodsReceivingNoteOptionDto[]
 >;
+export type GoodsReceivingNoteDetailResponse = ApiResult<GoodsReceivingNoteDetailDto>;
 
 export type InvoiceOptionDto = {
   id: number;
