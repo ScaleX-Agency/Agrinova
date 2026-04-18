@@ -19,17 +19,22 @@ export async function POST(req: NextRequest) {
     const userId = 1; // replace with session user id
     const body = await req.json();
 
-    if (!body.entry_type || !body.location_id || !body.date || !body.items?.length) {
+    if (
+      !body.entry_type ||
+      !body.location_id ||
+      !body.date ||
+      !body.items?.length
+    ) {
       return NextResponse.json(
         { error: "entry_type, location_id, date, and items[] are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!["LOCAL_PURCHASE", "FOREIGN_IMPORT"].includes(body.entry_type)) {
       return NextResponse.json(
         { error: "entry_type must be LOCAL_PURCHASE or FOREIGN_IMPORT" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -38,8 +43,11 @@ export async function POST(req: NextRequest) {
       if (!item.product_id || !item.quantity || item.quantity <= 0) {
         return NextResponse.json(
           { error: "Each item needs product_id and quantity > 0" },
-          { status: 400 }
+          { status: 400 },
         );
+      }
+      if (item.unit_price == null || Number(item.unit_price) < 0) {
+        item.unit_price = 0;
       }
     }
 
