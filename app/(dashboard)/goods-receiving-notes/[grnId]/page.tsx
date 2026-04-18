@@ -8,6 +8,7 @@ import {
   FileText,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import GrnPrintButton from "./GrnPrintButton";
 
 const ENTRY_TYPE_LABEL: Record<"LOCAL_PURCHASE" | "FOREIGN_IMPORT", string> = {
   LOCAL_PURCHASE: "Local Purchase",
@@ -91,21 +92,47 @@ const GoodsReceivingNoteDetailPage = async ({
 
   return (
     <section className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <Link
-            href="/goods-receiving-notes"
-            className="mb-1 inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 transition-colors hover:text-stone-700 [font-family:var(--font-dmsans)]"
-          >
-            <ArrowLeft size={14} />
-            Back to Goods Receiving Notes
-          </Link>
-          <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-stone-500">
-            Inventory Document
-          </p>
-          <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)] font-semibold">
-            Goods Receiving Note {note.grn_number}
-          </h1>
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <Link
+              href="/goods-receiving-notes"
+              className="mb-1 inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 transition-colors hover:text-stone-700 [font-family:var(--font-dmsans)]"
+            >
+              <ArrowLeft size={14} />
+              Back to Goods Receiving Notes
+            </Link>
+            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-stone-500">
+              Inventory Document
+            </p>
+            <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)] font-semibold">
+              Goods Receiving Note {note.grn_number}
+            </h1>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <GrnPrintButton
+            grnNumber={note.grn_number}
+            grnDate={note.grn_date.toISOString()}
+            entryType={note.entry_type}
+            locationCode={note.location.code}
+            locationName={note.location.name}
+            referenceNo={note.reference_no}
+            notes={note.notes}
+            createdBy={note.creator.full_name}
+            createdByUsername={note.creator.username}
+            lines={note.lines.map((line) => ({
+              lineId: line.grn_line_id,
+              productCode: line.product.product_code,
+              productName: line.product.product_name,
+              packSize: line.product.pack_size,
+              quantity: line.quantity,
+              unitPrice: Number(line.unit_price),
+              lineTotal: Number(line.line_total),
+            }))}
+            totalValue={totalValue}
+          />
         </div>
       </div>
 
