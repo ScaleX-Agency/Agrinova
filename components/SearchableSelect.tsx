@@ -127,6 +127,8 @@ export default function SearchableSelect({
   }, [open]);
 
   const showPlaceholder = !selectedOption;
+  const triggerTextClassName = showPlaceholder ? "text-stone-400" : "text-stone-800";
+  const triggerIconClassName = disabled ? "text-stone-300" : "text-stone-400";
 
   return (
     <div ref={rootRef} className={`relative ${className}`}>
@@ -138,18 +140,18 @@ export default function SearchableSelect({
           if (disabled) return;
           setOpen((prev) => !prev);
         }}
-        className={`flex w-full items-start justify-between gap-2 rounded-xl border bg-white px-3 py-2.5 text-left text-[13px] transition focus:outline-none focus:ring-2 focus:ring-[#1a5c2e]/20 ${
+        className={`flex w-full items-start justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-[13px] transition focus:outline-none focus:ring-2 focus:ring-[#1a5c2e]/20 ${
           disabled
-            ? "cursor-not-allowed border-stone-200 bg-stone-100 text-stone-400"
-            : "border-stone-200 text-stone-800 hover:border-stone-300"
+            ? "cursor-not-allowed border-stone-200 bg-stone-100 text-stone-800"
+            : "border-stone-200 bg-white text-stone-800 hover:border-stone-300"
         }`}
       >
         <span
-          className={`min-w-0 flex-1 whitespace-normal break-words ${showPlaceholder ? "text-stone-400" : "text-stone-800"}`}
+          className={`min-w-0 flex-1 whitespace-normal break-words ${triggerTextClassName}`}
         >
           {selectedOption ? selectedOption.label : placeholder}
         </span>
-        <ChevronDown size={14} className="mt-0.5 shrink-0 text-stone-400" />
+        <ChevronDown size={14} className={`mt-0.5 shrink-0 ${triggerIconClassName}`} />
       </button>
 
       {open && !disabled && menuStyle &&
