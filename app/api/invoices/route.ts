@@ -92,13 +92,9 @@ export async function GET(request: Request) {
             full_name: true,
           },
         },
-        goods_issue_note: {
+        location: {
           select: {
-            location: {
-              select: {
-                code: true,
-              },
-            },
+            code: true,
           },
         },
       },
@@ -116,7 +112,7 @@ export async function GET(request: Request) {
         totalAmount: Number(invoice.total_amount),
         status: invoice.status,
         ginStatus: invoice.gin_status,
-        locationCode: invoice.goods_issue_note?.location.code ?? null,
+        locationCode: invoice.location.code,
       })),
     };
 
@@ -265,6 +261,7 @@ export async function POST(request: Request) {
           invoice_number: invoiceNumber,
           customer_id: customer.customer_id,
           rep_id: repId,
+          location_id: location.location_id,
           created_by: createdBy,
           invoice_date: invoiceDate,
           total_amount: totalAmount,
