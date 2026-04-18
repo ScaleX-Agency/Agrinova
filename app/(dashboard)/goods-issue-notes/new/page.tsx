@@ -293,7 +293,6 @@ const NewGoodsIssueNotePage = () => {
           <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-playfair)] font-semibold">
             Goods Issue Note
           </h1>
-          <p className="text-[13px] text-stone-500">Create a Goods Issue Note from a saved invoice.</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -315,9 +314,6 @@ const NewGoodsIssueNotePage = () => {
       </header>
 
       <form className="space-y-4" onSubmit={handleSubmit}>
-        <section className="rounded-2xl border border-[#c0c3f0] bg-[#eeeffe] p-5 text-[13px] text-[#3d40a8]">
-          Create the note from the saved invoice below. Invoice lines are loaded from the selected invoice.
-        </section>
 
         <GinDetailsSection
           ginNumber={ginNumber}
