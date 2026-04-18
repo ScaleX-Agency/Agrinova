@@ -161,6 +161,7 @@ const NewInvoicePage = () => {
 
       const result = (await response.json()) as CreateInvoiceResponse;
       if (!response.ok) throw new Error(result.error ?? "Failed to save invoice.");
+      if (!result.data) throw new Error("Invoice response payload is missing.");
       return result.data;
     },
   });
@@ -383,7 +384,7 @@ const NewInvoicePage = () => {
         createdBy: 1,
       });
 
-      router.push(`/goods-issue-notes/new?invoiceId=${result.invoiceId}&locationId=${activeLocationId}`);
+      router.push(`/invoices/${result.invoiceId}`);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Unable to save invoice.");
     }
