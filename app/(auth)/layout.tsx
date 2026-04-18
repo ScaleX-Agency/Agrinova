@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { Playfair_Display, DM_Sans, JetBrains_Mono } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
+import { ClerkProvider } from '@clerk/nextjs'
 import "../globals.css";
-import AppShell from "@/components/AppShell";
-import QueryProvider from "@/components/QueryProvider";
 import Providers from "@/app/providers";
 
 const playfair = Playfair_Display({
@@ -28,15 +26,11 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: {
-    default: "Agrinova IMS",
-    template: "%s — Agrinova IMS",
-  },
-  description:
-    "Agrinova Inventory Management System — Your Partner in Lifesciences",
+  title: "Login — Agrinova IMS",
+  description: "Login to Agrinova Inventory Management System",
 };
 
-export default function RootLayout({
+export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -47,13 +41,11 @@ export default function RootLayout({
       className={`${playfair.variable} ${dmSans.variable} ${jetbrains.variable} h-full antialiased`}
     >
       <body className="h-full bg-stone-50 text-stone-900 [font-family:var(--font-dmsans)]">
-        <QueryProvider>
-          <ClerkProvider>
-            <Providers>
-              <AppShell>{children}</AppShell>
-            </Providers>
-          </ClerkProvider>
-        </QueryProvider>
+        <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
+          <Providers>
+            {children}
+          </Providers>
+        </ClerkProvider>
       </body>
     </html>
   );

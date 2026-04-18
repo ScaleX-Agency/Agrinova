@@ -138,7 +138,7 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
             </div>
             {movementType === "RETURN" && (
               <span className="form-hint" style={{ color: "var(--warn)", marginTop: 6, display: "block" }}>
-                ⚠ Returns require manager / chairman approval before processing.
+                ⚠ Returns require manager / admin approval before processing.
               </span>
             )}
           </div>
