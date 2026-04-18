@@ -44,6 +44,15 @@ const InvoiceProductsSection = ({
   onAddLine,
   onClearProducts,
 }: InvoiceProductsSectionProps) => {
+  const selectedProductIds = useMemo(
+    () => new Set(
+      lines
+        .map((line) => line.productId)
+        .filter((productId): productId is number => typeof productId === "number"),
+    ),
+    [lines],
+  );
+
   const columns = useMemo(
     () => [
       columnHelper.accessor("productId", {
@@ -55,7 +64,11 @@ const InvoiceProductsSection = ({
             <SearchableSelect
               value={info.row.original.productId}
               onChange={(value) => onChangeProduct(info.row.original.id, value)}
-              options={productSelectOptions}
+              options={productSelectOptions.filter((option) => {
+                const selectedProductId = info.row.original.productId;
+                if (option.id === selectedProductId) return true;
+                return !selectedProductIds.has(option.id);
+              })}
               placeholder="Select product"
               searchPlaceholder="Search products"
               disabled={!locationId || availableProducts.length === 0}
@@ -164,6 +177,7 @@ const InvoiceProductsSection = ({
       onChangeUnitPrice,
       onRemoveLine,
       productSelectOptions,
+      selectedProductIds,
     ],
   );
 

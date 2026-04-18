@@ -49,6 +49,9 @@ const InvoiceDetailsSection = ({
   onCustomerChange,
   onLocationChange,
 }: InvoiceDetailsSectionProps) => {
+  const editableInputClassName =
+    "rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]";
+
   return (
     <section className="rounded-2xl border border-stone-200 bg-white p-4 md:p-5">
       <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">
@@ -63,7 +66,7 @@ const InvoiceDetailsSection = ({
             placeholder="Auto-generated if left blank"
             value={invoiceNo}
             onChange={(event) => onInvoiceNoChange(event.target.value)}
-            className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+            className={editableInputClassName}
           />
           {invoiceNoError && <p className="text-[12px] text-red-700">{invoiceNoError}</p>}
         </label>
@@ -74,7 +77,7 @@ const InvoiceDetailsSection = ({
             type="date"
             value={invoiceDate}
             onChange={(event) => onInvoiceDateChange(event.target.value)}
-            className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+            className={editableInputClassName}
           />
           {invoiceDateError && <p className="text-[12px] text-red-700">{invoiceDateError}</p>}
         </label>

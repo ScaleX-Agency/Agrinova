@@ -226,8 +226,14 @@ const NewInvoicePage = () => {
   );
 
   const addLine = useCallback(() => {
-    const first = productsQuery.data?.[0];
-    if (!first) {
+    const selectedProductIds = new Set(
+      lines
+        .map((line) => line.productId)
+        .filter((productId): productId is number => typeof productId === "number"),
+    );
+
+    const firstAvailable = (productsQuery.data ?? []).find((product) => !selectedProductIds.has(product.id));
+    if (!firstAvailable) {
       setProductsActionError("Select a location with available products before adding lines.");
       return;
     }
@@ -241,16 +247,16 @@ const NewInvoicePage = () => {
       nextLineIdRef.current += 1;
       const nextLine: InvoiceLine = {
         id: nextId,
-        productId: first.id,
+        productId: firstAvailable.id,
         qty: 1,
-        unitPrice: first.sellingPrice,
+        unitPrice: firstAvailable.sellingPrice,
         unitPriceEdited: false,
         discount: 0,
-        lineTotal: first.sellingPrice,
+        lineTotal: firstAvailable.sellingPrice,
       };
       return [...prev, nextLine];
     });
-  }, [clearFieldErrors, productsQuery.data]);
+  }, [clearFieldErrors, lines, productsQuery.data]);
 
   const removeLine = useCallback((lineId: number) => {
     clearFieldErrors(["lines"]);
@@ -259,7 +265,16 @@ const NewInvoicePage = () => {
   }, [clearFieldErrors]);
 
   const changeProduct = useCallback((lineId: number, productId: number | null) => {
+    if (
+      typeof productId === "number" &&
+      lines.some((line) => line.id !== lineId && line.productId === productId)
+    ) {
+      setProductsActionError("The same product cannot be selected more than once.");
+      return;
+    }
+
     clearFieldErrors(["lines"]);
+    setProductsActionError("");
     setSubmitError("");
     setLines((prev) =>
       prev.map((line) => {
@@ -280,7 +295,7 @@ const NewInvoicePage = () => {
         };
       }),
     );
-  }, [availableProductsById, clearFieldErrors]);
+  }, [availableProductsById, clearFieldErrors, lines]);
 
   const changeQty = useCallback((lineId: number, qty: number) => {
     clearFieldErrors(["lines"]);
@@ -372,6 +387,13 @@ const NewInvoicePage = () => {
         lineTotal: calculateLineTotal(normalizedLine),
       };
     });
+
+    const uniqueProductIds = new Set(payloadLines.map((line) => line.productId));
+    if (uniqueProductIds.size !== payloadLines.length) {
+      setSubmitError("Each product can only be added once in an invoice.");
+      setFieldErrors((prev) => ({ ...prev, lines: "Each product can only be added once." }));
+      return;
+    }
 
     try {
       const result = await createInvoiceMutation.mutateAsync({
