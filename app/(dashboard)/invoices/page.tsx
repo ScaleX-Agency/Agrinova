@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, Eye, Plus, Printer, Search } from "lucide-react";
+import { Download, Eye, Package, Plus, Printer, Search } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { InvoiceOptionDto, InvoicesResponse } from "@/types/api";
 
@@ -278,14 +278,16 @@ const InvoicesPage = () => {
                           className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-100 px-2.5 py-1.5 text-[12px] font-medium text-stone-400"
                           title="GIN already issued"
                         >
-                          Create GIN
+                          <Package size={12} />
+                          Issue Stocks
                         </span>
                       ) : (
                         <Link
                           href={`/goods-issue-notes/new?invoiceId=${invoice.id}`}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-stone-700 hover:bg-stone-50"
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
                         >
-                          Create GIN
+                          <Package size={12} />
+                          Issue Stocks
                         </Link>
                       )}
                       {invoice.status === "PAID" ? (
