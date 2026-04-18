@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getAllStock, createStockEntry } from "@/lib/inventoryService";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function GET() {
   try {
@@ -16,7 +17,11 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = 1; // replace with session user id
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
 
     if (
@@ -51,7 +56,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const data = await createStockEntry(body, userId);
+    const data = await createStockEntry(body, currentUser.user_id);
     return NextResponse.json({ data }, { status: 201 });
   } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
     return NextResponse.json({ error: err.message }, { status: 500 });

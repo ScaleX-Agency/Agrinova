@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createStockEntry } from "@/lib/inventoryService";
+import { getCurrentUser } from "@/lib/auth";
 import type { CreateStockEntryDto } from "@/types/inventory";
 
 type LegacyCreateStockEntryDto = {
@@ -38,15 +39,17 @@ const normalizePayload = (
 
 export async function POST(req: Request) {
   try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = (await req.json()) as
       | CreateStockEntryDto
       | LegacyCreateStockEntryDto;
     const dto = normalizePayload(body);
 
-    // TODO: replace with real session user ID from auth cookie/token
-    const userId = 1;
-
-    const result = await createStockEntry(dto, userId);
+    const result = await createStockEntry(dto, currentUser.user_id);
     // revalidateTag("inventory") fires inside createStockEntry automatically
 
     return NextResponse.json(result, { status: 201 });
