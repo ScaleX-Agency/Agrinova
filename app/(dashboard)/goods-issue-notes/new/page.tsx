@@ -14,7 +14,14 @@ import type {
   StockByLocationResponse,
 } from "@/types/api";
 import type { GinFieldErrors, GinLine, ProductOption } from "./gin-form.types";
-import { clamp, getTodayDateInputValue, hasValidLineItems, toLocationSelectOptions, toProductSelectOptions } from "./gin-form.utils";
+import {
+  clamp,
+  getLineAvailableQuantity,
+  getTodayDateInputValue,
+  hasValidLineItems,
+  normalizeGinLines,
+  toLocationSelectOptions,
+} from "./gin-form.utils";
 import { getFirstGoodsIssueNoteFieldError, getGoodsIssueNoteFieldErrors } from "./gin-form.validation";
 import GinDetailsSection from "./GinDetailsSection";
 import GinProductsSection from "./GinProductsSection";
@@ -44,33 +51,35 @@ const getNextGinNumber = (notes: GoodsIssueNotesResponse["data"], dateValue: str
   return `${prefix}${String(latestSequence + 1).padStart(3, "0")}`;
 };
 
+const getQuantityByProduct = (lines: { productId: number; quantity: number }[]) => {
+  const next: Record<number, number> = {};
+  for (const line of lines) {
+    next[line.productId] = (next[line.productId] ?? 0) + line.quantity;
+  }
+  return next;
+};
+
 const NewGoodsIssueNotePage = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialInvoiceId = useMemo(() => parsePositiveInt(searchParams.get("invoiceId")), [searchParams]);
-  const initialLocationId = useMemo(() => parsePositiveInt(searchParams.get("locationId")), [searchParams]);
-  const lockInvoiceData = initialInvoiceId !== null;
-  const lockLocationData = initialLocationId !== null;
 
   const [ginNumber, setGinNumber] = useState("");
   const [ginDate, setGinDate] = useState(getTodayDateInputValue);
   const [invoiceId, setInvoiceId] = useState<number | null>(initialInvoiceId);
-  const [locationId, setLocationId] = useState<number | null>(initialLocationId);
+  const [locationId, setLocationId] = useState<number | null>(null);
   const [preparedBy, setPreparedBy] = useState("");
   const [receivedBy, setReceivedBy] = useState("");
   const [lines, setLines] = useState<GinLine[]>([]);
   const [fieldErrors, setFieldErrors] = useState<GinFieldErrors>({});
   const [submitError, setSubmitError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const nextLineIdRef = useRef(1);
+  const initializedInvoiceIdRef = useRef<number | null>(null);
+  const maxDefaultAppliedInvoiceIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     setInvoiceId(initialInvoiceId);
   }, [initialInvoiceId]);
-
-  useEffect(() => {
-    setLocationId(initialLocationId);
-  }, [initialLocationId]);
 
   const notesQuery = useQuery<GoodsIssueNotesResponse["data"], Error>({
     queryKey: ["goods-issue-notes"],
@@ -85,7 +94,7 @@ const NewGoodsIssueNotePage = () => {
   const invoicesQuery = useQuery({
     queryKey: ["invoice-options"],
     queryFn: async () => {
-      const response = await fetch("/api/invoices?unlinkedOnly=true");
+      const response = await fetch("/api/invoices?issuableOnly=true");
       const result = (await response.json()) as { data?: { id: number; invoiceNo: string; customerName: string; repName: string }[]; error?: string };
       if (!response.ok) throw new Error(result.error ?? "Failed to load invoices.");
       return Array.isArray(result.data) ? result.data : [];
@@ -100,6 +109,17 @@ const NewGoodsIssueNotePage = () => {
       const result = (await response.json()) as InvoiceDetailResponse;
       if (!response.ok) throw new Error(result.error ?? "Failed to load invoice details.");
       return result.data;
+    },
+  });
+
+  const relatedInvoiceGinsQuery = useQuery<GoodsIssueNotesResponse["data"], Error>({
+    queryKey: ["invoice-gins", invoiceId],
+    enabled: invoiceId !== null,
+    queryFn: async () => {
+      const response = await fetch(`/api/goods-issue-notes?invoiceId=${invoiceId}&includeLines=true`);
+      const result = (await response.json()) as GoodsIssueNotesResponse;
+      if (!response.ok) throw new Error(result.error ?? "Failed to load related goods issue notes.");
+      return Array.isArray(result.data) ? result.data : [];
     },
   });
 
@@ -134,6 +154,7 @@ const NewGoodsIssueNotePage = () => {
 
       const result = (await response.json()) as CreateGoodsIssueNoteResponse;
       if (!response.ok) throw new Error(result.error ?? "Failed to save goods issue note.");
+      if (!result.data) throw new Error("Goods issue note response payload is missing.");
       return result.data;
     },
   });
@@ -148,15 +169,25 @@ const NewGoodsIssueNotePage = () => {
     [locationsQuery.data],
   );
 
-  const availableProducts = useMemo<ProductOption[]>(
-    () =>
-      (locationProductsQuery.data ?? []).map((row) => ({
-        id: row.product_id,
-        label: `${row.product_name} [${row.pack_size}]`,
-        stock: row.quantity_on_hand,
-      })),
-    [locationProductsQuery.data],
+  const invoiceQtyByProduct = useMemo(
+    () => getQuantityByProduct(invoiceDetailQuery.data?.lines ?? []),
+    [invoiceDetailQuery.data],
   );
+
+  const savedIssuedQtyByProduct = useMemo(() => {
+    const savedLines = (relatedInvoiceGinsQuery.data ?? []).flatMap((note) => note.lines ?? []);
+    return getQuantityByProduct(savedLines);
+  }, [relatedInvoiceGinsQuery.data]);
+
+  const remainingInvoiceQtyByProduct = useMemo(() => {
+    const next: Record<number, number> = {};
+    for (const [productIdText, invoiceQty] of Object.entries(invoiceQtyByProduct)) {
+      const productId = Number(productIdText);
+      const alreadyIssued = savedIssuedQtyByProduct[productId] ?? 0;
+      next[productId] = Math.max(0, invoiceQty - alreadyIssued);
+    }
+    return next;
+  }, [invoiceQtyByProduct, savedIssuedQtyByProduct]);
 
   const productStockById = useMemo(() => {
     const next: Record<number, number> = {};
@@ -166,7 +197,29 @@ const NewGoodsIssueNotePage = () => {
     return next;
   }, [locationProductsQuery.data]);
 
-  const productOptions = useMemo(() => toProductSelectOptions(availableProducts), [availableProducts]);
+  const productOptions = useMemo<ProductOption[]>(
+    () =>
+      (locationProductsQuery.data ?? []).map((row) => {
+        const remainingInvoiceQty = remainingInvoiceQtyByProduct[row.product_id] ?? 0;
+        const availableQty = Math.min(row.quantity_on_hand, remainingInvoiceQty);
+
+        return {
+          id: row.product_id,
+          label: `${row.product_name} [${row.pack_size}]`,
+          stock: row.quantity_on_hand,
+          description: `Stock: ${row.quantity_on_hand} • Invoice left: ${remainingInvoiceQty}`,
+          searchText: `${row.product_name} ${row.pack_size}`,
+          disabled: availableQty <= 0,
+        };
+      }),
+    [locationProductsQuery.data, remainingInvoiceQtyByProduct],
+  );
+
+  const getCalculatedMaxQtyForProduct = useCallback((productId: number) => {
+    const stockQty = productStockById[productId] ?? 0;
+    const remainingInvoiceQty = remainingInvoiceQtyByProduct[productId] ?? 0;
+    return Math.max(0, Math.min(stockQty, remainingInvoiceQty));
+  }, [productStockById, remainingInvoiceQtyByProduct]);
 
   const invoiceCustomerName = invoiceDetailQuery.data?.customerName ?? "";
   const invoiceRepName = invoiceDetailQuery.data?.repName ?? "";
@@ -178,18 +231,69 @@ const NewGoodsIssueNotePage = () => {
   }, [ginDate, notesQuery.data]);
 
   useEffect(() => {
-    if (!invoiceDetailQuery.data) return;
+    if (!invoiceDetailQuery.data || invoiceId === null) return;
+    if (initializedInvoiceIdRef.current === invoiceId) return;
 
     setGinDate(invoiceDetailQuery.data.invoiceDate.slice(0, 10));
-    setLines(
-      invoiceDetailQuery.data.lines.map((line, index) => ({
-        id: index + 1,
-        productId: line.productId,
-        quantity: line.quantity,
-      })),
+    setLocationId(invoiceDetailQuery.data.locationId);
+    const initialLines = normalizeGinLines(
+      invoiceDetailQuery.data.lines
+        .map((line, index) => ({
+          id: index + 1,
+          productId: line.productId,
+          quantity: getCalculatedMaxQtyForProduct(line.productId),
+        }))
+        .filter((line) => line.quantity >= 0),
+      productStockById,
+      remainingInvoiceQtyByProduct,
     );
-    nextLineIdRef.current = invoiceDetailQuery.data.lines.length + 1;
-  }, [invoiceDetailQuery.data]);
+    setLines(initialLines);
+    initializedInvoiceIdRef.current = invoiceId;
+  }, [invoiceDetailQuery.data, invoiceId, productStockById, remainingInvoiceQtyByProduct, getCalculatedMaxQtyForProduct]);
+
+  useEffect(() => {
+    if (!invoiceDetailQuery.data || invoiceId === null) return;
+    if (initializedInvoiceIdRef.current !== invoiceId) return;
+
+    setLines((prev) => normalizeGinLines(prev, productStockById, remainingInvoiceQtyByProduct));
+  }, [invoiceDetailQuery.data, invoiceId, productStockById, remainingInvoiceQtyByProduct]);
+
+  useEffect(() => {
+    if (invoiceId === null) return;
+    if (!invoiceDetailQuery.data) return;
+    if (initializedInvoiceIdRef.current !== invoiceId) return;
+    if (!locationProductsQuery.data || locationProductsQuery.data.length === 0) return;
+    if (maxDefaultAppliedInvoiceIdRef.current === invoiceId) return;
+
+    setLines((prev) => {
+      const withMaxDefaults = prev.map((line) => {
+        if (typeof line.productId !== "number") return line;
+        const maxQty = getLineAvailableQuantity(line.id, line.productId, prev, productStockById, remainingInvoiceQtyByProduct);
+        return {
+          ...line,
+          quantity: maxQty ?? 0,
+        };
+      });
+
+      return normalizeGinLines(withMaxDefaults, productStockById, remainingInvoiceQtyByProduct);
+    });
+
+    maxDefaultAppliedInvoiceIdRef.current = invoiceId;
+  }, [
+    invoiceDetailQuery.data,
+    invoiceId,
+    locationProductsQuery.data,
+    productStockById,
+    remainingInvoiceQtyByProduct,
+  ]);
+
+  useEffect(() => {
+    if (invoiceId !== null) return;
+    initializedInvoiceIdRef.current = null;
+    maxDefaultAppliedInvoiceIdRef.current = null;
+    setLocationId(null);
+    setLines([]);
+  }, [invoiceId]);
 
   const clearFieldErrors = useCallback((keys: (keyof GinFieldErrors)[]) => {
     setFieldErrors((prev) => {
@@ -200,6 +304,8 @@ const NewGoodsIssueNotePage = () => {
   }, []);
 
   const handleInvoiceChange = useCallback((value: number | null) => {
+    initializedInvoiceIdRef.current = null;
+    maxDefaultAppliedInvoiceIdRef.current = null;
     setInvoiceId(value);
     clearFieldErrors(["invoice", "lines"]);
     setSubmitError("");
@@ -211,35 +317,30 @@ const NewGoodsIssueNotePage = () => {
     setSubmitError("");
   }, [clearFieldErrors]);
 
-  const handleAddLine = useCallback(() => {
-    const firstProduct = availableProducts[0];
-    if (!firstProduct) return;
-
-    setLines((prev) => [...prev, { id: nextLineIdRef.current++, productId: firstProduct.id, quantity: 1 }]);
-    clearFieldErrors(["lines"]);
-    setSubmitError("");
-  }, [availableProducts, clearFieldErrors]);
-
-  const handleRemoveLine = useCallback((lineId: number) => {
-    setLines((prev) => prev.filter((line) => line.id !== lineId));
-    clearFieldErrors(["lines"]);
-    setSubmitError("");
-  }, [clearFieldErrors]);
-
   const handleUpdateLine = useCallback((lineId: number, key: "productId" | "quantity", value: number | null) => {
-    setLines((prev) => prev.map((line) => {
-      if (line.id !== lineId) return line;
-      if (key === "productId") {
-        return { ...line, productId: value };
-      }
+    setLines((prev) => {
+      const updated = prev.map((line) => {
+        if (line.id !== lineId) return line;
 
-      const max = line.productId ? productStockById[line.productId] : undefined;
-      const nextQuantity = clamp(typeof value === "number" ? value : line.quantity, 1, max);
-      return { ...line, quantity: nextQuantity };
-    }));
+        if (key === "productId") {
+          const nextMax = getLineAvailableQuantity(lineId, value, prev, productStockById, remainingInvoiceQtyByProduct);
+          return {
+            ...line,
+            productId: value,
+            quantity: typeof value === "number" ? (nextMax ?? 0) : 0,
+          };
+        }
+
+        const max = getLineAvailableQuantity(lineId, line.productId, prev, productStockById, remainingInvoiceQtyByProduct);
+        const nextQuantity = clamp(typeof value === "number" ? value : line.quantity, 0, max);
+        return { ...line, quantity: nextQuantity };
+      });
+
+      return normalizeGinLines(updated, productStockById, remainingInvoiceQtyByProduct);
+    });
     clearFieldErrors(["lines"]);
     setSubmitError("");
-  }, [clearFieldErrors, productStockById]);
+  }, [clearFieldErrors, productStockById, remainingInvoiceQtyByProduct]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -262,6 +363,18 @@ const NewGoodsIssueNotePage = () => {
     if (invoiceId == null || locationId == null) return;
     if (!hasValidLineItems(lines)) return;
 
+    const payloadLines = lines
+      .filter((line) => typeof line.productId === "number" && line.quantity > 0)
+      .map((line) => ({
+        productId: line.productId as number,
+        quantity: line.quantity,
+      }));
+
+    if (payloadLines.length === 0) {
+      setSubmitError("Enter quantity for at least one product before saving.");
+      return;
+    }
+
     const payload: CreateGoodsIssueNoteRequestDto = {
       ginNumber: ginNumber.trim(),
       ginDate,
@@ -270,16 +383,13 @@ const NewGoodsIssueNotePage = () => {
       preparedBy: preparedBy.trim(),
       receivedBy: receivedBy.trim(),
       createdBy: 1,
-      lines: lines.map((line) => ({
-        productId: line.productId as number,
-        quantity: line.quantity,
-      })),
+      lines: payloadLines,
     };
 
     try {
       const result = await saveMutation.mutateAsync(payload);
       setSuccessMessage(`Goods Issue Note saved successfully (ID: ${result.ginId}).`);
-      router.push("/goods-issue-notes");
+      router.push(`/invoices/${invoiceId}`);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Unable to save goods issue note.");
     }
@@ -314,7 +424,6 @@ const NewGoodsIssueNotePage = () => {
       </header>
 
       <form className="space-y-4" onSubmit={handleSubmit}>
-
         <GinDetailsSection
           ginNumber={ginNumber}
           ginDate={ginDate}
@@ -334,9 +443,6 @@ const NewGoodsIssueNotePage = () => {
           locationOptions={locationOptions}
           invoicesLoading={invoicesQuery.isLoading}
           locationsLoading={locationsQuery.isLoading}
-          lockInvoiceSelection={lockInvoiceData}
-          lockLocationSelection={lockLocationData}
-          lockGinDate={lockInvoiceData}
           onGinNumberChange={setGinNumber}
           onGinDateChange={setGinDate}
           onInvoiceChange={handleInvoiceChange}
@@ -350,11 +456,11 @@ const NewGoodsIssueNotePage = () => {
           locationId={locationId}
           productOptions={productOptions}
           productStockById={productStockById}
+          invoiceQtyByProduct={invoiceQtyByProduct}
+          issuedQtyByProduct={savedIssuedQtyByProduct}
+          remainingInvoiceQtyByProduct={remainingInvoiceQtyByProduct}
           isProductsLoading={locationProductsQuery.isLoading}
           productsError={locationProductsQuery.error instanceof Error ? locationProductsQuery.error.message : ""}
-          lockPrefilledData={lockInvoiceData}
-          onAddLine={handleAddLine}
-          onRemoveLine={handleRemoveLine}
           onUpdateLine={handleUpdateLine}
         />
 
