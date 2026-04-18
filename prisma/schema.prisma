@@ -21,6 +21,7 @@ model User {
   username        String          @unique
   password_hash   String?
   clerk_id        String?         @unique
+  goods_receiving_notes GoodsReceivingNote[] @relation("GoodsReceivingNoteCreatedBy")
   invoices        Invoice[]       @relation("InvoiceCreatedBy")
   receipts        Receipt[]       @relation("ReceiptCollectedBy")
   stock_movements StockMovement[] @relation("StockMovementCreatedBy")
@@ -110,6 +111,39 @@ model GoodsIssueNoteLine {
   @@map("GOODS_ISSUE_NOTE_LINE")
 }
 
+model GoodsReceivingNote {
+  grn_id       Int                    @id @default(autoincrement())
+  grn_number   String                 @unique
+  grn_date     DateTime
+  entry_type   StockEntryType
+  location_id  Int
+  reference_no String?
+  notes        String?
+  created_by   Int
+  creator      User                   @relation("GoodsReceivingNoteCreatedBy", fields: [created_by], references: [user_id])
+  location     InventoryLocation      @relation(fields: [location_id], references: [location_id])
+  lines        GoodsReceivingNoteLine[]
+
+  @@index([location_id])
+  @@index([created_by])
+  @@map("GOODS_RECEIVING_NOTE")
+}
+
+model GoodsReceivingNoteLine {
+  grn_line_id          Int               @id @default(autoincrement())
+  grn_id               Int
+  product_id           Int
+  quantity             Int
+  unit_price           Decimal           @db.Decimal(10, 2)
+  line_total           Decimal           @db.Decimal(10, 2)
+  goods_receiving_note GoodsReceivingNote @relation(fields: [grn_id], references: [grn_id])
+  product              Product           @relation(fields: [product_id], references: [product_id])
+
+  @@index([grn_id])
+  @@index([product_id])
+  @@map("GOODS_RECEIVING_NOTE_LINE")
+}
+
 model InvoiceLine {
   line_id    Int     @id @default(autoincrement())
   invoice_id Int
@@ -182,6 +216,7 @@ model Product {
   product_name           String
   pack_size              String
   selling_price          Decimal              @db.Decimal(10, 2)
+  goods_receiving_note_lines GoodsReceivingNoteLine[]
   goods_issue_note_lines GoodsIssueNoteLine[]
   invoice_lines          InvoiceLine[]
   category               Category             @relation(fields: [category_id], references: [category_id])
@@ -195,6 +230,7 @@ model InventoryLocation {
   location_id       Int              @id @default(autoincrement())
   code              String           @unique
   name              String
+  goods_receiving_notes GoodsReceivingNote[]
   goods_issue_notes GoodsIssueNote[]
   invoices          Invoice[]
   stocks            Stock[]
@@ -249,6 +285,11 @@ enum MovementType {
   RETURN
   PURCHASE
   ADJUSTMENT
+}
+
+enum StockEntryType {
+  LOCAL_PURCHASE
+  FOREIGN_IMPORT
 }
 
 enum ReminderStatus {

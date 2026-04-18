@@ -188,6 +188,13 @@ const InvoiceDetailPage = async ({
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div>
+            <Link
+              href="/invoices"
+              className="mb-1 inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 transition-colors hover:text-stone-700 [font-family:var(--font-dmsans)]"
+            >
+              <ArrowLeft size={14} />
+              Back to Invoices
+            </Link>
             <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-stone-500">
               Sales Document
             </p>
@@ -213,14 +220,6 @@ const InvoiceDetailPage = async ({
               </div>
             </div>
           </div>
-
-          <Link
-            href="/invoices"
-            className="inline-flex items-center gap-2 rounded-xl px-2.5 py-2 text-[12px] font-medium text-stone-600 transition-colors hover:bg-stone-100"
-            title="Back to invoices"
-          >
-            <ArrowLeft size={16} />
-          </Link>
         </div>
 
         {/* ── Quick Actions ── */}

@@ -114,6 +114,13 @@ const ReceiptDetailPage = async ({
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div>
+            <Link
+              href="/receipts"
+              className="mb-1 inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 transition-colors hover:text-stone-700 [font-family:var(--font-dmsans)]"
+            >
+              <ArrowLeft size={14} />
+              Back to Receipts
+            </Link>
             <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-stone-500">
               Sales Document
             </p>
@@ -131,14 +138,6 @@ const ReceiptDetailPage = async ({
               </div>
             </div>
           </div>
-
-          <Link
-            href="/receipts"
-            className="inline-flex items-center gap-2 rounded-xl px-2.5 py-2 text-[12px] font-medium text-stone-600 transition-colors hover:bg-stone-100"
-            title="Back to receipts"
-          >
-            <ArrowLeft size={16} />
-          </Link>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
