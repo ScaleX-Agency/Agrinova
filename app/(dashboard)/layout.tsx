@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Playfair_Display, DM_Sans, JetBrains_Mono } from "next/font/google";
-import { ClerkProvider, Show, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs'
+import { ClerkProvider } from "@clerk/nextjs";
 import "../globals.css";
 import AppShell from "@/components/AppShell";
+import QueryProvider from "@/components/QueryProvider";
 import Providers from "@/app/providers";
 
 const playfair = Playfair_Display({
@@ -46,11 +47,13 @@ export default function RootLayout({
       className={`${playfair.variable} ${dmSans.variable} ${jetbrains.variable} h-full antialiased`}
     >
       <body className="h-full bg-stone-50 text-stone-900 [font-family:var(--font-dmsans)]">
-        <ClerkProvider>
-          <Providers>
-            <AppShell>{children}</AppShell>
-          </Providers>
-        </ClerkProvider>
+        <QueryProvider>
+          <ClerkProvider>
+            <Providers>
+              <AppShell>{children}</AppShell>
+            </Providers>
+          </ClerkProvider>
+        </QueryProvider>
       </body>
     </html>
   );

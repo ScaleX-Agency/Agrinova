@@ -87,14 +87,24 @@ export async function GET() {
       },
     });
 
+    const serializedCustomers = customers.map((customer) =>
+      serializeCustomer(customer),
+    );
+
     return NextResponse.json({
-      customers: customers.map((customer) => serializeCustomer(customer)),
+      customers: serializedCustomers,
+      // Backward-compatible shape used by customer dropdown consumers.
+      data: serializedCustomers
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((customer) => ({
+          id: customer.customer_id,
+          label: customer.name,
+          assignedRepId: customer.assigned_rep_id,
+        })),
     });
   } catch (error: unknown) {
-    return NextResponse.json(
-      { error: getErrorMessage(error) },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -127,9 +137,7 @@ export async function POST(req: Request) {
         assigned_rep_id: parsed.data.assignedRepId,
         name: parsed.data.name,
         phone: parsed.data.phone,
-        address: parsed.data.address?.trim()
-          ? parsed.data.address.trim()
-          : null,
+        address: parsed.data.address?.trim() ? parsed.data.address.trim() : null,
         outstanding_balance: new Prisma.Decimal(0),
       },
       select: {
@@ -154,9 +162,6 @@ export async function POST(req: Request) {
       { status: 201 },
     );
   } catch (error: unknown) {
-    return NextResponse.json(
-      { error: getErrorMessage(error) },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }

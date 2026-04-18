@@ -13,6 +13,7 @@ import {
   UserCog,
   Receipt,
   FileText,
+  ClipboardList,
   UserCheck,
   Settings,
   Leaf,
@@ -66,6 +67,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "Operations",
     items: [
+      { href: "/goods-issue-notes", icon: <ClipboardList size={15} />, label: "Goods Issue Notes" },
       { href: "/invoices", icon: <FileText size={15} />, label: "Invoices" },
       { href: "/receipts", icon: <Receipt size={15} />, label: "Receipts" },
       { href: "/customers", icon: <Users size={15} />, label: "Customers" },
@@ -78,6 +80,11 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/sales-reps",
         icon: <UserCheck size={15} />,
         label: "Sales Reps",
+      },
+      {
+        href: "/commission",
+        icon: <UserCheck size={15} />,
+        label: "Commission",
       },
     ],
   },
