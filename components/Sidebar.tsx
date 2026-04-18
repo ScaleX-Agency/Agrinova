@@ -3,14 +3,17 @@
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useClerk } from "@clerk/nextjs";
 import {
   LayoutDashboard,
   Boxes,
   Package,
   ArrowLeftRight,
   Users,
+  UserCog,
   Receipt,
   FileText,
+  ClipboardList,
   UserCheck,
   Settings,
   Leaf,
@@ -64,13 +67,24 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "Operations",
     items: [
+      { href: "/goods-issue-notes", icon: <ClipboardList size={15} />, label: "Goods Issue Notes" },
       { href: "/invoices", icon: <FileText size={15} />, label: "Invoices" },
       { href: "/receipts", icon: <Receipt size={15} />, label: "Receipts" },
       { href: "/customers", icon: <Users size={15} />, label: "Customers" },
       {
+        href: "/operators",
+        icon: <UserCog size={15} />,
+        label: "Operators",
+      },
+      {
         href: "/sales-reps",
         icon: <UserCheck size={15} />,
         label: "Sales Reps",
+      },
+      {
+        href: "/commission",
+        icon: <UserCheck size={15} />,
+        label: "Commission",
       },
     ],
   },
@@ -84,6 +98,7 @@ export default function Sidebar({
   onClose,
 }: SidebarProps) {
   const pathname = usePathname();
+  const { signOut } = useClerk();
 
 
   const content = (
@@ -190,6 +205,7 @@ export default function Sidebar({
           {!collapsed && <span>Settings</span>}
         </Link>
         <button
+          onClick={() => signOut({ redirectUrl: "/login" })}
           className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[13px] font-medium text-stone-500 hover:bg-red-50 hover:text-red-700 transition-all [font-family:var(--font-dmsans)] ${collapsed ? "justify-center" : ""}`}
           title={collapsed ? "Sign out" : undefined}
         >

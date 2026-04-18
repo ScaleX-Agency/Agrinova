@@ -14,9 +14,10 @@ export default function QueryProvider({
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 30 * 1000, // data fresh for 30s (matches server cache TTL)
-            gcTime: 5 * 60 * 1000, // keep in memory 5 mins
+            staleTime: 30_000,
+            gcTime: 5 * 60 * 1000,
             retry: 1,
+            refetchOnWindowFocus: false,
           },
         },
       }),

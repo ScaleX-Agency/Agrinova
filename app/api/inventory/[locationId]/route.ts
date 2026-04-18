@@ -23,10 +23,20 @@ export async function GET(req: Request, { params }: Props) {
     const search = searchParams.get("search") || undefined;
     const status = searchParams.get("status") || undefined;
 
-    const stockData = await getStockByLocation(id, page, pageSize, { search, status });
-    return NextResponse.json({ stock: stockData.items, pagination: stockData.pagination });
+    const stockData = await getStockByLocation(id, page, pageSize, {
+      search,
+      status,
+    });
+
+    return NextResponse.json({
+      stock: stockData.items,
+      pagination: stockData.pagination,
+    });
   } catch (err) {
     console.error(`[GET /api/inventory/${id}]`, err);
-    return NextResponse.json({ error: "Failed to fetch location stock" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch location stock" },
+      { status: 500 }
+    );
   }
 }

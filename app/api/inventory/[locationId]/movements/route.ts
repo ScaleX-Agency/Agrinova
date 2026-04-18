@@ -25,8 +25,15 @@ export async function GET(req: Request, { params }: Props) {
     const movement_type = searchParams.get("movement_type") || undefined;
     const search = searchParams.get("search") || undefined;
 
-    const data = await getMovementsByLocation(id, page, pageSize, { movement_type, search });
-    return NextResponse.json({ items: data.items, pagination: data.pagination });
+    const data = await getMovementsByLocation(id, page, pageSize, {
+      movement_type,
+      search,
+    });
+
+    return NextResponse.json({
+      items: data.items,
+      pagination: data.pagination,
+    });
   } catch (err) {
     console.error(`[GET /api/inventory/${id}/movements]`, err);
     return NextResponse.json({ error: "Failed to fetch movements" }, { status: 500 });
@@ -35,20 +42,50 @@ export async function GET(req: Request, { params }: Props) {
 
 export async function POST(req: Request, { params }: Props) {
   const { locationId } = await params;
+  const id = Number(locationId);
+
+  if (isNaN(id)) {
+    return NextResponse.json({ error: "Invalid locationId" }, { status: 400 });
+  }
 
   try {
     const dto = (await req.json()) as CreateMovementDto;
+
+    // basic validation
+    if (!dto.stock_id || !dto.movement_type || !dto.quantity) {
+      return NextResponse.json(
+        { error: "stock_id, movement_type, and quantity are required" },
+        { status: 400 }
+      );
+    }
+
+    if (!["ISSUE", "RETURN", "PURCHASE", "ADJUSTMENT"].includes(dto.movement_type)) {
+      return NextResponse.json(
+        { error: "movement_type must be ISSUE, RETURN, PURCHASE, or ADJUSTMENT" },
+        { status: 400 }
+      );
+    }
+
+    if (dto.quantity <= 0) {
+      return NextResponse.json(
+        { error: "quantity must be greater than 0" },
+        { status: 400 }
+      );
+    }
 
     // TODO: replace with real session user ID
     const userId = 1;
 
     const result = await createMovement(dto, userId);
-    // revalidateTag("inventory") is called inside createMovement — no need here
+    // revalidateTag("inventory") should be handled in service/route flow if already implemented
 
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed to save movement";
+    const status =
+      err instanceof Error && err.message.includes("Insufficient") ? 422 : 400;
+
     console.error(`[POST /api/inventory/${locationId}/movements]`, err);
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return NextResponse.json({ error: msg }, { status });
   }
 }
