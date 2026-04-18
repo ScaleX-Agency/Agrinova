@@ -171,12 +171,21 @@ const InvoiceDetailPage = async ({
               ))}
             </div>
           )}
-          <Link
-            href={`/receipts/new?invoiceId=${invoice.invoice_id}`}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42]"
-          >
-            Record Payment
-          </Link>
+          {invoice.status === "PAID" ? (
+            <span
+              className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl border border-stone-200 bg-stone-100 px-3 py-2 text-[13px] font-medium text-stone-400"
+              title="Invoice is fully paid"
+            >
+              Record Payment
+            </span>
+          ) : (
+            <Link
+              href={`/receipts/new?invoiceId=${invoice.invoice_id}`}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42]"
+            >
+              Record Payment
+            </Link>
+          )}
           <Link
             href="/invoices"
             className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] font-medium text-stone-700 hover:bg-stone-50"

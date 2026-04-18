@@ -288,12 +288,21 @@ const InvoicesPage = () => {
                           Create GIN
                         </Link>
                       )}
-                      <Link
-                        href={`/receipts/new?invoiceId=${invoice.id}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
-                      >
-                        Record Payment
-                      </Link>
+                      {invoice.status === "PAID" ? (
+                        <span
+                          className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-100 px-2.5 py-1.5 text-[12px] font-medium text-stone-400"
+                          title="Invoice is fully paid"
+                        >
+                          Record Payment
+                        </span>
+                      ) : (
+                        <Link
+                          href={`/receipts/new?invoiceId=${invoice.id}`}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
+                        >
+                          Record Payment
+                        </Link>
+                      )}
                       <Link
                         href={`/invoices/${invoice.id}`}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] hover:bg-[#eeeffe]"
