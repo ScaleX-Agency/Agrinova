@@ -2,9 +2,19 @@
 
 import { useState, useMemo } from "react";
 import { MovementRow, MovementType } from "@/types/inventory";
+import Pagination from "rc-pagination";
+import "rc-pagination/assets/index.css";
 
 interface Props {
   movements: MovementRow[];
+  pagination?: {
+    page: number;
+    pageSize: number;
+    total: number;
+    setPage: (p: number) => void;
+  };
+  filterType?: FilterType;
+  onFilterChange?: (t: FilterType) => void;
 }
 
 type FilterType = MovementType | "ALL";
@@ -28,12 +38,16 @@ function fmtDate(iso: string) {
   });
 }
 
-export default function MovementsLog({ movements }: Props) {
-  const [typeFilter, setTypeFilter] = useState<FilterType>("ALL");
+export default function MovementsLog({ movements, pagination, filterType, onFilterChange }: Props) {
+  const [localTypeFilter, setLocalTypeFilter] = useState<FilterType>("ALL");
+  const typeFilter = filterType !== undefined ? filterType : localTypeFilter;
+  const setTypeFilter = onFilterChange !== undefined ? onFilterChange : setLocalTypeFilter;
 
+  // With server pagination, the array should already be filtered. 
+  // We only run local filtering as a fallback if no server pagination is passed.
   const filtered = useMemo(() =>
-    typeFilter === "ALL" ? movements : movements.filter((m) => m.movement_type === typeFilter),
-    [movements, typeFilter]
+    pagination ? movements : (typeFilter === "ALL" ? movements : movements.filter((m) => m.movement_type === typeFilter)),
+    [movements, typeFilter, pagination]
   );
 
   return (
@@ -56,7 +70,7 @@ export default function MovementsLog({ movements }: Props) {
           ))}
         </div>
         <span className="text-[12px] text-stone-400 ml-auto">
-          {filtered.length} records
+          {pagination ? pagination.total : filtered.length} records
         </span>
       </div>
 
@@ -119,6 +133,22 @@ export default function MovementsLog({ movements }: Props) {
             )}
           </tbody>
         </table>
+        
+        {/* Pagination Controls */}
+        {pagination && pagination.total > pagination.pageSize && (
+          <div className="flex items-center justify-between px-5 py-3 border-t border-stone-100 bg-stone-50">
+            <span className="text-[12px] text-stone-500">
+              Showing {(pagination.page - 1) * pagination.pageSize + 1} to {Math.min(pagination.page * pagination.pageSize, pagination.total)} of {pagination.total} entries
+            </span>
+            <Pagination
+              current={pagination.page}
+              total={pagination.total}
+              pageSize={pagination.pageSize}
+              onChange={(p) => pagination.setPage(p)}
+              className="text-[12px]"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

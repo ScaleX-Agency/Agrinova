@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import * as z from "zod";
+import { auth } from "@clerk/nextjs/server";
 import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -25,8 +26,8 @@ function getErrorMessage(error: unknown): string {
 
 export async function GET() {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

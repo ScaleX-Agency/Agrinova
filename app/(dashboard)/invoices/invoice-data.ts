@@ -1,0 +1,58 @@
+import type { InvoiceRow } from "./invoice-types";
+
+export const INVOICES: InvoiceRow[] = [
+	{
+		invoiceNo: "INV-202604-001",
+		date: "2026-04-02",
+		customer: "Green Valley Agro",
+		salesRep: "Kamal Perera",
+		inventoryLocation: "Colombo",
+		amount: 124500,
+		status: "Paid",
+	},
+	{
+		invoiceNo: "INV-202604-002",
+		date: "2026-04-03",
+		customer: "Nuwara Farms",
+		salesRep: "Nimal Silva",
+		inventoryLocation: "Kandy",
+		amount: 89300,
+		status: "Partial",
+	},
+	{
+		invoiceNo: "INV-202604-003",
+		date: "2026-04-05",
+		customer: "Peradeniya Crop Care",
+		salesRep: "Kamal Perera",
+		inventoryLocation: "Galle",
+		amount: 148900,
+		status: "Unpaid",
+	},
+	{
+		invoiceNo: "INV-202604-004",
+		date: "2026-04-07",
+		customer: "Lanka Harvest Hub",
+		salesRep: "Tharindu Jayasuriya",
+		inventoryLocation: "Matara",
+		amount: 67200,
+		status: "Paid",
+	},
+	{
+		invoiceNo: "INV-202604-005",
+		date: "2026-04-10",
+		customer: "Kuliyapitiya Agro Point",
+		salesRep: "Nimal Silva",
+		inventoryLocation: "Kurunegala",
+		amount: 101400,
+		status: "Partial",
+	},
+	{
+		invoiceNo: "INV-202604-006",
+		date: "2026-04-11",
+		customer: "AgriOne Traders",
+		salesRep: "Tharindu Jayasuriya",
+		inventoryLocation: "Colombo",
+		amount: 56250,
+		status: "Unpaid",
+	},
+];

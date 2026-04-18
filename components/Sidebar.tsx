@@ -9,10 +9,12 @@ import {
   Boxes,
   Package,
   ArrowLeftRight,
+  PackageCheck,
   Users,
   UserCog,
   Receipt,
   FileText,
+  ClipboardList,
   UserCheck,
   Settings,
   Leaf,
@@ -61,11 +63,21 @@ const NAV_GROUPS: NavGroup[] = [
         icon: <ArrowLeftRight size={15} />,
         label: "Movements",
       },
+      {
+        href: "/goods-receiving-notes",
+        icon: <PackageCheck size={15} />,
+        label: "Goods Receiving Notes",
+      },
     ],
   },
   {
     title: "Operations",
     items: [
+      {
+        href: "/goods-issue-notes",
+        icon: <ClipboardList size={15} />,
+        label: "Goods Issue Notes",
+      },
       { href: "/invoices", icon: <FileText size={15} />, label: "Invoices" },
       { href: "/receipts", icon: <Receipt size={15} />, label: "Receipts" },
       { href: "/customers", icon: <Users size={15} />, label: "Customers" },
@@ -78,6 +90,11 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/sales-reps",
         icon: <UserCheck size={15} />,
         label: "Sales Reps",
+      },
+      {
+        href: "/commission",
+        icon: <UserCheck size={15} />,
+        label: "Commission",
       },
     ],
   },
@@ -134,7 +151,17 @@ export default function Sidebar({
             )}
             <ul className="space-y-0.5">
               {group.items.map((item) => {
-                const active = pathname === item.href;
+                let active = false;
+                if (
+                  item.href === "/inventory/movements" ||
+                  item.href === "/inventory?tab=movements"
+                ) {
+                  active = pathname === "/inventory/movements";
+                } else if (item.href === "/inventory") {
+                  active = pathname === "/inventory";
+                } else {
+                  active = pathname === item.href;
+                }
                 return (
                   <li key={item.href}>
                     <Link

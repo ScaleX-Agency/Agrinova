@@ -1,17 +1,31 @@
 "use client";
+// src/components/StockOverview.tsx
+// Data is now owned by React Query — useState only drives UI state (modals, tabs).
+// Server-fetched initialData hydrates the cache on first render (no loading flash).
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
+import { useQueryClient }  from "@tanstack/react-query";
 import {
   Package, TrendingUp, AlertTriangle, XCircle,
-  Plus, Upload, RefreshCw, Pencil, ArrowLeftRight, Download,
-  Search,
+  Plus, Upload,
 } from "lucide-react";
-import LocationCards from "./LocationCards";
-import StockTable from "./StockTable";
-import MovementsLog from "./MovementsLog";
+
+import { useState } from "react";
+
+import LocationCards      from "./LocationCards";
+import StockTable         from "./StockTable";
+import MovementsLog       from "./MovementsLog";
 import RecordMovementModal from "./RecordMovementModal";
-import NewStockEntryModal from "./NewStockEntryModal";
+import NewStockEntryModal  from "./NewStockEntryModal";
+import ImportStockModal    from "./ImportStockModal";
+
 import {
+  useAllStock,
+  useLocationSummaries,
+  useAllMovements,
+  KEYS,
+} from "@/hooks/useInventory";
+import type {
   StockOverviewRow,
   LocationSummary,
   MovementRow,
@@ -19,66 +33,80 @@ import {
 } from "@/types/inventory";
 
 interface StockOverviewProps {
-  initialStock?: StockOverviewRow[];
+  initialStock?:     { stock: StockOverviewRow[], pagination: any };
   initialSummaries?: LocationSummary[];
-  initialMovements?: MovementRow[];
+  initialMovements?: { items: MovementRow[], pagination: any };
 }
 
 export default function StockOverview({
-  initialStock = [],
+  initialStock     = { stock: [], pagination: { total: 0 } },
   initialSummaries = [],
-  initialMovements = [],
+  initialMovements = { items: [], pagination: { total: 0 } },
 }: StockOverviewProps) {
-  const [stock, setStock] = useState<StockOverviewRow[]>(initialStock);
-  const [summaries] = useState<LocationSummary[]>(initialSummaries);
-  const [movements, setMovements] = useState<MovementRow[]>(initialMovements);
-  const [activeTab, setActiveTab] = useState<"overview" | "movements">("overview");
 
+  const qc = useQueryClient();
+
+  // ── Data from React Query (seeded by RSC initialData) ────────
+  // ── UI-only state ─────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<"overview" | "movements">(
+    "overview",
+  );
   const [filter, setFilter] = useState<StockFilter>({
     location_id: null,
-    search: "",
-    status: "all",
+    search:      "",
+    status:      "all",
   });
+  
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
-  const [movementTarget, setMovementTarget] = useState<StockOverviewRow | null>(null);
-  const [showNewStock, setShowNewStock] = useState(false);
-
-  const filteredStock = useMemo(() =>
-    stock.filter((row) => {
-      const matchLoc = filter.location_id == null || row.location_id === filter.location_id;
-      const matchSearch =
-        !filter.search ||
-        row.product_name.toLowerCase().includes(filter.search.toLowerCase()) ||
-        row.product_code.toLowerCase().includes(filter.search.toLowerCase());
-      const matchStatus = filter.status === "all" || row.status === filter.status;
-      return matchLoc && matchSearch && matchStatus;
-    }),
-    [stock, filter]
+  const { data: stockResponse = { stock: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 1 } } } = useAllStock(
+    { page, pageSize, search: filter.search, status: filter.status, location_id: filter.location_id || undefined }, 
+    initialStock
   );
+  const stock = stockResponse.stock;
+
+  const { data: summaries = [] } = useLocationSummaries(initialSummaries);
+  const [movementsPage, setMovementsPage] = useState(1);
+  const movementsPageSize = 20;
+  const [movTypeFilter, setMovTypeFilter] = useState<any>("ALL");
+
+  const { data: movements = { items: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 1 } } } = useAllMovements(
+    { page: movementsPage, pageSize: movementsPageSize, movement_type: movTypeFilter !== "ALL" ? movTypeFilter : undefined }, 
+    initialMovements
+  );
+  const [movementTarget, setMovementTarget] = useState<StockOverviewRow | null>(null);
+  const [showNewStock,   setShowNewStock]   = useState(false);
+  const [showImport,     setShowImport]     = useState(false);
+
+  // ── Derived data ──────────────────────────────────────────────
+  // The server now handles filtering. stock contains the paginated+filtered rows.
+  const filteredStock = stock;
 
   const stats = useMemo(() => ({
-    totalProducts: stock.length,
-    totalUnits: stock.reduce((a, b) => a + b.quantity_on_hand, 0),
-    lowCount: stock.filter((r) => r.status === "low").length,
-    outCount: stock.filter((r) => r.status === "out").length,
-  }), [stock]);
+    totalProducts: summaries.reduce((acc, s) => acc + s.total_products, 0) || stockResponse.pagination.total,
+    totalUnits:    summaries.reduce((acc, s) => acc + Number(s.total_units), 0),
+    lowCount:      summaries.reduce((acc, s) => acc + Number(s.low_count), 0),
+    outCount:      summaries.reduce((acc, s) => acc + Number(s.out_count), 0),
+  }), [summaries, stockResponse.pagination.total]);
+
+  // ── Cache update helpers (passed to modals) ───────────────────
+  // Modals keep their existing callback signatures — we just mirror the
+  // update into the RQ cache and fire an invalidation for server sync.
 
   const handleMovementSaved = (updated: StockOverviewRow, newMov: MovementRow) => {
-    setStock((prev) => prev.map((r) => r.stock_id === updated.stock_id ? updated : r));
-    setMovements((prev) => [newMov, ...prev]);
+    // Invalidate instead of manually updating to support pagination
+    qc.invalidateQueries({ queryKey: ["stock"] });
+    qc.invalidateQueries({ queryKey: ["movements"] });
   };
 
-  const handleStockEntrySaved = (updatedRows: StockOverviewRow[], newMovements: MovementRow[]) => {
-    setStock((prev) => {
-      const next = [...prev];
-      for (const row of updatedRows) {
-        const idx = next.findIndex((r) => r.stock_id === row.stock_id);
-        if (idx >= 0) next[idx] = row;
-        else next.push(row);
-      }
-      return next;
-    });
-    setMovements((prev) => [...newMovements, ...prev]);
+  const handleStockEntrySaved = (
+    updatedRows: StockOverviewRow[],
+    newMovements: MovementRow[],
+  ) => {
+    // Invalidate instead of manually updating to support pagination
+    qc.invalidateQueries({ queryKey: ["stock"] });
+    qc.invalidateQueries({ queryKey: ["movements"] });
   };
 
   return (
@@ -150,7 +178,7 @@ export default function StockOverview({
         {activeTab === "overview" && (
           <div className="flex gap-2">
             <button
-              onClick={() => setShowNewStock(true)}
+              onClick={() => setShowImport(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-stone-600 border border-stone-200 rounded-lg hover:bg-stone-50 transition-colors"
             >
               <Upload size={13} /> Import Stock
@@ -170,14 +198,30 @@ export default function StockOverview({
         <StockTable
           rows={filteredStock}
           filter={filter}
-          onFilterChange={setFilter}
+          onFilterChange={(f) => { setFilter(f); setPage(1); }}
           onRecordMovement={setMovementTarget}
           onNewStockEntry={() => setShowNewStock(true)}
+          pagination={{
+            page,
+            pageSize,
+            total: stockResponse.pagination.total,
+            setPage,
+          }}
         />
       )}
 
       {activeTab === "movements" && (
-        <MovementsLog movements={movements} />
+        <MovementsLog 
+          movements={movements.items} 
+          filterType={movTypeFilter}
+          onFilterChange={(t) => { setMovTypeFilter(t); setMovementsPage(1); }}
+          pagination={{
+            page: movementsPage,
+            pageSize: movementsPageSize,
+            total: movements.pagination.total,
+            setPage: setMovementsPage
+          }}
+        />
       )}
 
       {/* ── Modals ── */}
@@ -195,29 +239,39 @@ export default function StockOverview({
           onSaved={handleStockEntrySaved}
         />
       )}
+
+      {showImport && (
+        <ImportStockModal
+          onClose={() => setShowImport(false)}
+          onSaved={() => {
+            setShowImport(false);
+            qc.invalidateQueries({ queryKey: ["stock"] });
+          }}
+        />
+      )}
     </div>
   );
 }
 
-// ── StatCard ─────────────────────────────────────────────────
+// ── StatCard ──────────────────────────────────────────────────
 type DeltaVariant = "up" | "warn" | "danger" | "neutral";
 
 const deltaStyles: Record<DeltaVariant, string> = {
   up:      "bg-green-50 text-green-700",
   warn:    "bg-amber-50 text-amber-800",
-  danger:  "bg-red-50 text-red-700",
+  danger:  "bg-red-50   text-red-700",
   neutral: "bg-stone-100 text-stone-500",
 };
 
 function StatCard({
   label, value, delta, deltaVariant, icon, iconBg,
 }: {
-  label: string;
-  value: string | number;
-  delta?: string;
+  label:         string;
+  value:         string | number;
+  delta?:        string;
   deltaVariant?: DeltaVariant;
-  icon: React.ReactNode;
-  iconBg: string;
+  icon:          React.ReactNode;
+  iconBg:        string;
 }) {
   return (
     <div className="bg-white border border-stone-200 rounded-xl p-4 flex gap-3 items-start">
@@ -225,12 +279,8 @@ function StatCard({
         {icon}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-stone-400 mb-1">
-          {label}
-        </p>
-        <p className="text-2xl font-semibold text-stone-800 leading-none mb-1.5">
-          {value}
-        </p>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-stone-400 mb-1">{label}</p>
+        <p className="text-2xl font-semibold text-stone-800 leading-none mb-1.5">{value}</p>
         {delta && deltaVariant && (
           <span className={`inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full ${deltaStyles[deltaVariant]}`}>
             {delta}
