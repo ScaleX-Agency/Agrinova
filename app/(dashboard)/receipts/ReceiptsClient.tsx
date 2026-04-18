@@ -119,7 +119,7 @@ const ReceiptsClient = () => {
             className="inline-flex items-center gap-2 rounded-xl bg-[#1a5c2e] px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
           >
             <Plus size={14} />
-            Create Receipt
+            Record Payment
           </Link>
         </div>
       </header>

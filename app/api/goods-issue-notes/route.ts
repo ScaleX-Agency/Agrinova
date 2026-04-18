@@ -17,7 +17,7 @@ export async function GET() {
     const notes = await prisma.goodsIssueNote.findMany({
       orderBy: [{ gin_date: "desc" }, { gin_id: "desc" }],
       include: {
-        invoice: { select: { invoice_id: true, invoice_number: true } },
+        invoice: { select: { invoice_id: true, invoice_number: true, gin_status: true } },
         customer: { select: { customer_id: true, name: true } },
         location: { select: { location_id: true, code: true } },
         _count: { select: { lines: true } },
@@ -29,6 +29,7 @@ export async function GET() {
         id: note.gin_id,
         ginNumber: note.gin_number,
         date: note.gin_date.toISOString(),
+        ginStatus: note.invoice?.gin_status ?? "PENDING",
         invoiceId: note.invoice?.invoice_id ?? null,
         invoiceNumber: note.invoice?.invoice_number ?? null,
         customerId: note.customer.customer_id,
@@ -189,6 +190,11 @@ export async function POST(request: Request) {
         select: {
           gin_id: true,
         },
+      });
+
+      await tx.invoice.update({
+        where: { invoice_id: invoice.invoice_id },
+        data: { gin_status: "ISSUED" },
       });
 
       for (const [productId, issuedQty] of aggregatedQuantities.entries()) {

@@ -183,7 +183,7 @@ const NewReceiptPage = () => {
         <div>
           <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">Sales</p>
           <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-playfair)] font-semibold">
-            Create Receipt
+            Record Payment
           </h1>
           <p className="text-[13px] text-stone-500">
             Record a payment against an invoice. Invoice details are prefilled when launched from invoice actions.

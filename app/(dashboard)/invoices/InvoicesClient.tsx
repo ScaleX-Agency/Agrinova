@@ -22,6 +22,18 @@ const STATUS_LABEL: Record<InvoiceOptionDto["status"], string> = {
   OVERDUE: "Overdue",
 };
 
+const GIN_STATUS_STYLE: Record<InvoiceOptionDto["ginStatus"], string> = {
+  PENDING: "bg-amber-50 text-amber-800 border-amber-100",
+  ISSUED: "bg-[#eeeffe] text-[#2b2d7e] border-[#c0c3f0]",
+  PARTIAL: "bg-blue-50 text-blue-700 border-blue-100",
+};
+
+const GIN_STATUS_LABEL: Record<InvoiceOptionDto["ginStatus"], string> = {
+  PENDING: "Pending",
+  ISSUED: "Issued",
+  PARTIAL: "Partial",
+};
+
 const formatDate = (value: string) =>
   new Date(value).toLocaleDateString("en-GB", {
     day: "2-digit",
@@ -82,10 +94,7 @@ const InvoicesClient = () => {
       const monthMatches = monthFilter === "ALL" || toMonthKey(invoice.invoiceDate) === monthFilter;
       const searchMatches =
         needle.length === 0 ||
-        [invoice.invoiceNo, invoice.customerName, invoice.repName, invoice.locationCode ?? ""]
-          .join(" ")
-          .toLowerCase()
-          .includes(needle);
+        [invoice.invoiceNo, invoice.customerName, invoice.repName].join(" ").toLowerCase().includes(needle);
 
       return statusMatches && monthMatches && searchMatches;
     });
@@ -107,13 +116,6 @@ const InvoicesClient = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/goods-issue-notes/new"
-            className="inline-flex items-center gap-2 rounded-xl border border-[#c0c3f0] bg-white px-3 py-2 text-[13px] font-medium text-[#2b2d7e] transition-colors hover:bg-[#eeeffe]"
-          >
-            <Plus size={14} />
-            New GIN
-          </Link>
           <button
             type="button"
             className="inline-flex items-center gap-2 rounded-xl border border-[#c0c3f0] bg-white px-3 py-2 text-[13px] font-medium text-[#2b2d7e] transition-colors hover:bg-[#eeeffe]"
@@ -170,7 +172,7 @@ const InvoicesClient = () => {
               type="text"
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search invoices, customer, sales rep, or location"
+              placeholder="Search invoices, customer, or sales rep"
               className="w-full rounded-xl border border-stone-200 bg-stone-50 py-2 pl-9 pr-3 text-[13px] outline-none transition-colors focus:border-[#1a5c2e]"
             />
           </div>
@@ -181,7 +183,7 @@ const InvoicesClient = () => {
               onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
               className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
             >
-              <option value="ALL">All Statuses</option>
+              <option value="ALL">All Payment Statuses</option>
               <option value="PAID">Paid</option>
               <option value="PARTIAL">Partial</option>
               <option value="UNPAID">Unpaid</option>
@@ -206,20 +208,20 @@ const InvoicesClient = () => {
           <table className="w-full min-w-[1080px] border-collapse text-left text-[14px]">
             <thead className="bg-stone-50 text-[11px] uppercase tracking-[0.1em] text-stone-500">
               <tr>
-                {[
-                  "Invoice #",
-                  "Date",
-                  "Customer",
-                  "Sales Rep",
-                  "Location",
-                  "Amount (LKR)",
-                  "Status",
-                  "Action",
-                ].map((column) => (
-                  <th key={column} className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">
-                    {column}
-                  </th>
-                ))}
+                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Invoice #</th>
+                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Date</th>
+                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Customer</th>
+                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Sales Rep</th>
+                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 text-right font-medium">
+                  Amount (LKR)
+                </th>
+                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 text-center font-medium">
+                  Payment Status
+                </th>
+                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 text-center font-medium">
+                  GIN Status
+                </th>
+                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 text-center font-medium">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -231,17 +233,23 @@ const InvoicesClient = () => {
                   <td className="px-4 py-3 text-stone-700">{formatDate(invoice.invoiceDate)}</td>
                   <td className="px-4 py-3 text-stone-800">{invoice.customerName}</td>
                   <td className="px-4 py-3 text-stone-700">{invoice.repName}</td>
-                  <td className="px-4 py-3 text-stone-700">{invoice.locationCode ?? "-"}</td>
-                  <td className="px-4 py-3 text-stone-900">{formatCurrency(invoice.totalAmount)}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 text-right text-stone-900">{formatCurrency(invoice.totalAmount)}</td>
+                  <td className="px-4 py-3 text-center">
                     <span
                       className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium ${STATUS_STYLE[invoice.status]}`}
                     >
                       {STATUS_LABEL[invoice.status]}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
+                  <td className="px-4 py-3 text-center">
+                    <span
+                      className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium ${GIN_STATUS_STYLE[invoice.ginStatus]}`}
+                    >
+                      {GIN_STATUS_LABEL[invoice.ginStatus]}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex items-center justify-center gap-2">
                       <Link
                         href={`/invoices/${invoice.id}`}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] hover:bg-[#eeeffe]"
@@ -259,7 +267,7 @@ const InvoicesClient = () => {
                         href={`/receipts/new?invoiceId=${invoice.id}`}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
                       >
-                        Create Receipt
+                        Record Payment
                       </Link>
                     </div>
                   </td>

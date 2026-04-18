@@ -150,7 +150,7 @@ const InvoiceDetailPage = async ({
             href={`/receipts/new?invoiceId=${invoice.invoice_id}`}
             className="inline-flex items-center gap-2 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42]"
           >
-            Create Receipt
+            Record Payment
           </Link>
           <Link
             href="/invoices"
@@ -177,7 +177,7 @@ const InvoiceDetailPage = async ({
           <p className="mt-1 text-[16px] font-semibold text-stone-900">{invoice.rep.full_name}</p>
         </div>
         <div className="rounded-2xl border border-stone-200 bg-white p-4">
-          <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Status</p>
+          <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Payment Status</p>
           <p className="mt-1 text-[16px] font-semibold text-stone-900">{STATUS_LABEL[invoice.status]}</p>
         </div>
       </section>

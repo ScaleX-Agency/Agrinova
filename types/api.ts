@@ -204,6 +204,7 @@ export type GoodsIssueNoteOptionDto = {
   id: number;
   ginNumber: string;
   date: string;
+  ginStatus: "PENDING" | "ISSUED" | "PARTIAL";
   invoiceId: number | null;
   invoiceNumber: string | null;
   customerId: number;
@@ -252,6 +253,7 @@ export type InvoiceOptionDto = {
   repName: string;
   totalAmount: number;
   status: "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE";
+  ginStatus: "PENDING" | "ISSUED" | "PARTIAL";
   locationCode: string | null;
 };
 

@@ -26,6 +26,7 @@ export async function GET(request: Request) {
         invoice_date: true,
         total_amount: true,
         status: true,
+        gin_status: true,
         customer_id: true,
         rep_id: true,
         customer: {
@@ -61,6 +62,7 @@ export async function GET(request: Request) {
         repName: invoice.rep.full_name,
         totalAmount: Number(invoice.total_amount),
         status: invoice.status,
+        ginStatus: invoice.gin_status,
         locationCode: invoice.goods_issue_note?.location.code ?? null,
       })),
     };

@@ -5,6 +5,18 @@ import { Eye, FileText } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { GoodsIssueNotesResponse } from "@/types/api";
 
+const GIN_STATUS_STYLE: Record<"PENDING" | "ISSUED" | "PARTIAL", string> = {
+  PENDING: "bg-amber-50 text-amber-800 border-amber-100",
+  ISSUED: "bg-[#eeeffe] text-[#2b2d7e] border-[#c0c3f0]",
+  PARTIAL: "bg-blue-50 text-blue-700 border-blue-100",
+};
+
+const GIN_STATUS_LABEL: Record<"PENDING" | "ISSUED" | "PARTIAL", string> = {
+  PENDING: "Pending",
+  ISSUED: "Issued",
+  PARTIAL: "Partial",
+};
+
 const formatDate = (value: string) => {
   return new Date(value).toLocaleDateString("en-GB", {
     day: "2-digit",
@@ -56,6 +68,7 @@ const GoodsIssueNotesPage = () => {
               <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Date</th>
               <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Customer</th>
               <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Location</th>
+              <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Status</th>
               <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Lines</th>
               <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Invoice</th>
               <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Action</th>
@@ -68,6 +81,13 @@ const GoodsIssueNotesPage = () => {
                 <td className="px-4 py-3 text-stone-700">{formatDate(row.date)}</td>
                 <td className="px-4 py-3 text-stone-800">{row.customerName}</td>
                 <td className="px-4 py-3 text-stone-700">{row.locationCode}</td>
+                <td className="px-4 py-3">
+                  <span
+                    className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium ${GIN_STATUS_STYLE[row.ginStatus]}`}
+                  >
+                    {GIN_STATUS_LABEL[row.ginStatus]}
+                  </span>
+                </td>
                 <td className="px-4 py-3 text-stone-700">{row.lineCount}</td>
                 <td className="px-4 py-3">
                   {row.invoiceNumber ?? (
