@@ -67,8 +67,8 @@ model Invoice {
   created_by     Int
   invoice_date   DateTime
   total_amount   Decimal       @db.Decimal(10, 2)
-  status         InvoiceStatus
-  gin_status     GINStatus
+  status         InvoiceStatus @default(UNPAID)
+  gin_status     GINStatus     @default(PENDING)
 
   goods_issue_note GoodsIssueNote?
   customer         Customer        @relation(fields: [customer_id], references: [customer_id])
