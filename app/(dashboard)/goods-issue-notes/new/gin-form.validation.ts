@@ -13,7 +13,7 @@ type GinValidationInput = {
 
 const ginLineSchema = z.object({
   productId: z.number({ error: "Select a product." }).int().positive(),
-  quantity: z.number({ error: "Enter a quantity." }).int().min(1, "Quantity must be at least 1."),
+  quantity: z.number({ error: "Enter a quantity." }).int().min(0, "Quantity must be 0 or greater."),
 });
 
 const ginValidationSchema = z.object({

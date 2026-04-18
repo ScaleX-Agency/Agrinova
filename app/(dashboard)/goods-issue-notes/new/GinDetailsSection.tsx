@@ -9,9 +9,6 @@ type GinDetailsSectionProps = {
   locationId: number | null;
   preparedBy: string;
   receivedBy: string;
-  lockInvoiceSelection?: boolean;
-  lockLocationSelection?: boolean;
-  lockGinDate?: boolean;
   ginNumberError?: string;
   ginDateError?: string;
   invoiceError?: string;
@@ -39,9 +36,6 @@ const GinDetailsSection = ({
   locationId,
   preparedBy,
   receivedBy,
-  lockInvoiceSelection = false,
-  lockLocationSelection = false,
-  lockGinDate = false,
   ginNumberError,
   ginDateError,
   invoiceError,
@@ -59,6 +53,11 @@ const GinDetailsSection = ({
   onPreparedByChange,
   onReceivedByChange,
 }: GinDetailsSectionProps) => {
+  const editableInputClassName =
+    "rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]";
+  const disabledInputClassName =
+    "cursor-not-allowed rounded-xl border border-stone-200 bg-stone-100 px-3 py-2 text-[13px] text-stone-500";
+
   return (
     <section className="rounded-2xl border border-stone-200 bg-white p-4 md:p-5">
       <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">
@@ -72,7 +71,7 @@ const GinDetailsSection = ({
             type="text"
             value={ginNumber}
             onChange={(event) => onGinNumberChange(event.target.value)}
-            className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+            className={editableInputClassName}
             placeholder="GIN-202604-001"
           />
           {ginNumberError && <p className="text-[12px] text-red-700">{ginNumberError}</p>}
@@ -84,8 +83,7 @@ const GinDetailsSection = ({
             type="date"
             value={ginDate}
             onChange={(event) => onGinDateChange(event.target.value)}
-            disabled={lockGinDate}
-            className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e] disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-500"
+            className={editableInputClassName}
           />
           {ginDateError && <p className="text-[12px] text-red-700">{ginDateError}</p>}
         </label>
@@ -99,7 +97,6 @@ const GinDetailsSection = ({
             placeholder={invoicesLoading ? "Loading invoices..." : "Select invoice"}
             searchPlaceholder="Search invoices"
             loading={invoicesLoading}
-            disabled={lockInvoiceSelection}
           />
           {invoiceError && <p className="text-[12px] text-red-700">{invoiceError}</p>}
         </label>
@@ -113,7 +110,7 @@ const GinDetailsSection = ({
             placeholder={locationsLoading ? "Loading locations..." : "Select location"}
             searchPlaceholder="Search locations"
             loading={locationsLoading}
-            disabled={lockLocationSelection}
+            disabled
           />
           {locationError && <p className="text-[12px] text-red-700">{locationError}</p>}
         </label>
@@ -124,7 +121,7 @@ const GinDetailsSection = ({
             type="text"
             value={invoiceCustomerName}
             readOnly
-            className="rounded-xl border border-stone-200 bg-stone-100 px-3 py-2 text-[13px] text-stone-700"
+            className={disabledInputClassName}
             placeholder="Select an invoice"
           />
         </label>
@@ -135,7 +132,7 @@ const GinDetailsSection = ({
             type="text"
             value={invoiceRepName}
             readOnly
-            className="rounded-xl border border-stone-200 bg-stone-100 px-3 py-2 text-[13px] text-stone-700"
+            className={disabledInputClassName}
             placeholder="Select an invoice"
           />
         </label>
@@ -146,7 +143,7 @@ const GinDetailsSection = ({
             type="text"
             value={preparedBy}
             onChange={(event) => onPreparedByChange(event.target.value)}
-            className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+            className={editableInputClassName}
           />
           {preparedByError && <p className="text-[12px] text-red-700">{preparedByError}</p>}
         </label>
@@ -157,7 +154,7 @@ const GinDetailsSection = ({
             type="text"
             value={receivedBy}
             onChange={(event) => onReceivedByChange(event.target.value)}
-            className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+            className={editableInputClassName}
           />
           {receivedByError && <p className="text-[12px] text-red-700">{receivedByError}</p>}
         </label>
