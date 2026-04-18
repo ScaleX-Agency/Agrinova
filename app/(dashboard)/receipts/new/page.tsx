@@ -50,6 +50,7 @@ const NewReceiptPage = () => {
   const [chequeNo, setChequeNo] = useState("");
   const [chequeDate, setChequeDate] = useState("");
   const [bankName, setBankName] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -111,66 +112,59 @@ const NewReceiptPage = () => {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setFieldErrors({});
     setSubmitError("");
     setSuccessMessage("");
 
+    const nextFieldErrors: Record<string, string> = {};
+
     if (!invoiceId) {
-      setSubmitError("Select an invoice.");
-      return;
+      nextFieldErrors.invoice = "Invoice is required.";
     }
 
     if (!receiptDate) {
-      setSubmitError("Select a receipt date.");
-      return;
+      nextFieldErrors.receiptDate = "Receipt date is required.";
     }
 
     if (!Number.isFinite(amountReceived) || amountReceived <= 0) {
-      setSubmitError("Amount received must be greater than 0.");
-      return;
+      nextFieldErrors.amountReceived = "Amount must be greater than 0.";
     }
 
     if (selectedInvoice && amountReceived > selectedInvoice.outstandingAmount) {
-      setSubmitError("Amount received cannot exceed outstanding amount.");
-      return;
+      nextFieldErrors.amountReceived = "Amount cannot exceed outstanding amount.";
     }
 
     if (paymentMethod === "CHEQUE") {
       if (!chequeNo.trim()) {
-        setSubmitError("Cheque number is required.");
-        return;
+        nextFieldErrors.chequeNo = "Cheque number is required.";
       }
       if (!chequeDate) {
-        setSubmitError("Cheque date is required.");
-        return;
+        nextFieldErrors.chequeDate = "Cheque date is required.";
       }
       if (!bankName.trim()) {
-        setSubmitError("Bank name is required.");
-        return;
+        nextFieldErrors.bankName = "Bank name is required.";
       }
     }
 
-    if (paymentMethod === "BANK_TRANSFER" && !bankName.trim()) {
-      setSubmitError("Bank name is required for bank transfer.");
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
       return;
     }
 
     const payload: CreateReceiptRequestDto = {
-      invoiceId,
+      invoiceId: invoiceId as number,
       collectedBy: 1,
       receiptDate,
       amountReceived,
       paymentMethod,
       chequeNo: paymentMethod === "CHEQUE" ? chequeNo.trim() : undefined,
       chequeDate: paymentMethod === "CHEQUE" ? chequeDate : undefined,
-      bankName:
-        paymentMethod === "CHEQUE" || paymentMethod === "BANK_TRANSFER"
-          ? bankName.trim()
-          : undefined,
+      bankName: paymentMethod === "CHEQUE" ? bankName.trim() : undefined,
     };
 
     try {
       const result = await saveMutation.mutateAsync(payload);
-      setSuccessMessage(`Receipt created successfully (${result.receiptNo}).`);
+      setSuccessMessage(`Receipt created successfully (${result?.receiptNo ?? "saved"}).`);
       router.push(`/invoices/${invoiceId}`);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Unable to create receipt.");
@@ -210,7 +204,11 @@ const NewReceiptPage = () => {
                 onChange={(value) => {
                   setInvoiceId(value);
                   setAmountTouched(false);
-                  setSubmitError("");
+                  setFieldErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.invoice;
+                    return next;
+                  });
                 }}
                 options={invoiceOptions}
                 placeholder={invoicesQuery.isLoading ? "Loading invoices..." : "Select invoice"}
@@ -218,6 +216,7 @@ const NewReceiptPage = () => {
                 loading={invoicesQuery.isLoading}
                 disabled={initialInvoiceId !== null}
               />
+              {fieldErrors.invoice && <p className="text-[12px] text-red-700">{fieldErrors.invoice}</p>}
             </label>
 
             <label className="flex flex-col gap-1.5">
@@ -225,9 +224,21 @@ const NewReceiptPage = () => {
               <input
                 type="date"
                 value={receiptDate}
-                onChange={(event) => setReceiptDate(event.target.value)}
-                className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+                onChange={(event) => {
+                  setReceiptDate(event.target.value);
+                  setFieldErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.receiptDate;
+                    return next;
+                  });
+                }}
+                className={`rounded-xl border px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e] ${
+                  fieldErrors.receiptDate
+                    ? "border-red-300 bg-red-50"
+                    : "border-stone-200 bg-stone-50"
+                }`}
               />
+              {fieldErrors.receiptDate && <p className="text-[12px] text-red-700">{fieldErrors.receiptDate}</p>}
             </label>
 
             <label className="flex flex-col gap-1.5">
@@ -236,7 +247,13 @@ const NewReceiptPage = () => {
                 value={paymentMethod}
                 onChange={(event) => {
                   setPaymentMethod(event.target.value as ReceiptMethod);
-                  setSubmitError("");
+                  setFieldErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.chequeNo;
+                    delete next.chequeDate;
+                    delete next.bankName;
+                    return next;
+                  });
                 }}
                 className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
               >
@@ -247,6 +264,83 @@ const NewReceiptPage = () => {
             </label>
           </div>
         </section>
+        {paymentMethod === "CHEQUE" && (
+          <section className="rounded-2xl border border-stone-200 bg-white p-4 md:p-5">
+            <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">Bank Details</h2>
+
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+              {paymentMethod === "CHEQUE" && (
+                <>
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[12px] font-medium text-stone-600">Cheque No</span>
+                    <input
+                      type="text"
+                      value={chequeNo}
+                      onChange={(event) => {
+                        setChequeNo(event.target.value);
+                        setFieldErrors((prev) => {
+                          const next = { ...prev };
+                          delete next.chequeNo;
+                          return next;
+                        });
+                      }}
+                      className={`rounded-xl border px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e] ${
+                        fieldErrors.chequeNo
+                          ? "border-red-300 bg-red-50"
+                          : "border-stone-200 bg-stone-50"
+                      }`}
+                    />
+                    {fieldErrors.chequeNo && <p className="text-[12px] text-red-700">{fieldErrors.chequeNo}</p>}
+                  </label>
+
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[12px] font-medium text-stone-600">Cheque Date</span>
+                    <input
+                      type="date"
+                      value={chequeDate}
+                      onChange={(event) => {
+                        setChequeDate(event.target.value);
+                        setFieldErrors((prev) => {
+                          const next = { ...prev };
+                          delete next.chequeDate;
+                          return next;
+                        });
+                      }}
+                      className={`rounded-xl border px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e] ${
+                        fieldErrors.chequeDate
+                          ? "border-red-300 bg-red-50"
+                          : "border-stone-200 bg-stone-50"
+                      }`}
+                    />
+                    {fieldErrors.chequeDate && <p className="text-[12px] text-red-700">{fieldErrors.chequeDate}</p>}
+                  </label>
+
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[12px] font-medium text-stone-600">Bank Name</span>
+                    <input
+                      type="text"
+                      value={bankName}
+                      onChange={(event) => {
+                        setBankName(event.target.value);
+                        setFieldErrors((prev) => {
+                          const next = { ...prev };
+                          delete next.bankName;
+                          return next;
+                        });
+                      }}
+                      className={`rounded-xl border px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e] ${
+                        fieldErrors.bankName
+                          ? "border-red-300 bg-red-50"
+                          : "border-stone-200 bg-stone-50"
+                      }`}
+                    />
+                    {fieldErrors.bankName && <p className="text-[12px] text-red-700">{fieldErrors.bankName}</p>}
+                  </label>
+                </>
+              )}
+            </div>
+          </section>
+        )}
 
         <section className="rounded-2xl border border-stone-200 bg-white p-4 md:p-5">
           <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">Invoice Snapshot</h2>
@@ -283,10 +377,19 @@ const NewReceiptPage = () => {
                 onChange={(event) => {
                   setAmountTouched(true);
                   setAmountReceived(Number(event.target.value));
-                  setSubmitError("");
+                  setFieldErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.amountReceived;
+                    return next;
+                  });
                 }}
-                className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+                className={`rounded-xl border px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e] ${
+                  fieldErrors.amountReceived
+                    ? "border-red-300 bg-red-50"
+                    : "border-stone-200 bg-stone-50"
+                }`}
               />
+              {fieldErrors.amountReceived && <p className="text-[12px] text-red-700">{fieldErrors.amountReceived}</p>}
             </label>
 
             <label className="flex flex-col gap-1.5">
@@ -301,47 +404,7 @@ const NewReceiptPage = () => {
           </div>
         </section>
 
-        {(paymentMethod === "CHEQUE" || paymentMethod === "BANK_TRANSFER") && (
-          <section className="rounded-2xl border border-stone-200 bg-white p-4 md:p-5">
-            <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">Bank Details</h2>
-
-            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-              {paymentMethod === "CHEQUE" && (
-                <>
-                  <label className="flex flex-col gap-1.5">
-                    <span className="text-[12px] font-medium text-stone-600">Cheque No</span>
-                    <input
-                      type="text"
-                      value={chequeNo}
-                      onChange={(event) => setChequeNo(event.target.value)}
-                      className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
-                    />
-                  </label>
-
-                  <label className="flex flex-col gap-1.5">
-                    <span className="text-[12px] font-medium text-stone-600">Cheque Date</span>
-                    <input
-                      type="date"
-                      value={chequeDate}
-                      onChange={(event) => setChequeDate(event.target.value)}
-                      className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
-                    />
-                  </label>
-                </>
-              )}
-
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-medium text-stone-600">Bank Name</span>
-                <input
-                  type="text"
-                  value={bankName}
-                  onChange={(event) => setBankName(event.target.value)}
-                  className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
-                />
-              </label>
-            </div>
-          </section>
-        )}
+        
 
         {submitError && (
           <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
