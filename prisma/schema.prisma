@@ -42,17 +42,19 @@ model SalesRep {
 }
 
 model Customer {
-  customer_id         Int              @id @default(autoincrement())
-  assigned_rep_id     Int
-  name                String
-  address             String?
-  phone               String?
-  outstanding_balance Decimal          @db.Decimal(10, 2)
-  assigned_rep        SalesRep         @relation(fields: [assigned_rep_id], references: [rep_id])
-  goods_issue_notes   GoodsIssueNote[]
-  invoices            Invoice[]
-  reminders           Reminder[]
+  customer_id       Int              @id @default(autoincrement())
+  assigned_rep_id   Int
+  name              String
+  address           String?
+  phone             String?
+  created_at        DateTime         @default(now())
+  updated_at        DateTime         @default(now()) @updatedAt
+  assigned_rep      SalesRep         @relation(fields: [assigned_rep_id], references: [rep_id])
+  goods_issue_notes GoodsIssueNote[]
+  invoices          Invoice[]
+  reminders         Reminder[]
 
+  @@index([assigned_rep_id])
   @@map("CUSTOMER")
 }
 
