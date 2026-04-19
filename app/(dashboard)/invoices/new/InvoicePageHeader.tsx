@@ -10,7 +10,7 @@ const InvoicePageHeader = () => {
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#c0c3f0] bg-[#eeeffe] text-[#2b2d7e]">
             <FilePlus2 size={16} />
           </span>
-          <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-playfair)] font-semibold">
+          <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)] font-semibold">
             New Invoice
           </h1>
         </div>

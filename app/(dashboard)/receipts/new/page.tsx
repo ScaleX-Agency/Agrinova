@@ -176,7 +176,7 @@ const NewReceiptPage = () => {
       <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">Sales</p>
-          <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-playfair)] font-semibold">
+          <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)] font-semibold">
             Record Payment
           </h1>
           <p className="text-[13px] text-stone-500">
@@ -194,7 +194,7 @@ const NewReceiptPage = () => {
 
       <form className="space-y-4" onSubmit={handleSubmit}>
         <section className="rounded-2xl border border-stone-200 bg-white p-4 md:p-5">
-          <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">Receipt Details</h2>
+          <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-dmsans)]">Receipt Details</h2>
 
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             <label className="flex flex-col gap-1.5">
@@ -266,7 +266,7 @@ const NewReceiptPage = () => {
         </section>
         {paymentMethod === "CHEQUE" && (
           <section className="rounded-2xl border border-stone-200 bg-white p-4 md:p-5">
-            <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">Bank Details</h2>
+            <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-dmsans)]">Bank Details</h2>
 
             <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
               {paymentMethod === "CHEQUE" && (
@@ -343,7 +343,7 @@ const NewReceiptPage = () => {
         )}
 
         <section className="rounded-2xl border border-stone-200 bg-white p-4 md:p-5">
-          <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">Invoice Snapshot</h2>
+          <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-dmsans)]">Invoice Snapshot</h2>
 
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-xl border border-stone-200 bg-stone-50 p-3">

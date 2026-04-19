@@ -473,7 +473,7 @@ const CommissionClient = () => {
       <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">Commission</p>
-          <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-playfair)] font-semibold">
+          <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)] font-semibold">
             Commission Intelligence Dashboard
           </h1>
           <p className="text-[13px] text-stone-500">
@@ -572,14 +572,14 @@ const CommissionClient = () => {
       <section className="grid grid-cols-2 gap-3 xl:grid-cols-2">
         <div className="rounded-2xl border border-stone-200 bg-white p-4">
           <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Total Commission</p>
-          <p className="mt-1 text-[20px] leading-none text-[#1a5c2e] [font-family:var(--font-playfair)]">
+          <p className="mt-1 text-[20px] leading-none text-[#1a5c2e] [font-family:var(--font-dmsans)]">
             {formatCurrency(totals.totalCommission)}
           </p>
           <p className="mt-1 text-[12px] text-stone-500">This filtered period</p>
         </div>
         <div className="rounded-2xl border border-stone-200 bg-white p-4">
           <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Top Rep</p>
-          <p className="mt-1 truncate text-[18px] leading-none text-[#2b2d7e] [font-family:var(--font-playfair)]">
+          <p className="mt-1 truncate text-[18px] leading-none text-[#2b2d7e] [font-family:var(--font-dmsans)]">
             {totals.topRep?.[1].repName ?? "-"}
           </p>
           <p className="mt-1 text-[12px] text-stone-500">
@@ -659,7 +659,7 @@ const CommissionClient = () => {
             <div className="mb-3 flex items-start justify-between">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Rep Drill-Down</p>
-                <h3 className="text-[24px] text-[#2b2d7e] [font-family:var(--font-playfair)]">{selectedRepSummary.repName}</h3>
+                <h3 className="text-[24px] text-[#2b2d7e] [font-family:var(--font-dmsans)]">{selectedRepSummary.repName}</h3>
               </div>
               <button
                 type="button"

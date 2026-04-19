@@ -164,7 +164,7 @@ export default function CustomerSalesDashboardPage() {
           <p className="text-[11px] uppercase tracking-[0.13em] text-stone-400 font-semibold [font-family:var(--font-dmsans)]">
             Customer Sales
           </p>
-          <h1 className="text-[28px] leading-tight text-stone-900 font-semibold [font-family:var(--font-playfair)] mt-1">
+          <h1 className="text-[28px] leading-tight text-stone-900 font-semibold [font-family:var(--font-dmsans)] mt-1">
             Customer Sales Dashboard
           </h1>
           <p className="text-[13px] text-stone-500 mt-1 [font-family:var(--font-dmsans)]">
@@ -265,7 +265,7 @@ export default function CustomerSalesDashboardPage() {
           </section>
 
           <div className="bg-white border border-stone-200 rounded-2xl p-4 lg:p-5">
-            <p className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-playfair)] mb-2">
+            <p className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-dmsans)] mb-2">
               Customer Sales Summary
             </p>
             <DataTable
@@ -300,7 +300,7 @@ function KpiCard({
         <p className="text-[10.5px] uppercase tracking-[0.09em] text-stone-400 font-semibold [font-family:var(--font-dmsans)]">
           {label}
         </p>
-        <p className="text-[20px] leading-tight text-stone-900 font-semibold [font-family:var(--font-playfair)] mt-1">
+        <p className="text-[20px] leading-tight text-stone-900 font-semibold [font-family:var(--font-dmsans)] mt-1">
           {value}
         </p>
         <p className="text-[11px] text-stone-500 mt-1 [font-family:var(--font-dmsans)]">{helper}</p>

@@ -67,7 +67,7 @@ function StatCard({
         {icon}
       </div>
       <div>
-        <p className="text-[22px] font-semibold text-stone-800 [font-family:var(--font-playfair)] leading-none">
+        <p className="text-[22px] font-semibold text-stone-800 [font-family:var(--font-dmsans)] leading-none">
           {value}
         </p>
         <p className="text-[11px] text-stone-400 uppercase tracking-wide mt-1 [font-family:var(--font-dmsans)]">
@@ -471,7 +471,7 @@ export default function ProductsPage({ initialProducts }: { initialProducts: { i
                 <div className="w-8 h-8 rounded-lg bg-red-50 border border-red-100 flex items-center justify-center">
                   <AlertTriangle size={15} className="text-red-600" />
                 </div>
-                <p className="text-[15px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">
+                <p className="text-[15px] font-semibold text-stone-900 [font-family:var(--font-dmsans)]">
                   Delete Product
                 </p>
               </div>

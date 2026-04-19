@@ -257,7 +257,7 @@ export default function CustomersPageClient({
           <p className="text-[11.5px] font-semibold uppercase tracking-[0.12em] text-stone-400 [font-family:var(--font-dmsans)] mb-1">
             Customers
           </p>
-          <h1 className="text-[26px] font-semibold text-stone-900 [font-family:var(--font-playfair)] leading-tight">
+          <h1 className="text-[26px] font-semibold text-stone-900 [font-family:var(--font-dmsans)] leading-tight">
             Customer List
           </h1>
           <p className="text-[13px] text-stone-400 mt-1 [font-family:var(--font-dmsans)]">
@@ -327,7 +327,7 @@ export default function CustomersPageClient({
         >
           <div className="w-full max-w-[520px] bg-white rounded-2xl border border-stone-200 shadow-xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-stone-100">
-              <h2 className="text-[18px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">
+              <h2 className="text-[18px] font-semibold text-stone-900 [font-family:var(--font-dmsans)]">
                 Create Customer
               </h2>
               <button

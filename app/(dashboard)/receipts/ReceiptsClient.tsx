@@ -154,7 +154,7 @@ const ReceiptsClient = () => {
       <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">Sales</p>
-          <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-playfair)] font-semibold">
+          <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)] font-semibold">
             Receipts
           </h1>
           <p className="text-[13px] text-stone-500">Payment receipts recorded against invoices.</p>
@@ -188,17 +188,17 @@ const ReceiptsClient = () => {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="rounded-2xl border border-stone-200 bg-white p-4">
           <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Total Receipts</p>
-          <p className="mt-1 text-[26px] leading-none text-stone-900 [font-family:var(--font-playfair)]">{filtered.length}</p>
+          <p className="mt-1 text-[26px] leading-none text-stone-900 [font-family:var(--font-dmsans)]">{filtered.length}</p>
         </div>
         <div className="rounded-2xl border border-stone-200 bg-white p-4 lg:col-span-2">
           <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Total Collected</p>
-          <p className="mt-1 text-[26px] leading-none text-[#1a5c2e] [font-family:var(--font-playfair)]">
+          <p className="mt-1 text-[26px] leading-none text-[#1a5c2e] [font-family:var(--font-dmsans)]">
             {formatCurrency(totalCollected)}
           </p>
         </div>
         <div className="rounded-2xl border border-stone-200 bg-white p-4">
           <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Cash Receipts</p>
-          <p className="mt-1 text-[26px] leading-none text-stone-900 [font-family:var(--font-playfair)]">
+          <p className="mt-1 text-[26px] leading-none text-stone-900 [font-family:var(--font-dmsans)]">
             {filtered.filter((row) => row.paymentMethod === "CASH").length}
           </p>
         </div>

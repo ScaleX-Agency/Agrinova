@@ -260,7 +260,7 @@ const ReceiptDetailPage = async ({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-green-700">Amount Received</p>
-            <p className="mt-1.5 text-[30px] leading-none font-bold text-[#1a5c2e] [font-family:var(--font-playfair)]">
+            <p className="mt-1.5 text-[30px] leading-none font-bold text-[#1a5c2e] [font-family:var(--font-dmsans)]">
               {formatCurrency(Number(receipt.amount_received))}
             </p>
           </div>

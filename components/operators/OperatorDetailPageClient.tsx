@@ -236,7 +236,7 @@ export default function OperatorDetailPageClient({
             <ArrowLeft size={14} />
             Back to Operators
           </Link>
-          <h1 className="mt-2 text-[26px] font-semibold text-stone-900 [font-family:var(--font-playfair)] leading-tight">
+          <h1 className="mt-2 text-[26px] font-semibold text-stone-900 [font-family:var(--font-dmsans)] leading-tight">
             {operator.full_name}
           </h1>
           <p className="mt-1 text-[12px] text-blue-700 [font-family:var(--font-jetbrains)]">
@@ -450,7 +450,7 @@ export default function OperatorDetailPageClient({
         >
           <div className="w-full max-w-[420px] bg-white rounded-2xl border border-stone-200 shadow-xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-stone-100">
-              <h2 className="text-[17px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">
+              <h2 className="text-[17px] font-semibold text-stone-900 [font-family:var(--font-dmsans)]">
                 Remove Operator
               </h2>
               <button

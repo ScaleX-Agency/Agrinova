@@ -158,7 +158,7 @@ const SidebarContent = ({
       </div>
       {!collapsed && (
         <div className="min-w-0">
-          <p className="text-[17px] font-semibold text-stone-900 tracking-tight [font-family:var(--font-playfair)] leading-none">
+          <p className="text-[17px] font-semibold text-stone-900 tracking-tight [font-family:var(--font-dmsans)] leading-none">
             Agrinova
           </p>
           <p className="text-[10px] text-stone-400 mt-0.5 tracking-[0.12em] [font-family:var(--font-dmsans)] truncate">

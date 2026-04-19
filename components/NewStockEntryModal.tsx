@@ -391,7 +391,7 @@ export default function NewStockEntryModal({ onClose, onSaved }: Props) {
               <Plus size={12} /> Add Row
             </button>
             {totalAmount > 0 && (
-              <span className="text-[13px] font-semibold font-mono text-[#4ade80]">
+              <span className="text-[13px] font-semibold [font-family:var(--font-jetbrains)] text-[#4ade80]">
                 Total: LKR{" "}
                 {totalAmount.toLocaleString("en-LK", {
                   minimumFractionDigits: 2,

@@ -230,7 +230,7 @@ const InvoicesPage = () => {
       <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">Sales</p>
-          <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-playfair)] font-semibold">
+          <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)] font-semibold">
             Invoices
           </h1>
           <p className="text-[13px] text-stone-500">Live invoice records from the backend.</p>
@@ -264,19 +264,19 @@ const InvoicesPage = () => {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="rounded-2xl border border-stone-200 bg-white p-4">
           <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Total Invoices</p>
-          <p className="mt-1 text-[26px] leading-none text-stone-900 [font-family:var(--font-playfair)]">{filtered.length}</p>
+          <p className="mt-1 text-[26px] leading-none text-stone-900 [font-family:var(--font-dmsans)]">{filtered.length}</p>
         </div>
         <div className="rounded-2xl border border-stone-200 bg-white p-4">
           <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Paid</p>
-          <p className="mt-1 text-[26px] leading-none text-[#1a5c2e] [font-family:var(--font-playfair)]">{paid}</p>
+          <p className="mt-1 text-[26px] leading-none text-[#1a5c2e] [font-family:var(--font-dmsans)]">{paid}</p>
         </div>
         <div className="rounded-2xl border border-stone-200 bg-white p-4">
           <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Partial</p>
-          <p className="mt-1 text-[26px] leading-none text-amber-700 [font-family:var(--font-playfair)]">{partial}</p>
+          <p className="mt-1 text-[26px] leading-none text-amber-700 [font-family:var(--font-dmsans)]">{partial}</p>
         </div>
         <div className="rounded-2xl border border-stone-200 bg-white p-4">
           <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Total Value</p>
-          <p className="mt-1 text-[26px] leading-none text-stone-900 [font-family:var(--font-playfair)]">
+          <p className="mt-1 text-[26px] leading-none text-stone-900 [font-family:var(--font-dmsans)]">
             {formatCurrency(totalValue)}
           </p>
         </div>

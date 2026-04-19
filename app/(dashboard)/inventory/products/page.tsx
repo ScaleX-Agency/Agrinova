@@ -19,7 +19,7 @@ export default async function ProductsRoute() {
           <p className="text-[11.5px] font-semibold uppercase tracking-[0.12em] text-stone-400 [font-family:var(--font-dmsans)] mb-1">
             Inventory
           </p>
-          <h1 className="text-[26px] font-semibold text-stone-900 [font-family:var(--font-playfair)] leading-tight">
+          <h1 className="text-[26px] font-semibold text-stone-900 [font-family:var(--font-dmsans)] leading-tight">
             Products
           </h1>
           <p className="text-[13px] text-stone-400 mt-1 [font-family:var(--font-dmsans)]">

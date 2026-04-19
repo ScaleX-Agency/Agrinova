@@ -63,7 +63,7 @@ export default function MovementsPage() {
           <p className="text-[11.5px] font-semibold uppercase tracking-[0.12em] text-stone-400 [font-family:var(--font-dmsans)] mb-1">
             Inventory
           </p>
-          <h1 className="text-[26px] font-semibold text-stone-900 [font-family:var(--font-playfair)] leading-tight">
+          <h1 className="text-[26px] font-semibold text-stone-900 [font-family:var(--font-dmsans)] leading-tight">
             Movements Log
           </h1>
           <p className="text-[13px] text-stone-400 mt-1 [font-family:var(--font-dmsans)]">
@@ -84,7 +84,7 @@ export default function MovementsPage() {
             <p className="text-[11px] font-medium uppercase tracking-wide text-stone-400 [font-family:var(--font-dmsans)]">
               {s.label}
             </p>
-            <p className={`text-[28px] font-semibold [font-family:var(--font-playfair)] leading-none mt-1 ${s.text}`}>
+            <p className={`text-[28px] font-semibold [font-family:var(--font-dmsans)] leading-none mt-1 ${s.text}`}>
               {isLoading ? "—" : s.value}
             </p>
           </div>

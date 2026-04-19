@@ -202,7 +202,7 @@ export default function CustomerSalesDetailPage() {
           >
             <ArrowLeft size={13} /> Back to Customer Sales Dashboard
           </Link>
-          <h1 className="mt-1 text-[28px] leading-tight text-stone-900 font-semibold [font-family:var(--font-playfair)]">
+          <h1 className="mt-1 text-[28px] leading-tight text-stone-900 font-semibold [font-family:var(--font-dmsans)]">
             {detailQuery.data?.customer.name ?? "Customer"}
           </h1>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-stone-500 [font-family:var(--font-dmsans)]">
@@ -321,7 +321,7 @@ export default function CustomerSalesDetailPage() {
 
           <div className="bg-white border border-stone-200 rounded-2xl p-4 lg:p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-              <p className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">
+              <p className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-dmsans)]">
                 Recent Transactions
               </p>
               <div className="inline-flex items-center gap-1 bg-stone-100 p-1 rounded-lg">
@@ -365,7 +365,7 @@ function MiniKpiCard({
       <p className="text-[10.5px] uppercase tracking-[0.09em] text-stone-400 font-semibold [font-family:var(--font-dmsans)]">
         {label}
       </p>
-      <p className={`text-[20px] leading-tight font-semibold [font-family:var(--font-playfair)] mt-1 ${toneClass}`}>
+      <p className={`text-[20px] leading-tight font-semibold [font-family:var(--font-dmsans)] mt-1 ${toneClass}`}>
         {value}
       </p>
     </div>
