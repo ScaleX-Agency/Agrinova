@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   Eye,
   EyeOff,
   Mail,
   Plus,
-  Search,
   ShieldUser,
   UserRound,
   X,
 } from "lucide-react";
+import DataTable from "@/components/ui/DataTable";
 
 interface Operator {
   user_id: number;
@@ -53,7 +54,6 @@ export default function OperatorsPageClient() {
   const [operators, setOperators] = useState<Operator[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [search, setSearch] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createForm, setCreateForm] =
     useState<CreateOperatorForm>(DEFAULT_CREATE_FORM);
@@ -62,15 +62,64 @@ export default function OperatorsPageClient() {
   const [createError, setCreateError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  const filteredOperators = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return operators;
-    return operators.filter(
-      (operator) =>
-        operator.full_name.toLowerCase().includes(q) ||
-        operator.username.toLowerCase().includes(q),
-    );
-  }, [operators, search]);
+  const operatorColumns = useMemo<ColumnDef<Operator>[]>(
+    () => [
+      {
+        accessorKey: "user_id",
+        header: "User ID",
+        cell: ({ row }) => (
+          <span className="[font-family:var(--font-jetbrains)] text-[11.5px] text-blue-700">
+            {row.original.user_id}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "full_name",
+        header: "Name",
+        cell: ({ row }) => (
+          <Link
+            href={`/operators/${row.original.user_id}`}
+            className="text-[13px] font-semibold text-stone-800 hover:text-blue-700 [font-family:var(--font-dmsans)]"
+          >
+            {row.original.full_name}
+          </Link>
+        ),
+      },
+      {
+        accessorKey: "username",
+        header: "Email",
+        cell: ({ row }) => (
+          <span className="inline-flex items-center gap-1.5 text-[12.5px] text-stone-500 [font-family:var(--font-dmsans)]">
+            <Mail size={12} />
+            {row.original.username}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "clerk_id",
+        header: "Clerk ID",
+        cell: ({ row }) => (
+          <span className="[font-family:var(--font-jetbrains)] text-[11.5px] text-blue-700">
+            {row.original.clerk_id ?? "-"}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <Link
+            href={`/operators/${row.original.user_id}`}
+            className="inline-flex items-center px-3 py-1.5 rounded-lg border border-stone-200 text-[12px] font-medium text-stone-600 hover:bg-stone-100 transition-colors [font-family:var(--font-dmsans)]"
+          >
+            View
+          </Link>
+        ),
+      },
+    ],
+    [],
+  );
 
   const fetchOperators = useCallback(async () => {
     setLoading(true);
@@ -182,118 +231,19 @@ export default function OperatorsPageClient() {
             </span>
           </div>
 
-          <div className="relative w-[230px]">
-            <Search
-              size={13}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none"
-            />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search operators..."
-              className="w-full pl-9 pr-3 py-2 text-[13px] border border-stone-200 rounded-xl bg-white text-stone-800 placeholder:text-stone-300 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-50 transition-all [font-family:var(--font-dmsans)]"
-            />
-          </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-stone-100">
-                {["User ID", "Name", "Email", "Clerk ID", "Actions"].map(
-                  (heading) => (
-                  <th
-                    key={heading}
-                    className="px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-stone-400 text-left bg-white [font-family:var(--font-dmsans)]"
-                  >
-                    {heading}
-                  </th>
-                  ),
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                Array.from({ length: 4 }).map((_, index) => (
-                  <tr
-                    key={`operator-skeleton-${index}`}
-                    className="border-b border-stone-50"
-                  >
-                    <td className="px-4 py-3">
-                      <div className="h-4 w-16 rounded bg-stone-100 animate-pulse" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-4 w-36 rounded bg-stone-100 animate-pulse" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-4 w-44 rounded bg-stone-100 animate-pulse" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-4 w-48 rounded bg-stone-100 animate-pulse" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-7 w-16 rounded-lg bg-stone-100 animate-pulse" />
-                    </td>
-                  </tr>
-                ))
-              ) : filteredOperators.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-14 text-center">
-                    <div className="w-11 h-11 mx-auto mb-3 rounded-xl bg-stone-100 text-stone-400 flex items-center justify-center">
-                      <UserRound size={18} />
-                    </div>
-                    <p className="text-[14px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">
-                      No operators found
-                    </p>
-                    <p className="text-[12px] text-stone-400 mt-1 [font-family:var(--font-dmsans)]">
-                      Add an operator account to get started.
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                filteredOperators.map((operator) => (
-                  <tr
-                    key={operator.user_id}
-                    className="border-b border-stone-50 hover:bg-stone-50/70 transition-colors"
-                  >
-                    <td className="px-4 py-3">
-                      <span className="[font-family:var(--font-jetbrains)] text-[11.5px] text-blue-700">
-                        {operator.user_id}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/operators/${operator.user_id}`}
-                        className="text-[13px] font-semibold text-stone-800 hover:text-blue-700 [font-family:var(--font-dmsans)]"
-                      >
-                        {operator.full_name}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1.5 text-[12.5px] text-stone-500 [font-family:var(--font-dmsans)]">
-                        <Mail size={12} />
-                        {operator.username}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="[font-family:var(--font-jetbrains)] text-[11.5px] text-blue-700">
-                        {operator.clerk_id ?? "—"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/operators/${operator.user_id}`}
-                        className="inline-flex items-center px-3 py-1.5 rounded-lg border border-stone-200 text-[12px] font-medium text-stone-600 hover:bg-stone-100 transition-colors [font-family:var(--font-dmsans)]"
-                      >
-                        View
-                      </Link>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        {loading ? (
+          <div className="px-4 py-8 text-[13px] text-stone-500">Loading operators...</div>
+        ) : (
+          <DataTable
+            data={operators}
+            columns={operatorColumns}
+            minWidth={980}
+            searchPlaceholder="Search operators..."
+            emptyMessage="No operators found"
+          />
+        )}
       </div>
 
       {isCreateOpen && (

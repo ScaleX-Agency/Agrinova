@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Phone, Plus, Search, UserRound, Users, X } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Phone, Plus, UserRound, Users, X } from "lucide-react";
+import DataTable from "@/components/ui/DataTable";
 
 interface SalesRep {
   rep_id: number;
@@ -43,7 +45,6 @@ export default function SalesRepsPageClient({
   const [salesReps, setSalesReps] = useState<SalesRep[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [search, setSearch] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createForm, setCreateForm] =
     useState<CreateSalesRepForm>(DEFAULT_CREATE_FORM);
@@ -51,15 +52,55 @@ export default function SalesRepsPageClient({
   const [createError, setCreateError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  const filteredSalesReps = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return salesReps;
-    return salesReps.filter(
-      (salesRep) =>
-        salesRep.full_name.toLowerCase().includes(q) ||
-        salesRep.phone.toLowerCase().includes(q),
-    );
-  }, [salesReps, search]);
+  const salesRepColumns = useMemo<ColumnDef<SalesRep>[]>(
+    () => [
+      {
+        accessorKey: "rep_id",
+        header: "Rep ID",
+        cell: ({ row }) => (
+          <span className="[font-family:var(--font-jetbrains)] text-[11.5px] text-blue-700">
+            {row.original.rep_id}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "full_name",
+        header: "Name",
+        cell: ({ row }) => (
+          <Link
+            href={`/sales-reps/${row.original.rep_id}`}
+            className="text-[13px] font-semibold text-stone-800 hover:text-blue-700 [font-family:var(--font-dmsans)]"
+          >
+            {row.original.full_name}
+          </Link>
+        ),
+      },
+      {
+        accessorKey: "phone",
+        header: "Phone",
+        cell: ({ row }) => (
+          <span className="inline-flex items-center gap-1.5 text-[12.5px] text-stone-500 [font-family:var(--font-dmsans)]">
+            <Phone size={12} />
+            {row.original.phone}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <Link
+            href={`/sales-reps/${row.original.rep_id}`}
+            className="inline-flex items-center px-3 py-1.5 rounded-lg border border-stone-200 text-[12px] font-medium text-stone-600 hover:bg-stone-100 transition-colors [font-family:var(--font-dmsans)]"
+          >
+            View
+          </Link>
+        ),
+      },
+    ],
+    [],
+  );
 
   const fetchSalesReps = useCallback(async () => {
     setLoading(true);
@@ -175,108 +216,19 @@ export default function SalesRepsPageClient({
             </span>
           </div>
 
-          <div className="relative w-[230px]">
-            <Search
-              size={13}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none"
-            />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search sales reps..."
-              className="w-full pl-9 pr-3 py-2 text-[13px] border border-stone-200 rounded-xl bg-white text-stone-800 placeholder:text-stone-300 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-50 transition-all [font-family:var(--font-dmsans)]"
-            />
-          </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-stone-100">
-                {["Rep ID", "Name", "Phone", "Actions"].map((heading) => (
-                  <th
-                    key={heading}
-                    className="px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-stone-400 text-left bg-white [font-family:var(--font-dmsans)]"
-                  >
-                    {heading}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                Array.from({ length: 4 }).map((_, index) => (
-                  <tr
-                    key={`sales-rep-skeleton-${index}`}
-                    className="border-b border-stone-50"
-                  >
-                    <td className="px-4 py-3">
-                      <div className="h-4 w-16 rounded bg-stone-100 animate-pulse" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-4 w-44 rounded bg-stone-100 animate-pulse" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-4 w-36 rounded bg-stone-100 animate-pulse" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-7 w-16 rounded-lg bg-stone-100 animate-pulse" />
-                    </td>
-                  </tr>
-                ))
-              ) : filteredSalesReps.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-4 py-14 text-center">
-                    <div className="w-11 h-11 mx-auto mb-3 rounded-xl bg-stone-100 text-stone-400 flex items-center justify-center">
-                      <UserRound size={18} />
-                    </div>
-                    <p className="text-[14px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">
-                      No sales reps found
-                    </p>
-                    <p className="text-[12px] text-stone-400 mt-1 [font-family:var(--font-dmsans)]">
-                      Add a sales rep record to get started.
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                filteredSalesReps.map((salesRep) => (
-                  <tr
-                    key={salesRep.rep_id}
-                    className="border-b border-stone-50 hover:bg-stone-50/70 transition-colors"
-                  >
-                    <td className="px-4 py-3">
-                      <span className="[font-family:var(--font-jetbrains)] text-[11.5px] text-blue-700">
-                        {salesRep.rep_id}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/sales-reps/${salesRep.rep_id}`}
-                        className="text-[13px] font-semibold text-stone-800 hover:text-blue-700 [font-family:var(--font-dmsans)]"
-                      >
-                        {salesRep.full_name}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1.5 text-[12.5px] text-stone-500 [font-family:var(--font-dmsans)]">
-                        <Phone size={12} />
-                        {salesRep.phone}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/sales-reps/${salesRep.rep_id}`}
-                        className="inline-flex items-center px-3 py-1.5 rounded-lg border border-stone-200 text-[12px] font-medium text-stone-600 hover:bg-stone-100 transition-colors [font-family:var(--font-dmsans)]"
-                      >
-                        View
-                      </Link>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        {loading ? (
+          <div className="px-4 py-8 text-[13px] text-stone-500">Loading sales reps...</div>
+        ) : (
+          <DataTable
+            data={salesReps}
+            columns={salesRepColumns}
+            minWidth={820}
+            searchPlaceholder="Search sales reps..."
+            emptyMessage="No sales reps found"
+          />
+        )}
       </div>
 
       {isCreateOpen && canEdit && (

@@ -381,7 +381,7 @@ const InvoiceDetailPage = async ({
                     {formatCurrency(Number(line.unit_price))}
                   </td>
                   <td className="border-r border-stone-200 px-5 py-3.5 text-center text-stone-700">
-                    {Number(line.discount) > 0 ? `${Number(line.discount)}%` : "—"}
+                    {Number(line.discount) > 0 ? `${Number(line.discount)}%` : "-"}
                   </td>
                   <td className="px-5 py-3.5 text-right font-semibold text-stone-900">
                     {formatCurrency(Number(line.line_total))}

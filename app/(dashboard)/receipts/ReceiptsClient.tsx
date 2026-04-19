@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, Eye, Plus, Printer, Search } from "lucide-react";
+import { Download, Eye, Plus, Printer } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import type { ColumnDef } from "@tanstack/react-table";
 import type { ReceiptMethod, ReceiptOptionDto, ReceiptsResponse } from "@/types/api";
+import DataTable from "@/components/ui/DataTable";
 
 type MethodFilter = "ALL" | ReceiptMethod;
 
@@ -88,6 +90,65 @@ const ReceiptsClient = () => {
 
   const totalCollected = filtered.reduce((sum, receipt) => sum + receipt.amountReceived, 0);
 
+  const tableColumns = useMemo<ColumnDef<ReceiptOptionDto>[]>(
+    () => [
+      {
+        accessorKey: "receiptNo",
+        header: "Receipt #",
+        cell: ({ row }) => (
+          <span className="font-medium text-[#2b2d7e] [font-family:var(--font-jetbrains)]">
+            {row.original.receiptNo}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "receiptDate",
+        header: "Date",
+        cell: ({ row }) => <span className="text-stone-700">{formatDate(row.original.receiptDate)}</span>,
+      },
+      {
+        accessorKey: "invoiceNo",
+        header: "Invoice",
+        cell: ({ row }) => <span className="text-stone-700">{row.original.invoiceNo}</span>,
+      },
+      {
+        accessorKey: "customerName",
+        header: "Customer",
+        cell: ({ row }) => <span className="text-stone-800">{row.original.customerName}</span>,
+      },
+      {
+        accessorKey: "amountReceived",
+        header: "Amount (LKR)",
+        meta: { align: "right" },
+        cell: ({ row }) => <span className="text-stone-900">{formatCurrency(row.original.amountReceived)}</span>,
+      },
+      {
+        accessorKey: "paymentMethod",
+        header: "Method",
+        cell: ({ row }) => (
+          <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium ${METHOD_STYLE[row.original.paymentMethod]}`}>
+            {METHOD_LABEL[row.original.paymentMethod]}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Action",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <Link
+            href={`/receipts/${row.original.id}`}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] hover:bg-[#eeeffe]"
+          >
+            <Eye size={12} />
+            View
+          </Link>
+        ),
+      },
+    ],
+    [],
+  );
+
   return (
     <section className="space-y-5">
       <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
@@ -143,23 +204,14 @@ const ReceiptsClient = () => {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-stone-200 bg-white">
-        <div className="flex flex-col gap-3 border-b border-stone-100 p-4 md:flex-row md:items-center md:justify-between">
-          <div className="relative w-full md:max-w-sm">
-            <Search
-              size={15}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
-            />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search receipt no, invoice no, or customer"
-              className="w-full rounded-xl border border-stone-200 bg-stone-50 py-2 pl-9 pr-3 text-[13px] outline-none transition-colors focus:border-[#1a5c2e]"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
+      <DataTable
+        data={filtered}
+        columns={tableColumns}
+        minWidth={1080}
+        searchPlaceholder="Search receipt no, invoice no, or customer"
+        emptyMessage="No receipts match the selected filters."
+        toolbarRight={
+          <>
             <select
               value={methodFilter}
               onChange={(event) => setMethodFilter(event.target.value as MethodFilter)}
@@ -183,61 +235,9 @@ const ReceiptsClient = () => {
                 </option>
               ))}
             </select>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1080px] border-collapse text-left text-[14px]">
-            <thead className="bg-stone-50 text-[11px] uppercase tracking-[0.1em] text-stone-500">
-              <tr>
-                {["Receipt #", "Date", "Invoice", "Customer", "Amount (LKR)", "Method", "Action"].map(
-                  (column) => (
-                    <th key={column} className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">
-                      {column}
-                    </th>
-                  ),
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((receipt) => (
-                <tr key={receipt.id} className="border-b border-stone-100 hover:bg-stone-50">
-                  <td className="px-4 py-3 font-medium text-[#2b2d7e] [font-family:var(--font-jetbrains)]">
-                    {receipt.receiptNo}
-                  </td>
-                  <td className="px-4 py-3 text-stone-700">{formatDate(receipt.receiptDate)}</td>
-                  <td className="px-4 py-3 text-stone-700">{receipt.invoiceNo}</td>
-                  <td className="px-4 py-3 text-stone-800">{receipt.customerName}</td>
-                  <td className="px-4 py-3 text-stone-900">{formatCurrency(receipt.amountReceived)}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium ${METHOD_STYLE[receipt.paymentMethod]}`}
-                    >
-                      {METHOD_LABEL[receipt.paymentMethod]}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/receipts/${receipt.id}`}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] hover:bg-[#eeeffe]"
-                    >
-                      <Eye size={12} />
-                      View
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && !receiptsQuery.isLoading && (
-                <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-[13px] text-stone-500">
-                    No receipts match the selected filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {receiptsQuery.isLoading && <p className="text-[13px] text-stone-500">Loading receipts...</p>}
 

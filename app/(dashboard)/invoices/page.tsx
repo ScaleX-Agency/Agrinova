@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, Eye, Package, Plus, Printer, Search } from "lucide-react";
+import { Download, Eye, Package, Plus, Printer } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import type { ColumnDef } from "@tanstack/react-table";
 import type { InvoiceOptionDto, InvoicesResponse } from "@/types/api";
+import DataTable from "@/components/ui/DataTable";
 
 type StatusFilter = "ALL" | InvoiceOptionDto["status"];
 type GinStatusFilter = "ALL" | InvoiceOptionDto["ginStatus"];
@@ -115,6 +117,114 @@ const InvoicesPage = () => {
   const paid = filtered.filter((row) => row.status === "PAID").length;
   const partial = filtered.filter((row) => row.status === "PARTIAL").length;
 
+  const tableColumns = useMemo<ColumnDef<InvoiceOptionDto>[]>(
+    () => [
+      {
+        accessorKey: "invoiceNo",
+        header: "Invoice #",
+        cell: ({ row }) => (
+          <span className="font-medium text-[#2b2d7e] [font-family:var(--font-jetbrains)]">
+            {row.original.invoiceNo}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "invoiceDate",
+        header: "Date",
+        cell: ({ row }) => <span className="text-stone-700">{formatDate(row.original.invoiceDate)}</span>,
+      },
+      {
+        accessorKey: "customerName",
+        header: "Customer",
+        cell: ({ row }) => <span className="text-stone-800">{row.original.customerName}</span>,
+      },
+      {
+        accessorKey: "repName",
+        header: "Sales Rep",
+        cell: ({ row }) => <span className="text-stone-700">{row.original.repName}</span>,
+      },
+      {
+        accessorKey: "totalAmount",
+        header: "Amount (LKR)",
+        meta: { align: "right" },
+        cell: ({ row }) => <span className="text-stone-900">{formatCurrency(row.original.totalAmount)}</span>,
+      },
+      {
+        accessorKey: "status",
+        header: "Payment Status",
+        meta: { align: "center" },
+        cell: ({ row }) => (
+          <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium ${STATUS_STYLE[row.original.status]}`}>
+            {STATUS_LABEL[row.original.status]}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "ginStatus",
+        header: "GIN Status",
+        meta: { align: "center" },
+        cell: ({ row }) => (
+          <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium ${GIN_STATUS_STYLE[row.original.ginStatus]}`}>
+            {GIN_STATUS_LABEL[row.original.ginStatus]}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Action",
+        enableSorting: false,
+        meta: { align: "center" },
+        cell: ({ row }) => {
+          const invoice = row.original;
+          return (
+            <div className="flex items-center justify-center gap-2">
+              {invoice.ginStatus === "ISSUED" ? (
+                <span
+                  className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-100 px-2.5 py-1.5 text-[12px] font-medium text-stone-400"
+                  title="GIN already issued"
+                >
+                  <Package size={12} />
+                  Issue Stocks
+                </span>
+              ) : (
+                <Link
+                  href={`/goods-issue-notes/new?invoiceId=${invoice.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
+                >
+                  <Package size={12} />
+                  Issue Stocks
+                </Link>
+              )}
+              {invoice.status === "PAID" ? (
+                <span
+                  className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-100 px-2.5 py-1.5 text-[12px] font-medium text-stone-400"
+                  title="Invoice is fully paid"
+                >
+                  Record Payment
+                </span>
+              ) : (
+                <Link
+                  href={`/receipts/new?invoiceId=${invoice.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
+                >
+                  Record Payment
+                </Link>
+              )}
+              <Link
+                href={`/invoices/${invoice.id}`}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] hover:bg-[#eeeffe]"
+              >
+                <Eye size={12} />
+                View
+              </Link>
+            </div>
+          );
+        },
+      },
+    ],
+    [],
+  );
+
   return (
     <section className="space-y-5">
       <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
@@ -172,23 +282,14 @@ const InvoicesPage = () => {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-stone-200 bg-white">
-        <div className="flex flex-col gap-3 border-b border-stone-100 p-4 md:flex-row md:items-center md:justify-between">
-          <div className="relative w-full md:max-w-sm">
-            <Search
-              size={15}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
-            />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search invoices, customer, or sales rep"
-              className="w-full rounded-xl border border-stone-200 bg-stone-50 py-2 pl-9 pr-3 text-[13px] outline-none transition-colors focus:border-[#1a5c2e]"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
+      <DataTable
+        data={filtered}
+        columns={tableColumns}
+        minWidth={1180}
+        searchPlaceholder="Search invoices, customer, or sales rep"
+        emptyMessage="No invoices match the selected filters."
+        toolbarRight={
+          <>
             <select
               value={paymentStatusFilter}
               onChange={(event) => setPaymentStatusFilter(event.target.value as StatusFilter)}
@@ -224,109 +325,9 @@ const InvoicesPage = () => {
                 </option>
               ))}
             </select>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1080px] border-collapse text-left text-[14px]">
-            <thead className="bg-stone-50 text-[11px] uppercase tracking-[0.1em] text-stone-500">
-              <tr>
-                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Invoice #</th>
-                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Date</th>
-                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Customer</th>
-                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Sales Rep</th>
-                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 text-right font-medium">
-                  Amount (LKR)
-                </th>
-                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 text-center font-medium">
-                  Payment Status
-                </th>
-                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 text-center font-medium">
-                  GIN Status
-                </th>
-                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 text-center font-medium">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((invoice) => (
-                <tr key={invoice.id} className="border-b border-stone-100 hover:bg-stone-50">
-                  <td className="px-4 py-3 font-medium text-[#2b2d7e] [font-family:var(--font-jetbrains)]">
-                    {invoice.invoiceNo}
-                  </td>
-                  <td className="px-4 py-3 text-stone-700">{formatDate(invoice.invoiceDate)}</td>
-                  <td className="px-4 py-3 text-stone-800">{invoice.customerName}</td>
-                  <td className="px-4 py-3 text-stone-700">{invoice.repName}</td>
-                  <td className="px-4 py-3 text-right text-stone-900">{formatCurrency(invoice.totalAmount)}</td>
-                  <td className="px-4 py-3 text-center">
-                    <span
-                      className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium ${STATUS_STYLE[invoice.status]}`}
-                    >
-                      {STATUS_LABEL[invoice.status]}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span
-                      className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium ${GIN_STATUS_STYLE[invoice.ginStatus]}`}
-                    >
-                      {GIN_STATUS_LABEL[invoice.ginStatus]}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      {invoice.ginStatus === "ISSUED" ? (
-                        <span
-                          className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-100 px-2.5 py-1.5 text-[12px] font-medium text-stone-400"
-                          title="GIN already issued"
-                        >
-                          <Package size={12} />
-                          Issue Stocks
-                        </span>
-                      ) : (
-                        <Link
-                          href={`/goods-issue-notes/new?invoiceId=${invoice.id}`}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
-                        >
-                          <Package size={12} />
-                          Issue Stocks
-                        </Link>
-                      )}
-                      {invoice.status === "PAID" ? (
-                        <span
-                          className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-100 px-2.5 py-1.5 text-[12px] font-medium text-stone-400"
-                          title="Invoice is fully paid"
-                        >
-                          Record Payment
-                        </span>
-                      ) : (
-                        <Link
-                          href={`/receipts/new?invoiceId=${invoice.id}`}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
-                        >
-                          Record Payment
-                        </Link>
-                      )}
-                      <Link
-                        href={`/invoices/${invoice.id}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] hover:bg-[#eeeffe]"
-                      >
-                        <Eye size={12} />
-                        View
-                      </Link>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && !invoicesQuery.isLoading && (
-                <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-[13px] text-stone-500">
-                    No invoices match the selected filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {invoicesQuery.isLoading && (
         <p className="text-[13px] text-stone-500">Loading invoices...</p>

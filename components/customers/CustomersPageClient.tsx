@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   Phone,
   Plus,
-  Search,
   UserRound,
   Users,
   X,
 } from "lucide-react";
+import DataTable from "@/components/ui/DataTable";
 
 interface SalesRepOption {
   rep_id: number;
@@ -83,7 +84,6 @@ export default function CustomersPageClient({
   const [salesReps, setSalesReps] = useState<SalesRepOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [search, setSearch] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createForm, setCreateForm] =
     useState<CreateCustomerForm>(DEFAULT_CREATE_FORM);
@@ -91,16 +91,74 @@ export default function CustomersPageClient({
   const [createError, setCreateError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  const filteredCustomers = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return customers;
-    return customers.filter(
-      (customer) =>
-        customer.name.toLowerCase().includes(q) ||
-        (customer.phone ?? "").toLowerCase().includes(q) ||
-        (customer.sales_rep?.full_name ?? "").toLowerCase().includes(q),
-    );
-  }, [customers, search]);
+  const customerColumns = useMemo<ColumnDef<Customer>[]>(
+    () => [
+      {
+        accessorKey: "customer_id",
+        header: "Customer ID",
+        cell: ({ row }) => (
+          <span className="[font-family:var(--font-jetbrains)] text-[11.5px] text-blue-700">
+            {row.original.customer_id}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "name",
+        header: "Name",
+        cell: ({ row }) => (
+          <Link
+            href={`/customers/${row.original.customer_id}`}
+            className="text-[13px] font-semibold text-stone-800 hover:text-blue-700 [font-family:var(--font-dmsans)]"
+          >
+            {row.original.name}
+          </Link>
+        ),
+      },
+      {
+        accessorKey: "phone",
+        header: "Phone",
+        cell: ({ row }) => (
+          <span className="inline-flex items-center gap-1.5 text-[12.5px] text-stone-500 [font-family:var(--font-dmsans)]">
+            <Phone size={12} />
+            {row.original.phone || "-"}
+          </span>
+        ),
+      },
+      {
+        id: "sales_rep",
+        accessorFn: (row) => row.sales_rep?.full_name ?? "",
+        header: "Sales Rep",
+        cell: ({ row }) => (
+          <span className="text-[12.5px] text-stone-600 [font-family:var(--font-dmsans)]">
+            {row.original.sales_rep?.full_name ?? "-"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "updated_at",
+        header: "Last Updated",
+        cell: ({ row }) => (
+          <span className="text-[12.5px] text-stone-600 [font-family:var(--font-dmsans)]">
+            {formatDate(row.original.updated_at)}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <Link
+            href={`/customers/${row.original.customer_id}`}
+            className="inline-flex items-center px-3 py-1.5 rounded-lg border border-stone-200 text-[12px] font-medium text-stone-600 hover:bg-stone-100 transition-colors [font-family:var(--font-dmsans)]"
+          >
+            View
+          </Link>
+        ),
+      },
+    ],
+    [],
+  );
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -243,132 +301,19 @@ export default function CustomersPageClient({
               {customers.length}
             </span>
           </div>
-
-          <div className="relative w-[230px]">
-            <Search
-              size={13}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none"
-            />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search customers..."
-              className="w-full pl-9 pr-3 py-2 text-[13px] border border-stone-200 rounded-xl bg-white text-stone-800 placeholder:text-stone-300 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-50 transition-all [font-family:var(--font-dmsans)]"
-            />
-          </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-stone-100">
-                {[
-                  "Customer ID",
-                  "Name",
-                  "Phone",
-                  "Sales Rep",
-                  "Last Updated",
-                  "Actions",
-                ].map((heading) => (
-                  <th
-                    key={heading}
-                    className="px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-stone-400 text-left bg-white [font-family:var(--font-dmsans)]"
-                  >
-                    {heading}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                Array.from({ length: 4 }).map((_, index) => (
-                  <tr
-                    key={`customer-skeleton-${index}`}
-                    className="border-b border-stone-50"
-                  >
-                    <td className="px-4 py-3">
-                      <div className="h-4 w-16 rounded bg-stone-100 animate-pulse" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-4 w-40 rounded bg-stone-100 animate-pulse" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-4 w-28 rounded bg-stone-100 animate-pulse" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-4 w-36 rounded bg-stone-100 animate-pulse" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-4 w-24 rounded bg-stone-100 animate-pulse" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-7 w-16 rounded-lg bg-stone-100 animate-pulse" />
-                    </td>
-                  </tr>
-                ))
-              ) : filteredCustomers.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-14 text-center">
-                    <div className="w-11 h-11 mx-auto mb-3 rounded-xl bg-stone-100 text-stone-400 flex items-center justify-center">
-                      <UserRound size={18} />
-                    </div>
-                    <p className="text-[14px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">
-                      No customers found
-                    </p>
-                    <p className="text-[12px] text-stone-400 mt-1 [font-family:var(--font-dmsans)]">
-                      Add a customer record to get started.
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                filteredCustomers.map((customer) => (
-                  <tr
-                    key={customer.customer_id}
-                    className="border-b border-stone-50 hover:bg-stone-50/70 transition-colors"
-                  >
-                    <td className="px-4 py-3">
-                      <span className="[font-family:var(--font-jetbrains)] text-[11.5px] text-blue-700">
-                        {customer.customer_id}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/customers/${customer.customer_id}`}
-                        className="text-[13px] font-semibold text-stone-800 hover:text-blue-700 [font-family:var(--font-dmsans)]"
-                      >
-                        {customer.name}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1.5 text-[12.5px] text-stone-500 [font-family:var(--font-dmsans)]">
-                        <Phone size={12} />
-                        {customer.phone || "—"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-[12.5px] text-stone-600 [font-family:var(--font-dmsans)]">
-                        {customer.sales_rep?.full_name ?? "—"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-[12.5px] text-stone-600 [font-family:var(--font-dmsans)]">
-                        {formatDate(customer.updated_at)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/customers/${customer.customer_id}`}
-                        className="inline-flex items-center px-3 py-1.5 rounded-lg border border-stone-200 text-[12px] font-medium text-stone-600 hover:bg-stone-100 transition-colors [font-family:var(--font-dmsans)]"
-                      >
-                        View
-                      </Link>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        {loading ? (
+          <div className="px-4 py-8 text-[13px] text-stone-500">Loading customers...</div>
+        ) : (
+          <DataTable
+            data={customers}
+            columns={customerColumns}
+            minWidth={980}
+            searchPlaceholder="Search customers..."
+            emptyMessage="No customers found"
+          />
+        )}
       </div>
 
       {isCreateOpen && canEdit && (

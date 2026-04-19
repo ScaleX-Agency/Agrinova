@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   Bar,
   BarChart,
@@ -19,6 +20,7 @@ import {
   YAxis,
 } from "recharts";
 import type { CommissionRepDetailResponse } from "@/types/api";
+import DataTable from "@/components/ui/DataTable";
 
 const formatDate = (value: string) =>
   new Date(value).toLocaleDateString("en-GB", {
@@ -293,6 +295,102 @@ const CommissionRepDetailPage = () => {
     [filteredRows],
   );
 
+  const commissionColumns: ColumnDef<(typeof commissionTableRows)[number]>[] = [
+    {
+      accessorKey: "commissionId",
+      header: "Commission #",
+      cell: ({ row }) => <span className="[font-family:var(--font-jetbrains)] text-[#2b2d7e]">{row.original.commissionId}</span>,
+    },
+    {
+      accessorKey: "receiptNo",
+      header: "Receipt #",
+      cell: ({ row }) => <span className="[font-family:var(--font-jetbrains)] text-[#2b2d7e]">{row.original.receiptNo ?? "-"}</span>,
+    },
+    {
+      accessorKey: "invoiceNo",
+      header: "Invoice #",
+      cell: ({ row }) => <span className="[font-family:var(--font-jetbrains)] text-[#2b2d7e]">{row.original.invoiceNo}</span>,
+    },
+    {
+      accessorKey: "invoiceDate",
+      header: "Invoice Date",
+      cell: ({ row }) => <span className="text-stone-700">{formatDate(row.original.invoiceDate)}</span>,
+    },
+    {
+      accessorKey: "dueDate",
+      header: "Due Date",
+      cell: ({ row }) => <span className="text-stone-700">{formatDate(row.original.dueDate)}</span>,
+    },
+    {
+      accessorKey: "paidDate",
+      header: "Paid Date",
+      cell: ({ row }) => <span className="text-stone-700">{row.original.paidDate ? formatDate(row.original.paidDate) : "-"}</span>,
+    },
+    {
+      accessorKey: "daysToPay",
+      header: "Days",
+      cell: ({ row }) => <span className="text-stone-700">{row.original.daysToPay}</span>,
+    },
+    {
+      accessorKey: "commissionRate",
+      header: "Rate",
+      cell: ({ row }) => <span className="text-stone-700">{formatPercent(row.original.commissionRate)}</span>,
+    },
+    {
+      accessorKey: "commissionAmount",
+      header: "Amount",
+      cell: ({ row }) => <span className="font-semibold text-[#1a5c2e]">{formatCurrency(row.original.commissionAmount)}</span>,
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) =>
+        row.original.status in statusConfig ? (
+          <span
+            className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${statusConfig[row.original.status as keyof typeof statusConfig].pill}`}
+          >
+            {statusConfig[row.original.status as keyof typeof statusConfig].label}
+          </span>
+        ) : (
+          <span className="inline-flex rounded-full border border-stone-200 px-2 py-0.5 text-[11px] font-medium text-stone-600">
+            {row.original.status}
+          </span>
+        ),
+    },
+  ];
+
+  const customerInsightColumns: ColumnDef<(typeof customerInsights)[number]>[] = [
+    {
+      accessorKey: "customer",
+      header: "Customer",
+      cell: ({ row }) => <span className="text-stone-800">{row.original.customer}</span>,
+    },
+    {
+      accessorKey: "invoices",
+      header: "Invoices",
+      cell: ({ row }) => <span className="text-stone-700">{row.original.invoices}</span>,
+    },
+    {
+      accessorKey: "totalSales",
+      header: "Total Sales",
+      cell: ({ row }) => <span className="text-stone-700">{formatCurrency(row.original.totalSales)}</span>,
+    },
+    {
+      accessorKey: "collected",
+      header: "Collected",
+      cell: ({ row }) => <span className="text-stone-700">{formatCurrency(row.original.collected)}</span>,
+    },
+    {
+      accessorKey: "outstanding",
+      header: "Outstanding",
+      cell: ({ row }) => (
+        <span className={row.original.outstanding > 0 ? "font-medium text-red-700" : "text-emerald-700"}>
+          {formatCurrency(row.original.outstanding)}
+        </span>
+      ),
+    },
+  ];
+
   return (
     <section className="space-y-5 pb-16">
       <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
@@ -433,96 +531,24 @@ const CommissionRepDetailPage = () => {
           <p className="text-[12px] text-stone-500">Rep-specific commission records</p>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1120px] border-collapse text-left text-[14px]">
-            <thead className="bg-stone-50 text-[11px] uppercase tracking-[0.1em] text-stone-500">
-              <tr>
-                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Commission #</th>
-                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Receipt #</th>
-                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Invoice #</th>
-                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Invoice Date</th>
-                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Due Date</th>
-                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Paid Date</th>
-                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Days</th>
-                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Rate</th>
-                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Amount</th>
-                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {commissionTableRows.map((row) => (
-                <tr key={row.key} className="border-b border-stone-100 hover:bg-stone-50">
-                  <td className="px-3 py-2 [font-family:var(--font-jetbrains)] text-[#2b2d7e]">{row.commissionId}</td>
-                  <td className="px-3 py-2 [font-family:var(--font-jetbrains)] text-[#2b2d7e]">{row.receiptNo ?? "-"}</td>
-                  <td className="px-3 py-2 [font-family:var(--font-jetbrains)] text-[#2b2d7e]">{row.invoiceNo}</td>
-                  <td className="px-3 py-2 text-stone-700">{formatDate(row.invoiceDate)}</td>
-                  <td className="px-3 py-2 text-stone-700">{formatDate(row.dueDate)}</td>
-                  <td className="px-3 py-2 text-stone-700">{row.paidDate ? formatDate(row.paidDate) : "-"}</td>
-                  <td className="px-3 py-2 text-stone-700">{row.daysToPay}</td>
-                  <td className="px-3 py-2 text-stone-700">{formatPercent(row.commissionRate)}</td>
-                  <td className="px-3 py-2 font-semibold text-[#1a5c2e]">{formatCurrency(row.commissionAmount)}</td>
-                  <td className="px-3 py-2">
-                    {row.status in statusConfig ? (
-                      <span
-                        className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${statusConfig[row.status as keyof typeof statusConfig].pill}`}
-                      >
-                        {statusConfig[row.status as keyof typeof statusConfig].label}
-                      </span>
-                    ) : (
-                      <span className="inline-flex rounded-full border border-stone-200 px-2 py-0.5 text-[11px] font-medium text-stone-600">
-                        {row.status}
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {!detailQuery.isLoading && commissionTableRows.length === 0 && (
-                <tr>
-                  <td colSpan={10} className="px-3 py-8 text-center text-[13px] text-stone-500">
-                    No commission records found for this sales rep.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          data={commissionTableRows}
+          columns={commissionColumns}
+          minWidth={1120}
+          searchPlaceholder="Search invoice, receipt, or status"
+          emptyMessage="No commission records found for this sales rep."
+        />
       </section>
 
       <section className="rounded-2xl border border-stone-200 bg-white p-4">
         <h2 className="mb-3 text-[16px] font-semibold text-[#2b2d7e]">Customer Insights</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] border-collapse text-left text-[14px]">
-            <thead className="bg-stone-50 text-[11px] uppercase tracking-[0.1em] text-stone-500">
-              <tr>
-                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Customer</th>
-                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Invoices</th>
-                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Total Sales</th>
-                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Collected</th>
-                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Outstanding</th>
-              </tr>
-            </thead>
-            <tbody>
-              {customerInsights.map((row) => (
-                <tr key={row.customer} className="border-b border-stone-100 hover:bg-stone-50">
-                  <td className="px-3 py-2 text-stone-800">{row.customer}</td>
-                  <td className="px-3 py-2 text-stone-700">{row.invoices}</td>
-                  <td className="px-3 py-2 text-stone-700">{formatCurrency(row.totalSales)}</td>
-                  <td className="px-3 py-2 text-stone-700">{formatCurrency(row.collected)}</td>
-                  <td className={`px-3 py-2 font-medium ${row.outstanding > 0 ? "text-red-700" : "text-emerald-700"}`}>
-                    {formatCurrency(row.outstanding)}
-                  </td>
-                </tr>
-              ))}
-              {!detailQuery.isLoading && customerInsights.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-3 py-8 text-center text-[13px] text-stone-500">
-                    No customer insight data available for this range.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          data={customerInsights}
+          columns={customerInsightColumns}
+          minWidth={760}
+          searchPlaceholder="Search customer"
+          emptyMessage="No customer insight data available for this range."
+        />
       </section>
 
       {detailQuery.isLoading && <p className="text-[13px] text-stone-500">Loading commission detail...</p>}
