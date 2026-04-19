@@ -219,7 +219,7 @@ export default function StockTable({
                     key={row.stock_id}
                     className="border-b border-stone-50 hover:bg-stone-50/70 transition-colors"
                   >
-                    <td className="px-3.5 py-3 font-mono text-[11.5px] font-medium text-blue-800">
+                    <td className="px-3.5 py-3 [font-family:var(--font-jetbrains)] text-[11.5px] font-medium text-blue-800">
                       {row.product_code}
                     </td>
                     <td className="px-3.5 py-3">
@@ -235,7 +235,7 @@ export default function StockTable({
                         {locObj?.code}
                       </span>
                     </td>
-                    <td className="px-3.5 py-3 text-right font-mono text-[15px] font-bold text-stone-800">
+                    <td className="px-3.5 py-3 text-right [font-family:var(--font-jetbrains)] text-[15px] font-bold text-stone-800">
                       {row.quantity_on_hand}
                     </td>
                     <td className="px-3.5 py-3 text-right text-[13px] text-stone-400">

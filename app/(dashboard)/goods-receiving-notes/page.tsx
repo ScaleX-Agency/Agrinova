@@ -46,7 +46,7 @@ const GoodsReceivingNotesPage = () => {
           <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">
             Inventory
           </p>
-          <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-playfair)] font-semibold">
+          <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)] font-semibold">
             Goods Receiving Notes
           </h1>
           <p className="text-[13px] text-stone-500">

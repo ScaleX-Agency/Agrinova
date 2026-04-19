@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import { getAllProducts, createProduct, getProductStats } from "@/lib/inventoryService";
 import type { CreateProductDto } from "@/types/inventory";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function GET(req: Request) {
   try {
@@ -14,10 +15,8 @@ export async function GET(req: Request) {
     const search = searchParams.get("search") || undefined;
     const category_id = searchParams.get("category_id") ? parseInt(searchParams.get("category_id") as string, 10) : undefined;
 
-    const [data, stats] = await Promise.all([
-      getAllProducts(page, pageSize, { search, category_id }),
-      getProductStats(),
-    ]);
+    const data = await getAllProducts(page, pageSize, { search, category_id });
+    const stats = await getProductStats();
     return NextResponse.json({ products: data.items, pagination: data.pagination, stats });
   } catch (err) {
     console.error("[GET /api/products]", err);
@@ -27,8 +26,13 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const dto = (await req.json()) as CreateProductDto;
-    const product = await createProduct(dto);
+    const product = await createProduct(dto, user.user_id);
     return NextResponse.json(product, { status: 201 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed to create product";

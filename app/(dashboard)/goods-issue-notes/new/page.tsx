@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import type {
@@ -26,6 +26,7 @@ import { getFirstGoodsIssueNoteFieldError, getGoodsIssueNoteFieldErrors } from "
 import GinDetailsSection from "./GinDetailsSection";
 import GinProductsSection from "./GinProductsSection";
 import GinSubmitSection from "./GinSubmitSection";
+import BackNavigationLink from "@/components/ui/BackNavigationLink";
 
 const parsePositiveInt = (value: string | null) => {
   if (!value) return null;
@@ -137,10 +138,10 @@ const NewGoodsIssueNotePage = () => {
     queryKey: ["gin-products", locationId],
     enabled: locationId !== null,
     queryFn: async () => {
-      const response = await fetch(`/api/inventory/${locationId}`);
-      const result = (await response.json()) as StockByLocationResponse;
+      const response = await fetch(`/api/inventory/${locationId}?all=true`);
+      const result = (await response.json()) as { stock?: StockByLocationResponse["data"]; error?: string };
       if (!response.ok) throw new Error(result.error ?? "Failed to load products for selected location.");
-      return Array.isArray(result.data) ? result.data : [];
+      return Array.isArray(result.stock) ? result.stock : [];
     },
   });
 
@@ -397,10 +398,16 @@ const NewGoodsIssueNotePage = () => {
 
   return (
     <section className="space-y-5">
-      <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+      <header className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
+          <div className="mb-2">
+            <BackNavigationLink
+              href="/goods-issue-notes"
+              label="Back to Goods Issue Notes"
+            />
+          </div>
           <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">Operations</p>
-          <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-playfair)] font-semibold">
+          <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)] font-semibold">
             Goods Issue Note
           </h1>
         </div>
@@ -412,13 +419,6 @@ const NewGoodsIssueNotePage = () => {
           >
             <FileText size={14} />
             New Invoice
-          </Link>
-          <Link
-            href="/goods-issue-notes"
-            className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] font-medium text-stone-700 hover:bg-stone-50"
-          >
-            <ArrowLeft size={14} />
-            Back to Goods Issue Notes
           </Link>
         </div>
       </header>

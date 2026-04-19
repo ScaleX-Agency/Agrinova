@@ -4,14 +4,13 @@ import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
-  HandCoins,
   Phone,
   ShieldUser,
   Trash2,
   UserRound,
   X,
 } from "lucide-react";
+import BackNavigationLink from "@/components/ui/BackNavigationLink";
 
 interface SalesRepOption {
   rep_id: number;
@@ -25,7 +24,8 @@ interface Customer {
   name: string;
   address: string | null;
   phone: string | null;
-  outstanding_balance: string;
+  created_at: string;
+  updated_at: string;
   sales_rep: SalesRepOption | null;
 }
 
@@ -49,18 +49,17 @@ interface CustomerDetailPageClientProps {
   canEdit: boolean;
 }
 
-function formatCurrency(value: string) {
-  const amount = Number(value);
-  if (Number.isNaN(amount)) {
-    return "LKR 0.00";
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
   }
 
-  return new Intl.NumberFormat("en-LK", {
-    style: "currency",
-    currency: "LKR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
 }
 
 async function getApiError(response: Response, fallback: string) {
@@ -274,13 +273,7 @@ export default function CustomerDetailPageClient({
   if (loadError || !customer) {
     return (
       <div className="space-y-4">
-        <Link
-          href="/customers"
-          className="inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 hover:text-stone-700 [font-family:var(--font-dmsans)]"
-        >
-          <ArrowLeft size={14} />
-          Back to Customers
-        </Link>
+        <BackNavigationLink href="/customers" label="Back to Customers" />
         <div className="px-4 py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 text-[13px] [font-family:var(--font-dmsans)]">
           {loadError || "Customer not found."}
         </div>
@@ -292,14 +285,8 @@ export default function CustomerDetailPageClient({
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <Link
-            href="/customers"
-            className="inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 hover:text-stone-700 [font-family:var(--font-dmsans)]"
-          >
-            <ArrowLeft size={14} />
-            Back to Customers
-          </Link>
-          <h1 className="mt-2 text-[26px] font-semibold text-stone-900 [font-family:var(--font-playfair)] leading-tight">
+          <BackNavigationLink href="/customers" label="Back to Customers" />
+          <h1 className="mt-2 text-[26px] font-semibold text-stone-900 [font-family:var(--font-dmsans)] leading-tight">
             {customer.name}
           </h1>
           <p className="mt-1 text-[12px] text-blue-700 [font-family:var(--font-jetbrains)]">
@@ -512,11 +499,19 @@ export default function CustomerDetailPageClient({
 
             <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
               <p className="text-[10.5px] uppercase tracking-[0.1em] text-stone-400 [font-family:var(--font-dmsans)]">
-                Outstanding Balance
+                Created At
               </p>
-              <p className="mt-1 inline-flex items-center gap-1.5 text-[13px] text-stone-700 [font-family:var(--font-dmsans)]">
-                <HandCoins size={12} />
-                {formatCurrency(customer.outstanding_balance)}
+              <p className="mt-1 text-[13px] text-stone-700 [font-family:var(--font-dmsans)]">
+                {formatDate(customer.created_at)}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
+              <p className="text-[10.5px] uppercase tracking-[0.1em] text-stone-400 [font-family:var(--font-dmsans)]">
+                Last Updated
+              </p>
+              <p className="mt-1 text-[13px] text-stone-700 [font-family:var(--font-dmsans)]">
+                {formatDate(customer.updated_at)}
               </p>
             </div>
 
@@ -544,7 +539,7 @@ export default function CustomerDetailPageClient({
         >
           <div className="w-full max-w-[420px] bg-white rounded-2xl border border-stone-200 shadow-xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-stone-100">
-              <h2 className="text-[17px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">
+              <h2 className="text-[17px] font-semibold text-stone-900 [font-family:var(--font-dmsans)]">
                 Remove Customer
               </h2>
               <button

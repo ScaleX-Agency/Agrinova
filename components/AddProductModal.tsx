@@ -144,7 +144,7 @@ export default function AddProductModal({
     }
     setSaving(true);
     try {
-      const payload: Partial<CreateProductDto & { reorder_threshold?: number }> = {
+      const payload: Partial<CreateProductDto> = {
         product_name: form.product_name,
         pack_size: form.pack_size,
         category_id: parseInt(form.category_id),
@@ -156,6 +156,12 @@ export default function AddProductModal({
       }
 
       if (mode === "add") {
+        if (form.initial_qty && parseInt(form.initial_qty) > 0) {
+          payload.initial_qty = parseInt(form.initial_qty);
+          if (form.location_id) {
+            payload.location_id = parseInt(form.location_id);
+          }
+        }
         const res = await fetch("/api/products", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -203,7 +209,7 @@ export default function AddProductModal({
       >
         {/* ── Header ── */}
         <div className="px-6 py-4 border-b border-[#2a2f45] flex items-center justify-between shrink-0">
-          <p className="text-[16px] font-semibold text-[#e8eaf0] [font-family:var(--font-playfair)] leading-none">
+          <p className="text-[16px] font-semibold text-[#e8eaf0] [font-family:var(--font-dmsans)] leading-none">
             {mode === "edit" ? "Edit Product" : "Add New Product"}
           </p>
           <button
@@ -224,7 +230,7 @@ export default function AddProductModal({
           {mode === "edit" && initialValues?.product_code && (
             <div className="mb-2">
               <FieldLabel label="Product Code" />
-              <p className="text-[13px] text-stone-600 font-mono bg-stone-50 px-3 py-2 rounded-lg border border-stone-200">
+              <p className="text-[13px] text-stone-600 [font-family:var(--font-jetbrains)] bg-stone-50 px-3 py-2 rounded-lg border border-stone-200">
                 {initialValues.product_code}
               </p>
             </div>

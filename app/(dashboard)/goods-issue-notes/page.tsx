@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { Eye, FileText } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import type { GoodsIssueNotesResponse } from "@/types/api";
+import type { ColumnDef } from "@tanstack/react-table";
+import type { GoodsIssueNoteOptionDto, GoodsIssueNotesResponse } from "@/types/api";
+import DataTable from "@/components/ui/DataTable";
 
 const GIN_STATUS_STYLE: Record<"PENDING" | "ISSUED" | "PARTIAL", string> = {
   PENDING: "bg-amber-50 text-amber-800 border-amber-100",
@@ -38,12 +40,72 @@ const GoodsIssueNotesPage = () => {
 
   const rows = notesQuery.data ?? [];
 
+  const tableColumns: ColumnDef<GoodsIssueNoteOptionDto>[] = [
+    {
+      accessorKey: "ginNumber",
+      header: "GIN #",
+      cell: ({ row }) => (
+        <span className="font-medium text-[#2b2d7e] [font-family:var(--font-jetbrains)]">{row.original.ginNumber}</span>
+      ),
+    },
+    {
+      accessorKey: "date",
+      header: "Date",
+      cell: ({ row }) => <span className="text-stone-700">{formatDate(row.original.date)}</span>,
+    },
+    {
+      accessorKey: "customerName",
+      header: "Customer",
+      cell: ({ row }) => <span className="text-stone-800">{row.original.customerName}</span>,
+    },
+    {
+      accessorKey: "locationCode",
+      header: "Location",
+      cell: ({ row }) => <span className="text-stone-700">{row.original.locationCode}</span>,
+    },
+    {
+      accessorKey: "ginStatus",
+      header: "Status",
+      cell: ({ row }) => (
+        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium ${GIN_STATUS_STYLE[row.original.ginStatus]}`}>
+          {GIN_STATUS_LABEL[row.original.ginStatus]}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "lineCount",
+      header: "Lines",
+      cell: ({ row }) => <span className="text-stone-700">{row.original.lineCount}</span>,
+    },
+    {
+      accessorKey: "invoiceNumber",
+      header: "Invoice",
+      cell: ({ row }) => (
+        <span className="text-stone-700">{row.original.invoiceNumber ?? "Not Linked"}</span>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Action",
+      enableSorting: false,
+      cell: ({ row }) => (
+        <Link
+          href={`/goods-issue-notes/${row.original.id}`}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] hover:bg-[#eeeffe]"
+        >
+          <Eye size={12} />
+          View
+        </Link>
+      ),
+    },
+  ];
+
   return (
     <section className="space-y-5">
       <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">Operations</p>
-          <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-playfair)] font-semibold">
+          <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)] font-semibold">
             Goods Issue Notes
           </h1>
           <p className="text-[13px] text-stone-500">Track goods issued against invoices and review line-level details.</p>
@@ -60,60 +122,13 @@ const GoodsIssueNotesPage = () => {
         </div>
       </header>
 
-      <div className="rounded-2xl border border-stone-200 bg-white overflow-x-auto">
-        <table className="w-full min-w-[860px] border-collapse text-left text-[14px]">
-          <thead className="bg-stone-50 text-[11px] uppercase tracking-[0.1em] text-stone-500">
-            <tr>
-              <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">GIN #</th>
-              <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Date</th>
-              <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Customer</th>
-              <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Location</th>
-              <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Status</th>
-              <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Lines</th>
-              <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Invoice</th>
-              <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className="border-b border-stone-100 hover:bg-stone-50">
-                <td className="px-4 py-3 font-medium text-[#2b2d7e] [font-family:var(--font-jetbrains)]">{row.ginNumber}</td>
-                <td className="px-4 py-3 text-stone-700">{formatDate(row.date)}</td>
-                <td className="px-4 py-3 text-stone-800">{row.customerName}</td>
-                <td className="px-4 py-3 text-stone-700">{row.locationCode}</td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium ${GIN_STATUS_STYLE[row.ginStatus]}`}
-                  >
-                    {GIN_STATUS_LABEL[row.ginStatus]}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-stone-700">{row.lineCount}</td>
-                <td className="px-4 py-3">
-                  {row.invoiceNumber ?? (
-                    <span className="text-[12px] text-stone-500">Not Linked</span>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/goods-issue-notes/${row.id}`}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] hover:bg-[#eeeffe]"
-                  >
-                    <Eye size={12} />
-                    View
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {!notesQuery.isLoading && rows.length === 0 && (
-          <div className="px-4 py-8 text-center text-[13px] text-stone-500">
-            No goods issue notes found yet. Create an invoice and the system will generate the GIN.
-          </div>
-        )}
-      </div>
+      <DataTable
+        data={rows}
+        columns={tableColumns}
+        minWidth={940}
+        searchPlaceholder="Search GIN no, customer or location"
+        emptyMessage="No goods issue notes found yet. Create an invoice and the system will generate the GIN."
+      />
 
       {notesQuery.error instanceof Error && (
         <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">

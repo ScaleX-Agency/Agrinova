@@ -3,6 +3,7 @@
 // Modal for recording ISSUE / RETURN / ADJUSTMENT on a stock row.
 
 import { useState } from "react";
+import { useUser } from "@clerk/nextjs";
 import {
   StockOverviewRow,
   MovementRow,
@@ -22,6 +23,7 @@ const MOVEMENT_TYPES: { value: MovementType; label: string }[] = [
 ];
 
 export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
+  const { user } = useUser();
   const [movementType, setMovementType] = useState<MovementType>("ISSUE");
   const [quantity, setQuantity] = useState("");
   const [notes, setNotes] = useState("");
@@ -87,7 +89,7 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
         product_name: row.product_name,
         product_code: row.product_code,
         location_code: row.location_code,
-        created_by_name: "Admin",
+        created_by_name: user?.firstName || "Admin",
         qty_delta: delta,
       };
 
@@ -107,9 +109,9 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
     >
       <div className="bg-[#181c27] border border-[#2a2f45] rounded-2xl w-full max-w-[560px] overflow-hidden flex flex-col">
         <div className="px-6 py-4 border-b border-[#2a2f45] flex items-center justify-between shrink-0">
-          <span className="text-[16px] font-semibold text-[#e8eaf0] [font-family:var(--font-playfair)]">
+          <p className="text-[16px] font-semibold text-[#e8eaf0]">
             Record Stock Movement
-          </span>
+          </p>
           <button
             className="w-7 h-7 flex items-center justify-center rounded-lg bg-[#242840] hover:bg-[#2a2f45] text-stone-400 transition-colors"
             onClick={onClose}
@@ -121,92 +123,54 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
         <div className="px-6 py-5 flex-1 overflow-y-auto">
           {/* Product summary */}
           <div
-            style={{
-              background: "var(--surface2)",
-              borderRadius: "var(--r-md)",
-              padding: "12px 16px",
-              marginBottom: 20,
-              display: "flex",
-              gap: 24,
-            }}
+            className="bg-[#242840] border border-[#2a2f45] rounded-xl p-4 flex gap-6 mb-5"
           >
             <div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "var(--text2)",
-                  textTransform: "uppercase",
-                  letterSpacing: 1,
-                }}
-              >
+              <div className="text-[11px] font-semibold text-[#555c78] uppercase tracking-wide mb-1">
                 Product
               </div>
-              <div style={{ fontWeight: 500, marginTop: 3 }}>
+              <div className="text-[#e8eaf0] font-medium">
                 {row.product_name}
               </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "var(--text2)",
-                  fontFamily: "monospace",
-                }}
-              >
+              <div className="text-[11px] text-[#8b91a8] [font-family:var(--font-jetbrains)] mt-0.5">
                 {row.product_code}
               </div>
             </div>
             <div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "var(--text2)",
-                  textTransform: "uppercase",
-                  letterSpacing: 1,
-                }}
-              >
+              <div className="text-[11px] font-semibold text-[#555c78] uppercase tracking-wide mb-1.5">
                 Location
               </div>
               <span
                 className="badge issue"
-                style={{ marginTop: 6, display: "inline-flex" }}
+                style={{ marginTop: 6, display: "inline-flex", color: "#e8eaf0" }}
               >
                 {row.location_code}
               </span>
             </div>
             <div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "var(--text2)",
-                  textTransform: "uppercase",
-                  letterSpacing: 1,
-                }}
-              >
+              <div className="text-[11px] font-semibold text-[#555c78] uppercase tracking-wide mb-1">
                 Current Stock
               </div>
-              <div
-                style={{
-                  fontWeight: 600,
-                  fontSize: 18,
-                  fontFamily: "'Playfair Display',serif",
-                  marginTop: 2,
-                }}
-              >
+              <div className="text-[20px] font-bold text-[#e8eaf0] [font-family:var(--font-dmsans)]">
                 {row.quantity_on_hand}
               </div>
             </div>
           </div>
 
           {/* Movement type */}
-          <div className="form-group" style={{ marginBottom: 16 }}>
-            <label className="form-label">
-              Movement Type <span style={{ color: "var(--danger)" }}>*</span>
+          <div className="mb-4">
+            <label className="block text-[11px] font-semibold text-[#555c78] uppercase tracking-wide mb-1.5">
+              Movement Type <span className="text-red-500">*</span>
             </label>
-            <div className="toggle-group">
+            <div className="flex gap-2 p-1 bg-[#242840] border border-[#2a2f45] rounded-xl">
               {MOVEMENT_TYPES.map((t) => (
                 <button
                   key={t.value}
-                  className={`toggle-btn ${movementType === t.value ? "active" : ""}`}
-                  style={{ flex: 1 }}
+                  className={`flex-1 py-2 rounded-lg text-[13px] font-medium transition-colors ${
+                    movementType === t.value
+                      ? "bg-[#1f4a2c] text-[#4ade80] border border-[#1a4a2e]"
+                      : "bg-transparent text-[#8b91a8] hover:text-[#e8eaf0]"
+                  }`}
                   onClick={() => setMovementType(t.value)}
                 >
                   {t.label}
@@ -214,23 +178,20 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
               ))}
             </div>
             {movementType === "RETURN" && (
-              <span
-                className="form-hint"
-                style={{ color: "var(--warn)", marginTop: 6, display: "block" }}
-              >
+              <span className="block text-[12px] text-amber-500/90 mt-2">
                 ⚠ Returns require manager / chairman approval before processing.
               </span>
             )}
           </div>
 
           {/* Qty + preview */}
-          <div className="form-grid">
-            <div className="form-group">
-              <label className="form-label">
-                Quantity <span style={{ color: "var(--danger)" }}>*</span>
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-[11px] font-semibold text-[#555c78] uppercase tracking-wide mb-1.5">
+                Quantity <span className="text-red-500">*</span>
               </label>
               <input
-                className="form-input"
+                className="w-full bg-[#242840] border border-[#2a2f45] text-[#e8eaf0] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#1a3050]"
                 type="number"
                 min="1"
                 placeholder="0"
@@ -241,59 +202,40 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
                 }}
               />
             </div>
-            <div className="form-group" style={{ justifyContent: "flex-end" }}>
-              <div
-                style={{
-                  background: "var(--surface2)",
-                  borderRadius: "var(--r-md)",
-                  padding: "10px 14px",
-                  textAlign: "center",
-                }}
-              >
-                <div style={{ fontSize: 11, color: "var(--text2)" }}>
-                  Resulting stock
-                </div>
-                <div
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 600,
-                    fontFamily: "'Playfair Display',serif",
-                    color:
-                      resultingQty < 0
-                        ? "var(--danger)"
-                        : resultingQty < row.reorder_threshold
-                          ? "var(--warn)"
-                          : "var(--success)",
-                  }}
+            <div>
+              <label className="block text-[11px] font-semibold text-[#555c78] uppercase tracking-wide mb-1.5">
+                Resulting stock
+              </label>
+              <div className="bg-[#242840] border border-[#2a2f45] rounded-lg px-3 py-2 text-center h-[38px] flex items-center justify-center">
+                <span
+                  className={`text-[15px] font-bold ${
+                    resultingQty < 0
+                      ? "text-red-400"
+                      : resultingQty < row.reorder_threshold
+                        ? "text-amber-400"
+                        : "text-green-400"
+                  }`}
                 >
                   {qty > 0 ? resultingQty : "—"}
-                </div>
+                </span>
               </div>
-            </div>
-
-            <div className="form-group span2">
-              <label className="form-label">Notes / Reference</label>
-              <textarea
-                className="form-textarea"
-                placeholder="e.g. Invoice number, reason for return, approval reference…"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                style={{ minHeight: 72 }}
-              />
             </div>
           </div>
 
+          <div className="mb-4">
+            <label className="block text-[11px] font-semibold text-[#555c78] uppercase tracking-wide mb-1.5">
+              Notes / Reference
+            </label>
+            <textarea
+              className="w-full bg-[#242840] border border-[#2a2f45] text-[#e8eaf0] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#1a3050] min-h-[80px]"
+              placeholder="e.g. Invoice number, reason for return, approval reference…"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
+
           {error && (
-            <div
-              style={{
-                background: "var(--danger-bg)",
-                color: "var(--danger)",
-                borderRadius: "var(--r-md)",
-                padding: "10px 14px",
-                fontSize: 13,
-                marginTop: 12,
-              }}
-            >
+            <div className="bg-[#2a0d0d] border border-[#4a1a1a] text-[#f87171] rounded-lg p-3 text-[12px]">
               {error}
             </div>
           )}

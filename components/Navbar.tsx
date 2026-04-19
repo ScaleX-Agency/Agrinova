@@ -4,51 +4,18 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "@clerk/nextjs";
-import { Badge, Avatar, Input, Tooltip, Skeleton } from "antd";
+import { Badge, Avatar, Skeleton } from "antd";
 import {
   Bell,
   Search,
   PanelLeftClose,
   X,
-  AlertTriangle,
-  CheckCircle2,
   ChevronRight,
 } from "lucide-react";
+import { GlobalSearchPalette } from "./GlobalSearch";
 
-const { Search: AntSearch } = Input;
-
-const NOTIFICATIONS = [
-  {
-    id: 1,
-    type: "danger",
-    icon: <AlertTriangle size={13} />,
-    title: "Out of stock",
-    body: "Glyphosate 480SL — Nuwara Eliya",
-    time: "2m ago",
-  },
-  {
-    id: 2,
-    type: "warn",
-    icon: <AlertTriangle size={13} />,
-    title: "Low stock alert",
-    body: "Mancozeb 80WP — Kuliyapitiya",
-    time: "18m ago",
-  },
-  {
-    id: 3,
-    type: "ok",
-    icon: <CheckCircle2 size={13} />,
-    title: "Purchase received",
-    body: "48 units added — Head Office",
-    time: "1h ago",
-  },
-];
-
-const TYPE_STYLE: Record<string, string> = {
-  danger: "bg-red-50 text-red-700 border-red-100",
-  warn: "bg-amber-50 text-amber-700 border-amber-100",
-  ok: "bg-green-50 text-green-700 border-green-100",
-};
+// In a real app, these would come from an API or websocket
+const notifications: any[] = [];
 
 interface NavbarProps {
   onToggleSidebar?: () => void;
@@ -69,8 +36,21 @@ function formatRole(roleName: string) {
 
 export default function Navbar({ onToggleSidebar }: NavbarProps) {
   const [notifOpen, setNotifOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [roleName, setRoleName] = useState("");
   const { user, isLoaded } = useUser();
+
+  // Ctrl+K / Cmd+K shortcut
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen((o) => !o);
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
 
   useEffect(() => {
     if (!isLoaded || !user) {
@@ -112,6 +92,11 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
 
   return (
     <>
+      <GlobalSearchPalette
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+      />
+
       <motion.header
         initial={{ y: -16, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -126,39 +111,28 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
           >
             <PanelLeftClose size={17} className="text-stone-600" />
           </button>
-
-          <div className="hidden sm:flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg border border-stone-200 flex items-center justify-center overflow-hidden bg-white">
-              <img
-                src="/agrinova-logo.jpeg"
-                alt="Agrinova Logo"
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="h-6 w-px bg-stone-200" />
-          </div>
-
-          <div className="min-w-0">
-            <h1 className="text-[19px] font-semibold text-stone-900 tracking-tight [font-family:var(--font-playfair)] leading-none">
-              Agrinova IMS
-            </h1>
-            <p className="text-[11px] text-stone-400 mt-0.5 [font-family:var(--font-dmsans)] hidden sm:block">
-              Inventory Management System
-            </p>
-          </div>
         </div>
 
         {/* Right */}
         <div className="flex items-center gap-2.5">
-          {/* Search */}
-          <div className="hidden md:block w-[240px]">
-            <AntSearch
-              placeholder="Search products, locations…"
-              allowClear
-              prefix={<Search size={13} className="text-stone-400" />}
-              className="[&_.ant-input-affix-wrapper]:!rounded-xl [&_.ant-input-affix-wrapper]:!border-stone-200 [&_.ant-input-affix-wrapper]:!shadow-none [&_.ant-input-affix-wrapper]:!bg-stone-50 [&_.ant-input]:!text-[13px] [&_.ant-input]:!bg-stone-50"
-            />
-          </div>
+          {/* Search trigger — consistent with other icon buttons */}
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="hidden md:flex items-center gap-2 h-9 px-3 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 transition-colors group"
+          >
+            <Search size={14} className="text-stone-400 group-hover:text-stone-600 transition-colors" />
+            <span className="text-[13px] text-stone-400 group-hover:text-stone-600 transition-colors [font-family:var(--font-dmsans)] w-[148px] text-left">
+              Search…
+            </span>
+          </button>
+
+          {/* Mobile search icon */}
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="md:hidden w-9 h-9 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 flex items-center justify-center transition-colors"
+          >
+            <Search size={16} className="text-stone-600" />
+          </button>
 
           {/* Status pill */}
           <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-stone-200 bg-stone-50">
@@ -170,20 +144,19 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
 
           {/* Notifications */}
           <div className="relative">
-            <Tooltip title="Notifications" placement="bottom">
-              <button
-                onClick={() => setNotifOpen((o) => !o)}
-                className="relative w-9 h-9 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 flex items-center justify-center transition-colors"
+            <button
+              onClick={() => setNotifOpen((o) => !o)}
+              className="relative w-9 h-9 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 flex items-center justify-center transition-colors"
+              title="Notifications"
+            >
+              <Badge
+                count={notifications.length}
+                size="small"
+                offset={[2, -2]}
               >
-                <Badge
-                  count={NOTIFICATIONS.length}
-                  size="small"
-                  offset={[2, -2]}
-                >
-                  <Bell size={16} className="text-stone-600" />
-                </Badge>
-              </button>
-            </Tooltip>
+                <Bell size={16} className="text-stone-600" />
+              </Badge>
+            </button>
 
             <AnimatePresence>
               {notifOpen && (
@@ -211,35 +184,46 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
                       </button>
                     </div>
                     <div className="divide-y divide-stone-50">
-                      {NOTIFICATIONS.map((n) => (
-                        <div
-                          key={n.id}
-                          className="flex gap-3 px-4 py-3 hover:bg-stone-50 transition-colors cursor-pointer"
-                        >
+                      {notifications.length > 0 ? (
+                        notifications.map((n) => (
                           <div
-                            className={`mt-0.5 w-6 h-6 rounded-full border flex items-center justify-center flex-shrink-0 ${TYPE_STYLE[n.type]}`}
+                            key={n.id}
+                            className="flex gap-3 px-4 py-3 hover:bg-stone-50 transition-colors cursor-pointer"
                           >
-                            {n.icon}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[12.5px] font-semibold text-stone-800">
-                              {n.title}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[12.5px] font-semibold text-stone-800">
+                                {n.title}
+                              </p>
+                              <p className="text-[12px] text-stone-500 truncate mt-0.5">
+                                {n.body}
+                              </p>
+                            </div>
+                            <p className="text-[11px] text-stone-400 shrink-0 mt-0.5">
+                              {n.time}
                             </p>
-                            <p className="text-[12px] text-stone-500 truncate mt-0.5">
-                              {n.body}
-                            </p>
                           </div>
-                          <p className="text-[11px] text-stone-400 shrink-0 mt-0.5">
-                            {n.time}
+                        ))
+                      ) : (
+                        <div className="px-4 py-10 flex flex-col items-center justify-center text-center">
+                          <div className="w-10 h-10 rounded-full bg-stone-50 flex items-center justify-center mb-2">
+                            <Bell size={18} className="text-stone-300" />
+                          </div>
+                          <p className="text-[13px] font-medium text-stone-900">
+                            All caught up!
+                          </p>
+                          <p className="text-[11.5px] text-stone-500 mt-1 max-w-[180px]">
+                            You don&apos;t have any new notifications at the moment.
                           </p>
                         </div>
-                      ))}
+                      )}
                     </div>
-                    <div className="px-4 py-2.5 border-t border-stone-100">
-                      <button className="w-full flex items-center justify-center gap-1 text-[12px] font-medium text-blue-700 hover:text-blue-800 transition-colors py-0.5">
-                        View all <ChevronRight size={12} />
-                      </button>
-                    </div>
+                    {notifications.length > 0 && (
+                      <div className="px-4 py-2.5 border-t border-stone-100">
+                        <button className="w-full flex items-center justify-center gap-1 text-[12px] font-medium text-blue-700 hover:text-blue-800 transition-colors py-0.5">
+                          View all <ChevronRight size={12} />
+                        </button>
+                      </div>
+                    )}
                   </motion.div>
                 </>
               )}

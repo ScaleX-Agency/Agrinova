@@ -175,8 +175,11 @@ export async function POST(request: Request) {
         where: { invoice_id: invoiceId },
         select: {
           invoice_id: true,
+          invoice_date: true,
+          total_amount: true,
           customer_id: true,
           location_id: true,
+          rep_id: true,
           invoice_lines: {
             select: {
               product_id: true,

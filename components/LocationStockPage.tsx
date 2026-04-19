@@ -3,9 +3,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import Link from "next/link";
 import {
-  ArrowLeft,
   Package,
   AlertTriangle,
   XCircle,
@@ -21,6 +19,7 @@ import {
   CheckCircle2,
   Clock,
 } from "lucide-react";
+import BackNavigationLink from "@/components/ui/BackNavigationLink";
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -190,7 +189,7 @@ function RecordMovementModal({
               <ArrowLeftRight size={14} className="text-blue-700" />
             </div>
             <div>
-              <p className="text-[15px] font-semibold text-stone-900 [font-family:var(--font-playfair)] leading-none">
+              <p className="text-[15px] font-semibold text-stone-900 [font-family:var(--font-dmsans)] leading-none">
                 Record Movement
               </p>
               <p className="text-[11.5px] text-stone-400 mt-0.5 [font-family:var(--font-dmsans)] truncate max-w-[220px]">
@@ -214,7 +213,7 @@ function RecordMovementModal({
               <p className="text-[11px] uppercase tracking-wide text-stone-400 [font-family:var(--font-dmsans)]">
                 Current stock
               </p>
-              <p className="text-[22px] font-semibold text-stone-800 [font-family:var(--font-playfair)] leading-none mt-0.5">
+              <p className="text-[22px] font-semibold text-stone-800 [font-family:var(--font-dmsans)] leading-none mt-0.5">
                 {row.quantity_on_hand}
               </p>
             </div>
@@ -308,7 +307,7 @@ function RecordMovementModal({
                   After this movement
                 </p>
                 <p
-                  className={`text-[20px] font-semibold [font-family:var(--font-playfair)] leading-none mt-0.5 ${
+                  className={`text-[20px] font-semibold [font-family:var(--font-dmsans)] leading-none mt-0.5 ${
                     projStatus === "out"
                       ? "text-red-700"
                       : projStatus === "low"
@@ -469,12 +468,12 @@ export default function LocationStockPage({
     <div className="space-y-5">
       {/* ── Back + Header ── */}
       <div>
-        <Link
+        <BackNavigationLink
           href="/inventory"
-          className="inline-flex items-center gap-1.5 text-[12.5px] text-stone-400 hover:text-stone-700 transition-colors mb-3 [font-family:var(--font-dmsans)]"
-        >
-          <ArrowLeft size={13} /> Back to Stock Overview
-        </Link>
+          label="Back to Stock Overview"
+          iconSize={13}
+          className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] text-stone-400 transition-colors hover:text-stone-700 [font-family:var(--font-dmsans)]"
+        />
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2.5 mb-1">
@@ -486,7 +485,7 @@ export default function LocationStockPage({
                 Location Detail
               </span>
             </div>
-            <h1 className="text-[26px] font-semibold text-stone-900 [font-family:var(--font-playfair)] leading-tight">
+            <h1 className="text-[26px] font-semibold text-stone-900 [font-family:var(--font-dmsans)] leading-tight">
               {locationName}
             </h1>
             <p className="text-[13px] text-stone-400 mt-1 [font-family:var(--font-dmsans)]">
@@ -543,7 +542,7 @@ export default function LocationStockPage({
               <p className="text-[11px] font-medium uppercase tracking-wide text-stone-400 [font-family:var(--font-dmsans)]">
                 {s.label}
               </p>
-              <p className="text-[24px] font-semibold text-stone-800 [font-family:var(--font-playfair)] leading-none mt-0.5">
+              <p className="text-[24px] font-semibold text-stone-800 [font-family:var(--font-dmsans)] leading-none mt-0.5">
                 {s.value}
               </p>
             </div>

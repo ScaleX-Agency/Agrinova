@@ -3,7 +3,7 @@
 // Mock constants removed. Data comes from React Query hooks.
 // LOCATIONS_DATA kept as static — warehouse locations don't change at runtime.
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import {
   Package, TrendingUp, AlertTriangle, XCircle,
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
+import { useUser } from "@clerk/nextjs";
 
 import {
   useAllStock,
@@ -66,6 +67,7 @@ function RecordMovementModal({
   onClose: () => void;
   onSaved: (mov: MovementRow) => void;
 }) {
+  const { user } = useUser();
   const [selectedStock, setSelectedStock] = useState<StockOverviewRow | null>(null);
   const [type,          setType]          = useState<MovementType>("ISSUE");
   const [qty,           setQty]           = useState("");
@@ -112,7 +114,7 @@ function RecordMovementModal({
         location_code:   selectedStock.location_code,
         qty_delta:       delta,
         notes:           notes || null,
-        created_by_name: "Admin",
+        created_by_name: user?.firstName || "Admin",
       });
       onClose();
     } catch (err) {
@@ -147,7 +149,7 @@ function RecordMovementModal({
               <ArrowLeftRight size={14} className="text-green-700" />
             </div>
             <div>
-              <p className="text-[15px] font-semibold text-stone-900 [font-family:var(--font-playfair)] leading-none">Record Movement</p>
+              <p className="text-[15px] font-semibold text-stone-900 [font-family:var(--font-dmsans)] leading-none">Record Movement</p>
               <p className="text-[11.5px] text-stone-400 mt-0.5 [font-family:var(--font-dmsans)]">Issue, return, purchase or adjust stock</p>
             </div>
           </div>
@@ -192,7 +194,7 @@ function RecordMovementModal({
               className="flex items-center justify-between bg-stone-50 border border-stone-100 rounded-xl px-4 py-3">
               <div>
                 <p className="text-[11px] uppercase tracking-wide text-stone-400 [font-family:var(--font-dmsans)]">Current stock</p>
-                <p className="text-[22px] font-semibold text-stone-800 [font-family:var(--font-playfair)] leading-none mt-0.5">{selectedStock.quantity_on_hand}</p>
+                <p className="text-[22px] font-semibold text-stone-800 [font-family:var(--font-dmsans)] leading-none mt-0.5">{selectedStock.quantity_on_hand}</p>
               </div>
               <div className="text-right">
                 <span className="[font-family:var(--font-jetbrains)] text-[11px] font-medium text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">{selectedStock.location_code}</span>
@@ -245,7 +247,7 @@ function RecordMovementModal({
               }`}>
               <div>
                 <p className="text-[11px] uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">After movement</p>
-                <p className={`text-[20px] font-semibold [font-family:var(--font-playfair)] leading-none mt-0.5 ${
+                <p className={`text-[20px] font-semibold [font-family:var(--font-dmsans)] leading-none mt-0.5 ${
                   projStatus === "out" ? "text-red-700" : projStatus === "low" ? "text-amber-700" : "text-green-700"
                 }`}>{Math.max(0, projected)}</p>
               </div>
@@ -282,6 +284,13 @@ function greeting() {
 }
 
 export default function DashboardPage() {
+  const { user } = useUser();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // ── Real data via React Query (no mock constants) ─────────
   const { data: stockResponse = { stock: [], pagination: { total: 0 } } } = useAllStock();
   const stock = stockResponse.stock;
@@ -319,9 +328,11 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-[12px] font-medium text-stone-400 uppercase tracking-[0.12em] [font-family:var(--font-dmsans)] mb-1">{today}</p>
-          <h1 className="text-[26px] font-semibold text-stone-900 tracking-tight [font-family:var(--font-playfair)] leading-tight">
-            {greeting()}, Admin 👋
+          <p className="text-[12px] font-medium text-stone-400 uppercase tracking-[0.12em] [font-family:var(--font-dmsans)] mb-1">
+            {mounted ? today : "Loading date..."}
+          </p>
+          <h1 className="text-[26px] font-semibold text-stone-900 tracking-tight [font-family:var(--font-dmsans)] leading-tight">
+            {mounted ? greeting() : "Welcome"}, {mounted && user?.firstName ? user.firstName : "Admin"} 👋
           </h1>
           <p className="text-[13px] text-stone-400 mt-1 [font-family:var(--font-dmsans)]">
             Here's what's happening across your inventory today.
@@ -347,7 +358,7 @@ export default function DashboardPage() {
             <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${s.iconBg}`}>{s.icon}</div>
             <div className="min-w-0">
               <p className="text-[11px] font-medium uppercase tracking-wide text-stone-400 [font-family:var(--font-dmsans)]">{s.label}</p>
-              <p className="text-[26px] font-semibold text-stone-800 [font-family:var(--font-playfair)] leading-none my-1">{s.value}</p>
+              <p className="text-[26px] font-semibold text-stone-800 [font-family:var(--font-dmsans)] leading-none my-1">{s.value}</p>
               <span className={`inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full [font-family:var(--font-dmsans)] ${s.badgeCls}`}>
                 {s.trendUp && <ArrowUpRight size={11} className="mr-0.5"/>}
                 {s.sub}

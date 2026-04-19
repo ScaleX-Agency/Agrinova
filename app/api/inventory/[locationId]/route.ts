@@ -2,7 +2,7 @@
 // GET /api/inventory/[locationId] — stock for a single location.
 
 import { NextResponse } from "next/server";
-import { getStockByLocation } from "@/lib/inventoryService";
+import { getAllStockByLocation, getStockByLocation } from "@/lib/inventoryService";
 
 interface Props {
   params: Promise<{ locationId: string }>;
@@ -18,15 +18,15 @@ export async function GET(req: Request, { params }: Props) {
 
   try {
     const { searchParams } = new URL(req.url);
+    const all = searchParams.get("all") === "true";
     const page = parseInt(searchParams.get("page") || "1", 10);
     const pageSize = parseInt(searchParams.get("pageSize") || "20", 10);
     const search = searchParams.get("search") || undefined;
     const status = searchParams.get("status") || undefined;
 
-    const stockData = await getStockByLocation(id, page, pageSize, {
-      search,
-      status,
-    });
+    const stockData = all
+      ? await getAllStockByLocation(id, { search, status })
+      : await getStockByLocation(id, page, pageSize, { search, status });
 
     return NextResponse.json({
       stock: stockData.items,

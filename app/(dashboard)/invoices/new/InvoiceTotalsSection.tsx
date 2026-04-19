@@ -24,7 +24,7 @@ const InvoiceTotalsSection = ({
         <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-700">
           <Calculator size={16} />
         </span>
-        <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">
+        <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-dmsans)]">
           Totals
         </h2>
       </div>

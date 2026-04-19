@@ -234,7 +234,7 @@ const GinProductsSection = ({
     <section className="rounded-2xl border border-stone-200 bg-white p-4 md:p-5">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">Products</h2>
+          <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-dmsans)]">Products</h2>
         </div>
       </div>
 

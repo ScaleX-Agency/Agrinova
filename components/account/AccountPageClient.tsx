@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Mail, ShieldUser, UserRound } from "lucide-react";
+import { Mail, ShieldUser, UserRound } from "lucide-react";
+import BackNavigationLink from "@/components/ui/BackNavigationLink";
 
 interface AccountDetails {
   user_id: number;
@@ -175,17 +176,11 @@ export default function AccountPageClient() {
   return (
     <div className="space-y-5">
       <div>
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 hover:text-stone-700 [font-family:var(--font-dmsans)]"
-        >
-          <ArrowLeft size={14} />
-          Back to Dashboard
-        </Link>
+        <BackNavigationLink href="/dashboard" label="Back to Dashboard" />
         <p className="text-[11.5px] font-semibold uppercase tracking-[0.12em] text-stone-400 [font-family:var(--font-dmsans)] mb-1">
           Profile
         </p>
-        <h1 className="text-[26px] font-semibold text-stone-900 [font-family:var(--font-playfair)] leading-tight">
+        <h1 className="text-[26px] font-semibold text-stone-900 [font-family:var(--font-dmsans)] leading-tight">
           My Account
         </h1>
         <p className="text-[13px] text-stone-400 mt-1 [font-family:var(--font-dmsans)]">

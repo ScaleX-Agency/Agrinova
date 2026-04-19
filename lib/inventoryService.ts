@@ -1,7 +1,7 @@
 // src/lib/inventoryService.ts
 import { prisma } from "./prisma";
-import { unstable_cache, revalidateTag } from "next/cache";
 import { Prisma } from "@prisma/client";
+import { unstable_cache, revalidateTag } from "next/cache";
 import type {
   StockOverviewRow,
   LocationSummary,
@@ -90,6 +90,7 @@ export async function getAllStock(
       product_name: s.product.product_name,
       category_name: s.product.category.name,
       pack_size: s.product.pack_size,
+      selling_price: Number(s.product.selling_price),
       quantity_on_hand: s.quantity_on_hand,
       reorder_threshold: LOW_THRESHOLD,
       status: computeStatus(s.quantity_on_hand),
@@ -117,6 +118,79 @@ export async function getStockByLocation(
   filters?: { search?: string; status?: string },
 ): Promise<PaginatedResult<StockOverviewRow>> {
   return getAllStock(page, pageSize, { ...filters, location_id: locationId });
+}
+
+export async function getAllStockByLocation(
+  locationId: number,
+  filters?: { search?: string; status?: string },
+): Promise<PaginatedResult<StockOverviewRow>> {
+  const where: any = { location_id: locationId };
+
+  if (filters?.search) {
+    where.OR = [
+      {
+        product: {
+          product_name: { contains: filters.search, mode: "insensitive" },
+        },
+      },
+      {
+        product: {
+          product_code: { contains: filters.search, mode: "insensitive" },
+        },
+      },
+    ];
+  }
+
+  if (filters?.status && filters.status !== "all") {
+    if (filters.status === "out") {
+      where.quantity_on_hand = { lte: 0 };
+    } else if (filters.status === "low") {
+      where.quantity_on_hand = { gt: 0, lt: LOW_THRESHOLD };
+    } else if (filters.status === "ok") {
+      where.quantity_on_hand = { gte: LOW_THRESHOLD };
+    }
+  }
+
+  const [total, stocksRaw] = await prisma.$transaction([
+    prisma.stock.count({ where }),
+    prisma.stock.findMany({
+      where,
+      include: {
+        product: { include: { category: true } },
+        location: true,
+      },
+      orderBy: [
+        { product: { product_name: "asc" } },
+        { stock_id: "asc" },
+      ],
+    }),
+  ]);
+
+  const items = stocksRaw.map((s) => ({
+    stock_id: s.stock_id,
+    product_id: s.product_id,
+    product_code: s.product.product_code,
+    product_name: s.product.product_name,
+    category_name: s.product.category.name,
+    pack_size: s.product.pack_size,
+    selling_price: Number(s.product.selling_price),
+    quantity_on_hand: s.quantity_on_hand,
+    reorder_threshold: LOW_THRESHOLD,
+    status: computeStatus(s.quantity_on_hand),
+    location_id: s.location_id,
+    location_code: s.location.code,
+    location_name: s.location.name,
+  }));
+
+  return {
+    items,
+    pagination: {
+      page: 1,
+      pageSize: total || 1,
+      total,
+      totalPages: 1,
+    },
+  };
 }
 
 export const getLocationSummaries = unstable_cache(
@@ -277,7 +351,7 @@ export async function createMovement(
   ]);
 
   // Bust server-side cache so next RSC render gets fresh data
-  revalidateTag("inventory" as any);
+  revalidateTag("inventory", "max");
 
   return {
     updatedStock: {
@@ -352,7 +426,7 @@ export async function getProductStats() {
   };
 }
 
-export async function createProduct(dto: CreateProductDto) {
+export async function createProduct(dto: CreateProductDto, userId?: number) {
   const category = await prisma.category.findUniqueOrThrow({
     where: { category_id: dto.category_id },
   });
@@ -361,18 +435,44 @@ export async function createProduct(dto: CreateProductDto) {
   });
   const product_code = `${category.tag}-${String(count + 1).padStart(4, "0")}`;
 
-  const product = await prisma.product.create({
-    data: {
-      product_name: dto.product_name,
-      pack_size: dto.pack_size,
-      category_id: dto.category_id,
-      selling_price: dto.selling_price,
-      product_code,
-    },
-    include: { category: true },
+  const product = await prisma.$transaction(async (tx) => {
+    const createdProduct = await tx.product.create({
+      data: {
+        product_name: dto.product_name,
+        pack_size: dto.pack_size,
+        category_id: dto.category_id,
+        selling_price: dto.selling_price,
+        product_code,
+      },
+      include: { category: true },
+    });
+
+    if (dto.initial_qty && dto.initial_qty > 0 && dto.location_id && userId) {
+      const stock = await tx.stock.create({
+        data: {
+          product_id: createdProduct.product_id,
+          location_id: dto.location_id,
+          quantity_on_hand: dto.initial_qty,
+        },
+      });
+
+      await tx.stockMovement.create({
+        data: {
+          stock_id: stock.stock_id,
+          product_id: createdProduct.product_id,
+          created_by: userId,
+          movement_type: "PURCHASE",
+          quantity: dto.initial_qty,
+          movement_date: new Date(),
+          notes: "Initial stock addition",
+        },
+      });
+    }
+
+    return createdProduct;
   });
 
-  revalidateTag("inventory" as any);
+  revalidateTag("inventory", "max");
   return product;
 }
 
@@ -386,7 +486,7 @@ export async function deleteProduct(productId: number) {
   const product = await prisma.product.delete({
     where: { product_id: productId },
   });
-  revalidateTag("inventory" as any);
+  revalidateTag("inventory", "max");
   return product;
 }
 
@@ -625,7 +725,7 @@ export async function createStockEntry(
     };
   });
 
-  revalidateTag("inventory" as any);
+  revalidateTag("inventory", "max");
   return result;
 }
 
@@ -650,7 +750,7 @@ export async function updateProduct(
     include: { category: true },
   });
 
-  revalidateTag("inventory" as any);
+  revalidateTag("inventory", "max");
   return product;
 }
 
@@ -711,7 +811,7 @@ export async function importStock(data: any[], userId: number) {
     imported.push(stock);
   }
 
-  revalidateTag("inventory" as any);
+  revalidateTag("inventory", "max");
   return imported;
 }
 
@@ -743,6 +843,12 @@ export async function deleteMovement(movementId: number) {
 
   await prisma.stockMovement.delete({ where: { movement_id: movementId } });
 
-  revalidateTag("inventory" as any);
+  revalidateTag("inventory", "max");
   return movement;
+}
+
+export async function getAllLocations() {
+  return prisma.inventoryLocation.findMany({
+    orderBy: { location_id: "asc" },
+  });
 }

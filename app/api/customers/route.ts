@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import * as z from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -32,7 +31,8 @@ type CustomerWithRep = {
   name: string;
   address: string | null;
   phone: string | null;
-  outstanding_balance: Prisma.Decimal;
+  created_at: Date;
+  updated_at: Date;
   assigned_rep: {
     rep_id: number;
     full_name: string;
@@ -47,7 +47,8 @@ function serializeCustomer(customer: CustomerWithRep) {
     name: customer.name,
     address: customer.address,
     phone: customer.phone,
-    outstanding_balance: customer.outstanding_balance.toString(),
+    created_at: customer.created_at.toISOString(),
+    updated_at: customer.updated_at.toISOString(),
     sales_rep: customer.assigned_rep,
   };
 }
@@ -76,7 +77,8 @@ export async function GET() {
         name: true,
         address: true,
         phone: true,
-        outstanding_balance: true,
+        created_at: true,
+        updated_at: true,
         assigned_rep: {
           select: {
             rep_id: true,
@@ -138,7 +140,6 @@ export async function POST(req: Request) {
         name: parsed.data.name,
         phone: parsed.data.phone,
         address: parsed.data.address?.trim() ? parsed.data.address.trim() : null,
-        outstanding_balance: new Prisma.Decimal(0),
       },
       select: {
         customer_id: true,
@@ -146,7 +147,8 @@ export async function POST(req: Request) {
         name: true,
         address: true,
         phone: true,
-        outstanding_balance: true,
+        created_at: true,
+        updated_at: true,
         assigned_rep: {
           select: {
             rep_id: true,

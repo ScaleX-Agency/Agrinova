@@ -173,10 +173,10 @@ export default function ImportStockModal({ onClose, onSaved }: Props) {
                           key={i}
                           className={`border-b border-[#2a2f45] last:border-0 ${isErr ? "bg-red-900/20" : ""}`}
                         >
-                          <td className="px-4 py-2.5 text-[12px] text-[#e8eaf0] font-mono">
+                          <td className="px-4 py-2.5 text-[12px] text-[#e8eaf0] [font-family:var(--font-jetbrains)]">
                             {row.product_code || "—"}
                           </td>
-                          <td className="px-4 py-2.5 text-[12px] text-[#e8eaf0] font-mono">
+                          <td className="px-4 py-2.5 text-[12px] text-[#e8eaf0] [font-family:var(--font-jetbrains)]">
                             {row.location_code || "—"}
                           </td>
                           <td className="px-4 py-2.5 text-[12px] text-[#e8eaf0]">

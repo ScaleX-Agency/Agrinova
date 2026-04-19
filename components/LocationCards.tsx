@@ -38,7 +38,7 @@ export default function LocationCards({ summaries, selectedId, onSelect }: Props
               </span>
             )}
 
-            <p className="font-mono text-[10px] font-medium text-stone-400 tracking-wider mb-0.5">
+            <p className="[font-family:var(--font-jetbrains)] text-[10px] font-medium text-stone-400 tracking-wider mb-0.5">
               {loc.code}
             </p>
             <p className={`text-[13px] font-semibold mb-2.5 ${isSelected ? "text-blue-800" : "text-stone-800"}`}>

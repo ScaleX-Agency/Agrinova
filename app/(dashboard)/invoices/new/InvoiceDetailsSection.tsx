@@ -59,7 +59,7 @@ const InvoiceDetailsSection = ({
         <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-indigo-100 bg-indigo-50 text-indigo-700">
           <ClipboardList size={16} />
         </span>
-        <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">
+        <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-dmsans)]">
           Invoice Details
         </h2>
       </div>

@@ -37,6 +37,14 @@ type SalesRepListResponse = {
   error?: string;
 };
 
+type CustomersByRepLegacyResponse = {
+  customers?: Array<{
+    customer_id: number;
+    name: string;
+  }>;
+  error?: string;
+};
+
 const NewInvoicePage = () => {
   const router = useRouter();
   const [invoiceNo, setInvoiceNo] = useState("");
@@ -108,9 +116,21 @@ const NewInvoicePage = () => {
     enabled: repId !== null,
     queryFn: async () => {
       const response = await fetch(`/api/sales-reps/${repId}/customers`);
-      const result = (await response.json()) as CustomersByRepResponse;
+      const result = (await response.json()) as CustomersByRepResponse & CustomersByRepLegacyResponse;
       if (!response.ok) throw new Error(result.error ?? "Failed to load customers for selected sales rep.");
-      return Array.isArray(result.data) ? result.data : [];
+
+      if (Array.isArray(result.data)) {
+        return result.data;
+      }
+
+      if (Array.isArray(result.customers)) {
+        return result.customers.map((customer) => ({
+          id: customer.customer_id,
+          label: customer.name,
+        }));
+      }
+
+      return [];
     },
   });
 
@@ -152,13 +172,13 @@ const NewInvoicePage = () => {
     queryKey: ["invoice-products", locationId],
     enabled: locationId !== null,
     queryFn: async () => {
-      const response = await fetch(`/api/inventory/${locationId}`);
-      const result = (await response.json()) as StockByLocationResponse;
+      const response = await fetch(`/api/inventory/${locationId}?all=true`);
+      const result = (await response.json()) as { stock?: StockByLocationResponse["data"]; error?: string };
       if (!response.ok) {
         throw new Error(result.error ?? "Failed to load products for selected location.");
       }
 
-      const rows = Array.isArray(result.data) ? result.data : [];
+      const rows = Array.isArray(result.stock) ? result.stock : [];
       return rows
         .filter((row) => row.quantity_on_hand > 0)
         .map((row) => ({
@@ -446,7 +466,10 @@ const NewInvoicePage = () => {
             fieldErrors.salesRep ??
             (salesRepQuery.error instanceof Error ? salesRepQuery.error.message : undefined)
           }
-          customerError={fieldErrors.customer}
+          customerError={
+            fieldErrors.customer ??
+            (customersQuery.error instanceof Error ? customersQuery.error.message : undefined)
+          }
           locationError={fieldErrors.location}
           repId={repId}
           customerId={customerId}

@@ -111,7 +111,7 @@ export default function MovementsLog({ movements, pagination, filterType, onFilt
                       {m.location_code}
                     </span>
                   </td>
-                  <td className="px-3.5 py-3 text-right font-mono text-[14px] font-bold" style={{ color: isNeg ? "#991b1b" : "#166534" }}>
+                  <td className="px-3.5 py-3 text-right [font-family:var(--font-jetbrains)] text-[14px] font-bold" style={{ color: isNeg ? "#991b1b" : "#166534" }}>
                     {display}
                   </td>
                   <td className="px-3.5 py-3 text-[12px] text-stone-400 max-w-[180px] truncate">

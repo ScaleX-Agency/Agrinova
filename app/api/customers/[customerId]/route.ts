@@ -17,7 +17,8 @@ type CustomerWithRep = {
   name: string;
   address: string | null;
   phone: string | null;
-  outstanding_balance: Prisma.Decimal;
+  created_at: Date;
+  updated_at: Date;
   assigned_rep: {
     rep_id: number;
     full_name: string;
@@ -55,7 +56,8 @@ function serializeCustomer(customer: CustomerWithRep) {
     name: customer.name,
     address: customer.address,
     phone: customer.phone,
-    outstanding_balance: customer.outstanding_balance.toString(),
+    created_at: customer.created_at.toISOString(),
+    updated_at: customer.updated_at.toISOString(),
     sales_rep: customer.assigned_rep,
   };
 }
@@ -78,7 +80,8 @@ async function findCustomerById(customerId: number) {
       name: true,
       address: true,
       phone: true,
-      outstanding_balance: true,
+      created_at: true,
+      updated_at: true,
       assigned_rep: {
         select: {
           rep_id: true,
@@ -178,7 +181,8 @@ export async function PATCH(
         name: true,
         address: true,
         phone: true,
-        outstanding_balance: true,
+        created_at: true,
+        updated_at: true,
         assigned_rep: {
           select: {
             rep_id: true,

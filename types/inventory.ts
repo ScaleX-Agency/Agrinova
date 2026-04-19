@@ -8,6 +8,7 @@ export interface StockOverviewRow {
   product_name: string;
   category_name: string;
   pack_size: string;
+  selling_price: number;
   quantity_on_hand: number;
   reorder_threshold: number; // derive: use 20% of max stock or a fixed business rule
   status: StockStatus; // "ok" | "low" | "out" — computed, not stored
@@ -59,6 +60,9 @@ export interface CreateProductDto {
   pack_size: string;
   category_id: number;
   selling_price: number;
+  initial_qty?: number;
+  location_id?: number;
+  reorder_threshold?: number;
 }
 
 export interface CreateMovementDto {
