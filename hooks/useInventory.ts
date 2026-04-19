@@ -49,6 +49,13 @@ export function useAllStock(
   params: { page?: number; pageSize?: number; search?: string; location_id?: number; status?: string } = {},
   initialData?: { stock: StockOverviewRow[], pagination: any }
 ) {
+  const shouldUseInitialData =
+    Boolean(initialData) &&
+    (params.page ?? 1) === 1 &&
+    !params.search &&
+    !params.location_id &&
+    (!params.status || params.status === "all");
+
   return useQuery({
     queryKey: KEYS.allStock(params),
     queryFn:  () => {
@@ -61,7 +68,7 @@ export function useAllStock(
 
       return fetchJSON<{ stock: StockOverviewRow[], pagination: any }>(`/api/inventory?${searchParams.toString()}`);
     },
-    initialData,
+    initialData: shouldUseInitialData ? initialData : undefined,
     staleTime: 30_000,
   });
 }

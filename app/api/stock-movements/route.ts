@@ -28,6 +28,37 @@ export async function POST(req: Request) {
   try {
     const dto = (await req.json()) as CreateMovementDto;
 
+    if (!dto.stock_id || !dto.movement_type) {
+      return NextResponse.json(
+        { error: "stock_id and movement_type are required" },
+        { status: 400 },
+      );
+    }
+
+    if (
+      dto.movement_type !== "ADJUSTMENT" &&
+      (!Number.isInteger(dto.quantity) || dto.quantity <= 0)
+    ) {
+      return NextResponse.json(
+        { error: "quantity must be a positive integer" },
+        { status: 400 },
+      );
+    }
+
+    if (
+      dto.movement_type === "ADJUSTMENT" &&
+      (!Number.isInteger(dto.resulting_quantity ?? dto.quantity) ||
+        (dto.resulting_quantity ?? dto.quantity) < 0)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "For ADJUSTMENT, resulting_quantity must be a non-negative integer",
+        },
+        { status: 400 },
+      );
+    }
+
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

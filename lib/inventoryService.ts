@@ -327,7 +327,20 @@ export async function createMovement(
     where: { stock_id: dto.stock_id },
   });
 
-  const delta = computeQtyDelta(dto.movement_type, dto.quantity);
+  const isAdjustment = dto.movement_type === "ADJUSTMENT";
+  const targetQty = isAdjustment
+    ? dto.resulting_quantity ?? dto.quantity
+    : undefined;
+
+  if (isAdjustment) {
+    if (!Number.isInteger(targetQty) || (targetQty as number) < 0) {
+      throw new Error("resulting_quantity must be a non-negative integer");
+    }
+  }
+
+  const delta = isAdjustment
+    ? (targetQty as number) - stock.quantity_on_hand
+    : computeQtyDelta(dto.movement_type, dto.quantity);
   const newQty = stock.quantity_on_hand + delta;
 
   if (newQty < 0) throw new Error("Insufficient stock for this movement");

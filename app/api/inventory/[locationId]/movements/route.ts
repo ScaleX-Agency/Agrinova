@@ -53,9 +53,17 @@ export async function POST(req: Request, { params }: Props) {
     const dto = (await req.json()) as CreateMovementDto;
 
     // basic validation
-    if (!dto.stock_id || !dto.movement_type || !dto.quantity) {
+    if (
+      !dto.stock_id ||
+      !dto.movement_type ||
+      (typeof dto.quantity !== "number" &&
+        typeof dto.resulting_quantity !== "number")
+    ) {
       return NextResponse.json(
-        { error: "stock_id, movement_type, and quantity are required" },
+        {
+          error:
+            "stock_id, movement_type, and quantity (or resulting_quantity for ADJUSTMENT) are required",
+        },
         { status: 400 }
       );
     }
@@ -67,9 +75,26 @@ export async function POST(req: Request, { params }: Props) {
       );
     }
 
-    if (dto.quantity <= 0) {
+    if (
+      dto.movement_type !== "ADJUSTMENT" &&
+      (!Number.isInteger(dto.quantity) || dto.quantity <= 0)
+    ) {
       return NextResponse.json(
         { error: "quantity must be greater than 0" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      dto.movement_type === "ADJUSTMENT" &&
+      (!Number.isInteger(dto.resulting_quantity ?? dto.quantity) ||
+        (dto.resulting_quantity ?? dto.quantity) < 0)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "For ADJUSTMENT, resulting_quantity must be a non-negative integer",
+        },
         { status: 400 }
       );
     }

@@ -61,7 +61,7 @@ export default function StockOverview({
   const [pageSize, setPageSize] = useState(20);
 
   const { data: stockResponse = { stock: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 1 } } } = useAllStock(
-    { page, pageSize, search: filter.search, status: filter.status, location_id: filter.location_id || undefined }, 
+    { page: 1, pageSize: 10000 },
     initialStock
   );
   const stock = stockResponse.stock;
@@ -80,8 +80,30 @@ export default function StockOverview({
   const [showImport,     setShowImport]     = useState(false);
 
   // ── Derived data ──────────────────────────────────────────────
-  // The server now handles filtering. stock contains the paginated+filtered rows.
-  const filteredStock = stock;
+  // Keep a full stock snapshot in memory, then filter client-side for instant UX.
+  const filteredStock = useMemo(() => {
+    const searchTerm = filter.search.trim().toLowerCase();
+
+    return stock.filter((row) => {
+      const matchesSearch =
+        !searchTerm ||
+        row.product_name.toLowerCase().includes(searchTerm) ||
+        row.product_code.toLowerCase().includes(searchTerm);
+
+      const matchesLocation =
+        filter.location_id == null || row.location_id === filter.location_id;
+
+      const matchesStatus =
+        filter.status === "all" || row.status === filter.status;
+
+      return matchesSearch && matchesLocation && matchesStatus;
+    });
+  }, [stock, filter.search, filter.location_id, filter.status]);
+
+  const paginatedStock = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredStock.slice(start, start + pageSize);
+  }, [filteredStock, page, pageSize]);
 
   const stats = useMemo(() => ({
     totalProducts: summaries.reduce((acc, s) => acc + s.total_products, 0) || stockResponse.pagination.total,
@@ -152,9 +174,13 @@ export default function StockOverview({
       <LocationCards
         summaries={summaries}
         selectedId={filter.location_id}
-        onSelect={(id) =>
-          setFilter((f) => ({ ...f, location_id: f.location_id === id ? null : id }))
-        }
+        onSelect={(id) => {
+          setFilter((f) => ({
+            ...f,
+            location_id: f.location_id === id ? null : id,
+          }));
+          setPage(1);
+        }}
       />
 
       {/* ── Tabs + Actions ── */}
@@ -196,7 +222,7 @@ export default function StockOverview({
       {/* ── Tab Content ── */}
       {activeTab === "overview" && (
         <StockTable
-          rows={filteredStock}
+          rows={paginatedStock}
           filter={filter}
           onFilterChange={(f) => { setFilter(f); setPage(1); }}
           onRecordMovement={setMovementTarget}
@@ -204,7 +230,7 @@ export default function StockOverview({
           pagination={{
             page,
             pageSize,
-            total: stockResponse.pagination.total,
+            total: filteredStock.length,
             setPage,
           }}
         />

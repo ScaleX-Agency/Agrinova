@@ -31,12 +31,18 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
   const [error, setError] = useState("");
 
   const qty = parseInt(quantity) || 0;
-  const delta =
-    movementType === "ISSUE" ? -qty : movementType === "RETURN" ? qty : qty; // ADJUSTMENT — can be signed in notes
-  const resultingQty = row.quantity_on_hand + delta;
+  const resultingQty =
+    movementType === "ISSUE"
+      ? row.quantity_on_hand - qty
+      : movementType === "RETURN"
+        ? row.quantity_on_hand + qty
+        : qty;
+  const delta = resultingQty - row.quantity_on_hand;
 
   const validate = () => {
-    if (!qty || qty <= 0) return "Enter a valid quantity";
+    if (!Number.isFinite(qty) || qty < 0) return "Enter a valid quantity";
+    if (movementType !== "ADJUSTMENT" && qty === 0)
+      return "Enter a valid quantity";
     if (movementType === "ISSUE" && qty > row.quantity_on_hand)
       return `Insufficient stock. Available: ${row.quantity_on_hand}`;
     return "";
@@ -59,6 +65,8 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
           stock_id: row.stock_id,
           movement_type: movementType,
           quantity: qty,
+          resulting_quantity:
+            movementType === "ADJUSTMENT" ? resultingQty : undefined,
           notes: notes || undefined,
         }),
       });
@@ -68,6 +76,7 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
       }
 
       const { updatedStock, movement_id } = await res.json();
+      const resolvedDelta = updatedStock.quantity_on_hand - row.quantity_on_hand;
 
       const updatedRow: StockOverviewRow = {
         ...row,
@@ -90,7 +99,7 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
         product_code: row.product_code,
         location_code: row.location_code,
         created_by_name: user?.firstName || "Admin",
-        qty_delta: delta,
+        qty_delta: resolvedDelta,
       };
 
       onSaved(updatedRow, newMovement);
@@ -107,13 +116,13 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4 min-h-[600px]"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-[#181c27] border border-[#2a2f45] rounded-2xl w-full max-w-[560px] overflow-hidden flex flex-col">
-        <div className="px-6 py-4 border-b border-[#2a2f45] flex items-center justify-between shrink-0">
-          <p className="text-[16px] font-semibold text-[#e8eaf0]">
+      <div className="bg-white border border-stone-200 rounded-2xl w-full max-w-[560px] overflow-hidden flex flex-col">
+        <div className="px-6 py-4 border-b border-stone-100 flex items-center justify-between shrink-0">
+          <p className="text-[16px] font-semibold text-stone-900">
             Record Stock Movement
           </p>
           <button
-            className="w-7 h-7 flex items-center justify-center rounded-lg bg-[#242840] hover:bg-[#2a2f45] text-stone-400 transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-stone-100 text-stone-500 transition-colors"
             onClick={onClose}
           >
             ✕
@@ -123,35 +132,35 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
         <div className="px-6 py-5 flex-1 overflow-y-auto">
           {/* Product summary */}
           <div
-            className="bg-[#242840] border border-[#2a2f45] rounded-xl p-4 flex gap-6 mb-5"
+            className="bg-stone-50 border border-stone-200 rounded-xl p-4 flex gap-6 mb-5"
           >
             <div>
-              <div className="text-[11px] font-semibold text-[#555c78] uppercase tracking-wide mb-1">
+              <div className="text-[11px] font-semibold text-stone-500 uppercase tracking-wide mb-1">
                 Product
               </div>
-              <div className="text-[#e8eaf0] font-medium">
+              <div className="text-stone-900 font-medium">
                 {row.product_name}
               </div>
-              <div className="text-[11px] text-[#8b91a8] [font-family:var(--font-jetbrains)] mt-0.5">
+              <div className="text-[11px] text-stone-500 [font-family:var(--font-jetbrains)] mt-0.5">
                 {row.product_code}
               </div>
             </div>
             <div>
-              <div className="text-[11px] font-semibold text-[#555c78] uppercase tracking-wide mb-1.5">
+              <div className="text-[11px] font-semibold text-stone-500 uppercase tracking-wide mb-1.5">
                 Location
               </div>
               <span
                 className="badge issue"
-                style={{ marginTop: 6, display: "inline-flex", color: "#e8eaf0" }}
+                style={{ marginTop: 6, display: "inline-flex" }}
               >
                 {row.location_code}
               </span>
             </div>
             <div>
-              <div className="text-[11px] font-semibold text-[#555c78] uppercase tracking-wide mb-1">
+              <div className="text-[11px] font-semibold text-stone-500 uppercase tracking-wide mb-1">
                 Current Stock
               </div>
-              <div className="text-[20px] font-bold text-[#e8eaf0] [font-family:var(--font-dmsans)]">
+              <div className="text-[20px] font-bold text-stone-900 [font-family:var(--font-dmsans)]">
                 {row.quantity_on_hand}
               </div>
             </div>
@@ -159,17 +168,17 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
 
           {/* Movement type */}
           <div className="mb-4">
-            <label className="block text-[11px] font-semibold text-[#555c78] uppercase tracking-wide mb-1.5">
+            <label className="block text-[11px] font-semibold text-stone-500 uppercase tracking-wide mb-1.5">
               Movement Type <span className="text-red-500">*</span>
             </label>
-            <div className="flex gap-2 p-1 bg-[#242840] border border-[#2a2f45] rounded-xl">
+            <div className="flex gap-2 p-1 bg-stone-50 border border-stone-200 rounded-xl">
               {MOVEMENT_TYPES.map((t) => (
                 <button
                   key={t.value}
                   className={`flex-1 py-2 rounded-lg text-[13px] font-medium transition-colors ${
                     movementType === t.value
-                      ? "bg-[#1f4a2c] text-[#4ade80] border border-[#1a4a2e]"
-                      : "bg-transparent text-[#8b91a8] hover:text-[#e8eaf0]"
+                      ? "bg-green-700 text-white border border-green-700"
+                      : "bg-transparent text-stone-500 hover:text-stone-800"
                   }`}
                   onClick={() => setMovementType(t.value)}
                 >
@@ -187,13 +196,14 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
           {/* Qty + preview */}
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-[11px] font-semibold text-[#555c78] uppercase tracking-wide mb-1.5">
-                Quantity <span className="text-red-500">*</span>
+              <label className="block text-[11px] font-semibold text-stone-500 uppercase tracking-wide mb-1.5">
+                {movementType === "ADJUSTMENT" ? "Resulting Quantity" : "Quantity"}{" "}
+                <span className="text-red-500">*</span>
               </label>
               <input
-                className="w-full bg-[#242840] border border-[#2a2f45] text-[#e8eaf0] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#1a3050]"
+                className="w-full bg-white border border-stone-200 text-stone-900 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-50"
                 type="number"
-                min="1"
+                min="0"
                 placeholder="0"
                 value={quantity}
                 onChange={(e) => {
@@ -203,10 +213,10 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
               />
             </div>
             <div>
-              <label className="block text-[11px] font-semibold text-[#555c78] uppercase tracking-wide mb-1.5">
+              <label className="block text-[11px] font-semibold text-stone-500 uppercase tracking-wide mb-1.5">
                 Resulting stock
               </label>
-              <div className="bg-[#242840] border border-[#2a2f45] rounded-lg px-3 py-2 text-center h-[38px] flex items-center justify-center">
+              <div className="bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-center h-[38px] flex items-center justify-center">
                 <span
                   className={`text-[15px] font-bold ${
                     resultingQty < 0
@@ -223,11 +233,11 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
           </div>
 
           <div className="mb-4">
-            <label className="block text-[11px] font-semibold text-[#555c78] uppercase tracking-wide mb-1.5">
+            <label className="block text-[11px] font-semibold text-stone-500 uppercase tracking-wide mb-1.5">
               Notes / Reference
             </label>
             <textarea
-              className="w-full bg-[#242840] border border-[#2a2f45] text-[#e8eaf0] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#1a3050] min-h-[80px]"
+              className="w-full bg-white border border-stone-200 text-stone-900 placeholder:text-stone-500 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-50 min-h-[80px]"
               placeholder="e.g. Invoice number, reason for return, approval reference…"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -235,15 +245,15 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
           </div>
 
           {error && (
-            <div className="bg-[#2a0d0d] border border-[#4a1a1a] text-[#f87171] rounded-lg p-3 text-[12px]">
+            <div className="bg-red-50 border border-red-100 text-red-600 rounded-lg p-3 text-[12px]">
               {error}
             </div>
           )}
         </div>
 
-        <div className="px-6 py-4 border-t border-[#2a2f45] flex items-center justify-end gap-2 shrink-0">
+        <div className="px-6 py-4 border-t border-stone-100 flex items-center justify-end gap-2 shrink-0">
           <button
-            className="px-4 py-2 text-[13px] font-medium text-[#8b91a8] hover:bg-[#242840] hover:text-[#e8eaf0] rounded-xl transition-colors [font-family:var(--font-dmsans)]"
+            className="px-4 py-2 text-[13px] font-medium text-stone-500 hover:bg-stone-100 rounded-xl transition-colors [font-family:var(--font-dmsans)]"
             onClick={onClose}
           >
             Cancel
