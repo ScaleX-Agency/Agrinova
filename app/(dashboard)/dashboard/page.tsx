@@ -3,7 +3,7 @@
 // Mock constants removed. Data comes from React Query hooks.
 // LOCATIONS_DATA kept as static — warehouse locations don't change at runtime.
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import {
   Package, TrendingUp, AlertTriangle, XCircle,
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
+import { useUser } from "@clerk/nextjs";
 
 import {
   useAllStock,
@@ -282,6 +283,13 @@ function greeting() {
 }
 
 export default function DashboardPage() {
+  const { user } = useUser();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // ── Real data via React Query (no mock constants) ─────────
   const { data: stockResponse = { stock: [], pagination: { total: 0 } } } = useAllStock();
   const stock = stockResponse.stock;
@@ -319,9 +327,11 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-[12px] font-medium text-stone-400 uppercase tracking-[0.12em] [font-family:var(--font-dmsans)] mb-1">{today}</p>
+          <p className="text-[12px] font-medium text-stone-400 uppercase tracking-[0.12em] [font-family:var(--font-dmsans)] mb-1">
+            {mounted ? today : "Loading date..."}
+          </p>
           <h1 className="text-[26px] font-semibold text-stone-900 tracking-tight [font-family:var(--font-dmsans)] leading-tight">
-            {greeting()}, Admin 👋
+            {mounted ? greeting() : "Welcome"}, {mounted && user?.firstName ? user.firstName : "Admin"} 👋
           </h1>
           <p className="text-[13px] text-stone-400 mt-1 [font-family:var(--font-dmsans)]">
             Here's what's happening across your inventory today.

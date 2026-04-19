@@ -41,9 +41,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${dmSans.variable} ${jetbrains.variable} h-full antialiased`}
     >
-      <body className="h-full bg-stone-50 text-stone-900 [font-family:var(--font-dmsans)]">
+      <body suppressHydrationWarning className="h-full bg-stone-50 text-stone-900 [font-family:var(--font-dmsans)]">
         <QueryProvider>
           <ClerkProvider>
             <Providers>

@@ -31,9 +31,10 @@ export default function AuthLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${dmSans.variable} ${jetbrains.variable} h-full antialiased`}
     >
-      <body className="h-full bg-stone-50 text-stone-900 [font-family:var(--font-dmsans)]">
+      <body suppressHydrationWarning className="h-full bg-stone-50 text-stone-900 [font-family:var(--font-dmsans)]">
         <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
           <Providers>
             {children}
