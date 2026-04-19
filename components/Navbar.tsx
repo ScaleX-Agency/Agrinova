@@ -17,32 +17,8 @@ import {
 
 const { Search: AntSearch } = Input;
 
-const NOTIFICATIONS = [
-  {
-    id: 1,
-    type: "danger",
-    icon: <AlertTriangle size={13} />,
-    title: "Out of stock",
-    body: "Glyphosate 480SL — Nuwara Eliya",
-    time: "2m ago",
-  },
-  {
-    id: 2,
-    type: "warn",
-    icon: <AlertTriangle size={13} />,
-    title: "Low stock alert",
-    body: "Mancozeb 80WP — Kuliyapitiya",
-    time: "18m ago",
-  },
-  {
-    id: 3,
-    type: "ok",
-    icon: <CheckCircle2 size={13} />,
-    title: "Purchase received",
-    body: "48 units added — Head Office",
-    time: "1h ago",
-  },
-];
+// In a real app, these would come from an API or websocket
+const notifications: any[] = [];
 
 const TYPE_STYLE: Record<string, string> = {
   danger: "bg-red-50 text-red-700 border-red-100",
@@ -176,7 +152,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
                 className="relative w-9 h-9 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 flex items-center justify-center transition-colors"
               >
                 <Badge
-                  count={NOTIFICATIONS.length}
+                  count={notifications.length}
                   size="small"
                   offset={[2, -2]}
                 >
@@ -211,35 +187,51 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
                       </button>
                     </div>
                     <div className="divide-y divide-stone-50">
-                      {NOTIFICATIONS.map((n) => (
-                        <div
-                          key={n.id}
-                          className="flex gap-3 px-4 py-3 hover:bg-stone-50 transition-colors cursor-pointer"
-                        >
+                      {notifications.length > 0 ? (
+                        notifications.map((n) => (
                           <div
-                            className={`mt-0.5 w-6 h-6 rounded-full border flex items-center justify-center flex-shrink-0 ${TYPE_STYLE[n.type]}`}
+                            key={n.id}
+                            className="flex gap-3 px-4 py-3 hover:bg-stone-50 transition-colors cursor-pointer"
                           >
-                            {n.icon}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[12.5px] font-semibold text-stone-800">
-                              {n.title}
+                            <div
+                              className={`mt-0.5 w-6 h-6 rounded-full border flex items-center justify-center flex-shrink-0 ${TYPE_STYLE[n.type]}`}
+                            >
+                              {n.icon}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[12.5px] font-semibold text-stone-800">
+                                {n.title}
+                              </p>
+                              <p className="text-[12px] text-stone-500 truncate mt-0.5">
+                                {n.body}
+                              </p>
+                            </div>
+                            <p className="text-[11px] text-stone-400 shrink-0 mt-0.5">
+                              {n.time}
                             </p>
-                            <p className="text-[12px] text-stone-500 truncate mt-0.5">
-                              {n.body}
-                            </p>
                           </div>
-                          <p className="text-[11px] text-stone-400 shrink-0 mt-0.5">
-                            {n.time}
+                        ))
+                      ) : (
+                        <div className="px-4 py-10 flex flex-col items-center justify-center text-center">
+                          <div className="w-10 h-10 rounded-full bg-stone-50 flex items-center justify-center mb-2">
+                            <Bell size={18} className="text-stone-300" />
+                          </div>
+                          <p className="text-[13px] font-medium text-stone-900">
+                            All caught up!
+                          </p>
+                          <p className="text-[11.5px] text-stone-500 mt-1 max-w-[180px]">
+                            You don't have any new notifications at the moment.
                           </p>
                         </div>
-                      ))}
+                      )}
                     </div>
-                    <div className="px-4 py-2.5 border-t border-stone-100">
-                      <button className="w-full flex items-center justify-center gap-1 text-[12px] font-medium text-blue-700 hover:text-blue-800 transition-colors py-0.5">
-                        View all <ChevronRight size={12} />
-                      </button>
-                    </div>
+                    {notifications.length > 0 && (
+                      <div className="px-4 py-2.5 border-t border-stone-100">
+                        <button className="w-full flex items-center justify-center gap-1 text-[12px] font-medium text-blue-700 hover:text-blue-800 transition-colors py-0.5">
+                          View all <ChevronRight size={12} />
+                        </button>
+                      </div>
+                    )}
                   </motion.div>
                 </>
               )}
