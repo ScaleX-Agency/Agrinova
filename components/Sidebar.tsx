@@ -59,7 +59,7 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Stock Overview",
       },
       {
-        href: "/products",
+        href: "/inventory/products",
         icon: <Package size={15} />,
         label: "Products",
       },
