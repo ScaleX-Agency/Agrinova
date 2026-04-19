@@ -14,11 +14,9 @@ export const metadata: Metadata = { title: "Stock Overview" };
 
 export default async function InventoryPage() {
   // Runs server-side — hits unstable_cache (not Supabase directly on repeat loads)
-  const stock     = await getAllStock();
-  const [summaries, movementsResult] = await Promise.all([
-    getLocationSummaries(), // fetch via SQL aggregation directly
-    getAllMovements(),
-  ]);
+  const stock = await getAllStock();
+  const summaries = await getLocationSummaries(); // fetch via SQL aggregation directly
+  const movementsResult = await getAllMovements();
 
   return (
     <div className="space-y-6">

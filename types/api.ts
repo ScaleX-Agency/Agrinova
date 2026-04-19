@@ -97,6 +97,10 @@ export type CreateReceiptSuccessResponse = {
   success: true;
   receiptId: number;
   receiptNo: string;
+  commissionId: number;
+  daysToPay: number;
+  commissionRate: number;
+  commissionAmount: number;
 };
 
 export type CreateReceiptResponse = ApiResult<CreateReceiptSuccessResponse>;
@@ -135,6 +139,7 @@ export type ReceiptDetailResponse = ApiResult<ReceiptDetailDto>;
 export type RepCommissionSummaryDto = {
   repId: number;
   repName: string;
+  receiptCount: number;
   invoiceCount: number;
   totalSales: number;
   cashCollected: number;
@@ -152,25 +157,55 @@ export type CommissionSummaryDto = {
 };
 
 export type CommissionReceiptDetailDto = {
-  receiptId: number;
-  receiptNo: string;
-  receiptDate: string;
+  commissionId: number;
+  receiptId: number | null;
+  receiptNo: string | null;
+  receiptDate: string | null;
   invoiceId: number;
   invoiceNo: string;
   invoiceDate: string;
+  salesStatus: "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE";
   customerName: string;
+  locationId: number | null;
+  locationCode: string | null;
+  categories: string[];
   invoiceAmount: number;
   cashCollected: number;
   daysToPay: number;
   commissionRate: number;
   commissionAmount: number;
+  dueDate: string;
+  paidDate: string | null;
+  status: "PENDING" | "PAID" | "OVERDUE";
 };
+
+export type ReceiptCommissionDetailDto = {
+  commissionId: number;
+  receiptId: number | null;
+  receiptNo: string | null;
+  receiptDate: string | null;
+  invoiceId: number;
+  invoiceNo: string;
+  invoiceDate: string;
+  customerName: string;
+  salesRepName: string;
+  invoiceAmount: number;
+  daysToPay: number;
+  commissionRate: number;
+  commissionAmount: number;
+  dueDate: string;
+  paidDate: string | null;
+  status: "PENDING" | "PAID" | "OVERDUE";
+};
+
+export type ReceiptCommissionResponse = ApiResult<ReceiptCommissionDetailDto>;
 
 export type CommissionRepDetailDto = {
   repId: number;
   repName: string;
   month: string;
   rows: CommissionReceiptDetailDto[];
+  receiptCount: number;
   invoiceCount: number;
   totalSales: number;
   cashCollected: number;

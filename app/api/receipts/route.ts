@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { calculateReceiptCommission, getReceiptNumber } from "@/lib/commission";
 import type {
   CreateReceiptRequestDto,
   CreateReceiptResponse,
@@ -115,8 +116,10 @@ export async function POST(request: Request) {
         where: { invoice_id: invoiceId },
         select: {
           invoice_id: true,
+          invoice_date: true,
           total_amount: true,
           status: true,
+          rep_id: true,
           receipts: {
             select: {
               amount_received: true,
@@ -141,6 +144,14 @@ export async function POST(request: Request) {
         throw new Error(`Amount exceeds outstanding balance. Outstanding: ${outstandingAmount.toFixed(2)}`);
       }
 
+      const nextPaidAmount = paidAmount + amountReceived;
+      const nextStatus =
+        nextPaidAmount >= totalAmount
+          ? "PAID"
+          : nextPaidAmount > 0
+            ? "PARTIAL"
+            : "UNPAID";
+
       const receipt = await tx.receipt.create({
         data: {
           invoice_id: invoice.invoice_id,
@@ -160,26 +171,79 @@ export async function POST(request: Request) {
         },
       });
 
-      const nextPaidAmount = paidAmount + amountReceived;
-      const nextStatus =
-        nextPaidAmount >= totalAmount
-          ? "PAID"
-          : nextPaidAmount > 0
-            ? "PARTIAL"
-            : "UNPAID";
+      const commission = calculateReceiptCommission(
+        invoice.invoice_date,
+        receiptDate,
+        totalAmount,
+      );
+
+      const existingCommission = await tx.commission.findFirst({
+        where: { invoice_id: invoice.invoice_id },
+        select: { commission_id: true },
+      });
+
+      const commissionRecord = existingCommission
+        ? await tx.commission.update({
+            where: { commission_id: existingCommission.commission_id },
+            data: nextStatus === "PAID"
+              ? {
+                  receipt_id: receipt.receipt_id,
+                  commission_rate: commission.commissionRate,
+                  commission_amount: commission.commissionAmount,
+                  days_to_pay: commission.daysToPay,
+                  due_date: commission.dueDate,
+                  paid_date: receiptDate,
+                  status: "PAID",
+                }
+              : {
+                  status: "PENDING",
+                },
+            select: {
+              commission_id: true,
+            },
+          })
+        : await tx.commission.create({
+            data:
+              nextStatus === "PAID"
+                ? {
+                    rep_id: invoice.rep_id,
+                    invoice_id: invoice.invoice_id,
+                    receipt_id: receipt.receipt_id,
+                    commission_rate: commission.commissionRate,
+                    commission_amount: commission.commissionAmount,
+                    days_to_pay: commission.daysToPay,
+                    due_date: commission.dueDate,
+                    paid_date: receiptDate,
+                    status: "PAID",
+                  }
+                : {
+                    rep_id: invoice.rep_id,
+                    invoice_id: invoice.invoice_id,
+                    receipt_id: null,
+                    commission_rate: 0,
+                    commission_amount: 0,
+                    days_to_pay: 0,
+                    due_date: commission.dueDate,
+                    paid_date: null,
+                    status: "PENDING",
+                  },
+            select: {
+              commission_id: true,
+            },
+          });
 
       await tx.invoice.update({
         where: { invoice_id: invoice.invoice_id },
         data: { status: nextStatus },
       });
 
-      const year = receipt.receipt_date.getFullYear();
-      const month = String(receipt.receipt_date.getMonth() + 1).padStart(2, "0");
-      const receiptNo = `RCP-${year}${month}-${String(receipt.receipt_id).padStart(3, "0")}`;
+      const receiptNo = getReceiptNumber(receipt.receipt_id, receipt.receipt_date);
 
       return {
         receiptId: receipt.receipt_id,
         receiptNo,
+        commissionId: commissionRecord.commission_id,
+        ...commission,
       };
     });
 
@@ -188,6 +252,10 @@ export async function POST(request: Request) {
         success: true,
         receiptId: created.receiptId,
         receiptNo: created.receiptNo,
+        commissionId: created.commissionId,
+        daysToPay: created.daysToPay,
+        commissionRate: Number((created.commissionRate * 100).toFixed(2)),
+        commissionAmount: Number(created.commissionAmount.toFixed(2)),
       },
     };
 

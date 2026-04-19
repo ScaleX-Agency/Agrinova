@@ -8,10 +8,8 @@ import { getAllProducts, getProductStats } from "@/lib/inventoryService";
 export const metadata: Metadata = { title: "Products" };
 
 export default async function ProductsRoute() {
-  const [products, stats] = await Promise.all([
-    getAllProducts(),
-    getProductStats()
-  ]);
+  const products = await getAllProducts();
+  const stats = await getProductStats();
 
   return (
     <div className="space-y-6">

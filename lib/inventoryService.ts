@@ -89,6 +89,7 @@ export async function getAllStock(
       product_name: s.product.product_name,
       category_name: s.product.category.name,
       pack_size: s.product.pack_size,
+      selling_price: Number(s.product.selling_price),
       quantity_on_hand: s.quantity_on_hand,
       reorder_threshold: LOW_THRESHOLD,
       status: computeStatus(s.quantity_on_hand),
@@ -116,6 +117,79 @@ export async function getStockByLocation(
   filters?: { search?: string; status?: string },
 ): Promise<PaginatedResult<StockOverviewRow>> {
   return getAllStock(page, pageSize, { ...filters, location_id: locationId });
+}
+
+export async function getAllStockByLocation(
+  locationId: number,
+  filters?: { search?: string; status?: string },
+): Promise<PaginatedResult<StockOverviewRow>> {
+  const where: any = { location_id: locationId };
+
+  if (filters?.search) {
+    where.OR = [
+      {
+        product: {
+          product_name: { contains: filters.search, mode: "insensitive" },
+        },
+      },
+      {
+        product: {
+          product_code: { contains: filters.search, mode: "insensitive" },
+        },
+      },
+    ];
+  }
+
+  if (filters?.status && filters.status !== "all") {
+    if (filters.status === "out") {
+      where.quantity_on_hand = { lte: 0 };
+    } else if (filters.status === "low") {
+      where.quantity_on_hand = { gt: 0, lt: LOW_THRESHOLD };
+    } else if (filters.status === "ok") {
+      where.quantity_on_hand = { gte: LOW_THRESHOLD };
+    }
+  }
+
+  const [total, stocksRaw] = await prisma.$transaction([
+    prisma.stock.count({ where }),
+    prisma.stock.findMany({
+      where,
+      include: {
+        product: { include: { category: true } },
+        location: true,
+      },
+      orderBy: [
+        { product: { product_name: "asc" } },
+        { stock_id: "asc" },
+      ],
+    }),
+  ]);
+
+  const items = stocksRaw.map((s) => ({
+    stock_id: s.stock_id,
+    product_id: s.product_id,
+    product_code: s.product.product_code,
+    product_name: s.product.product_name,
+    category_name: s.product.category.name,
+    pack_size: s.product.pack_size,
+    selling_price: Number(s.product.selling_price),
+    quantity_on_hand: s.quantity_on_hand,
+    reorder_threshold: LOW_THRESHOLD,
+    status: computeStatus(s.quantity_on_hand),
+    location_id: s.location_id,
+    location_code: s.location.code,
+    location_name: s.location.name,
+  }));
+
+  return {
+    items,
+    pagination: {
+      page: 1,
+      pageSize: total || 1,
+      total,
+      totalPages: 1,
+    },
+  };
 }
 
 export const getLocationSummaries = unstable_cache(
