@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
-  HandCoins,
   Phone,
   Plus,
   Search,
@@ -24,7 +23,8 @@ interface Customer {
   name: string;
   address: string | null;
   phone: string | null;
-  outstanding_balance: string;
+  created_at: string;
+  updated_at: string;
   sales_rep: SalesRepOption | null;
 }
 
@@ -54,18 +54,17 @@ const DEFAULT_CREATE_FORM: CreateCustomerForm = {
   assignedRepId: "",
 };
 
-function formatCurrency(value: string) {
-  const amount = Number(value);
-  if (Number.isNaN(amount)) {
-    return "LKR 0.00";
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
   }
 
-  return new Intl.NumberFormat("en-LK", {
-    style: "currency",
-    currency: "LKR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
 }
 
 async function getApiError(response: Response, fallback: string) {
@@ -268,7 +267,7 @@ export default function CustomersPageClient({
                   "Name",
                   "Phone",
                   "Sales Rep",
-                  "Outstanding",
+                  "Last Updated",
                   "Actions",
                 ].map((heading) => (
                   <th
@@ -352,9 +351,8 @@ export default function CustomersPageClient({
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1.5 text-[12.5px] text-stone-600 [font-family:var(--font-dmsans)]">
-                        <HandCoins size={12} />
-                        {formatCurrency(customer.outstanding_balance)}
+                      <span className="text-[12.5px] text-stone-600 [font-family:var(--font-dmsans)]">
+                        {formatDate(customer.updated_at)}
                       </span>
                     </td>
                     <td className="px-4 py-3">

@@ -5,7 +5,6 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  HandCoins,
   Phone,
   ShieldUser,
   Trash2,
@@ -25,7 +24,8 @@ interface Customer {
   name: string;
   address: string | null;
   phone: string | null;
-  outstanding_balance: string;
+  created_at: string;
+  updated_at: string;
   sales_rep: SalesRepOption | null;
 }
 
@@ -49,18 +49,17 @@ interface CustomerDetailPageClientProps {
   canEdit: boolean;
 }
 
-function formatCurrency(value: string) {
-  const amount = Number(value);
-  if (Number.isNaN(amount)) {
-    return "LKR 0.00";
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
   }
 
-  return new Intl.NumberFormat("en-LK", {
-    style: "currency",
-    currency: "LKR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
 }
 
 async function getApiError(response: Response, fallback: string) {
@@ -512,11 +511,19 @@ export default function CustomerDetailPageClient({
 
             <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
               <p className="text-[10.5px] uppercase tracking-[0.1em] text-stone-400 [font-family:var(--font-dmsans)]">
-                Outstanding Balance
+                Created At
               </p>
-              <p className="mt-1 inline-flex items-center gap-1.5 text-[13px] text-stone-700 [font-family:var(--font-dmsans)]">
-                <HandCoins size={12} />
-                {formatCurrency(customer.outstanding_balance)}
+              <p className="mt-1 text-[13px] text-stone-700 [font-family:var(--font-dmsans)]">
+                {formatDate(customer.created_at)}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
+              <p className="text-[10.5px] uppercase tracking-[0.1em] text-stone-400 [font-family:var(--font-dmsans)]">
+                Last Updated
+              </p>
+              <p className="mt-1 text-[13px] text-stone-700 [font-family:var(--font-dmsans)]">
+                {formatDate(customer.updated_at)}
               </p>
             </div>
 
