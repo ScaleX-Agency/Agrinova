@@ -4,6 +4,7 @@
 
 import { NextResponse } from "next/server";
 import { getAllMovements, createMovement } from "@/lib/inventoryService";
+import { getCurrentUser } from "@/lib/auth";
 import type { CreateMovementDto } from "@/types/inventory";
 
 export async function GET(req: Request) {
@@ -27,8 +28,11 @@ export async function POST(req: Request) {
   try {
     const dto = (await req.json()) as CreateMovementDto;
 
-    // TODO: replace with real session user ID from auth cookie/token
-    const userId = 1;
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = user.user_id;
 
     const result = await createMovement(dto, userId);
     // revalidateTag("inventory") fires inside createMovement automatically

@@ -4,6 +4,7 @@
 
 import { NextResponse } from "next/server";
 import { getMovementsByLocation, createMovement } from "@/lib/inventoryService";
+import { getCurrentUser } from "@/lib/auth";
 import type { CreateMovementDto } from "@/types/inventory";
 
 interface Props {
@@ -73,8 +74,11 @@ export async function POST(req: Request, { params }: Props) {
       );
     }
 
-    // TODO: replace with real session user ID
-    const userId = 1;
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = user.user_id;
 
     const result = await createMovement(dto, userId);
     // revalidateTag("inventory") should be handled in service/route flow if already implemented
