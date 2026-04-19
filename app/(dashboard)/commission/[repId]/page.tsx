@@ -53,7 +53,6 @@ const getIsoWeek = (date: Date) => {
   return `${target.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
 };
 
-type TabKey = "invoices" | "receipts" | "commissions";
 type SalesStatus = "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE";
 
 const statusConfig = {
@@ -94,7 +93,6 @@ const CommissionRepDetailPage = () => {
   const params = useParams<{ repId: string }>();
   const searchParams = useSearchParams();
   const [statusFilter, setStatusFilter] = useState<"all" | SalesStatus>("all");
-  const [activeTab, setActiveTab] = useState<TabKey>("invoices");
 
   const repId = Number(params.repId);
   const month = searchParams.get("month");
@@ -177,14 +175,12 @@ const CommissionRepDetailPage = () => {
     const totalCollected = filteredRows.reduce((sum, row) => sum + row.cashCollected, 0);
     const outstanding = Math.max(totalSales - totalCollected, 0);
     const totalCommission = filteredRows.reduce((sum, row) => sum + row.commissionAmount, 0);
-    const avgCommissionPct = totalSales > 0 ? (totalCommission / totalSales) * 100 : 0;
 
     return {
       totalSales,
       totalCollected,
       outstanding,
       totalCommission,
-      avgCommissionPct,
     };
   }, [filteredRows, uniqueInvoices]);
 
@@ -277,57 +273,25 @@ const CommissionRepDetailPage = () => {
       .slice(0, 8);
   }, [filteredRows, uniqueInvoices]);
 
-  const invoiceTransactions = useMemo(
-    () =>
-      uniqueInvoices
-        .map(([invoiceId, invoice]) => ({
-          key: `INV-${invoiceId}`,
-          date: invoice.date,
-          reference: invoice.invoiceNo,
-          customer: invoice.customer,
-          amount: invoice.amount,
-          status: invoice.status,
-        }))
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [uniqueInvoices],
-  );
-
-  const receiptTransactions = useMemo(
-    () =>
-      filteredRows
-        .filter((row) => row.receiptId && row.receiptDate)
-        .map((row) => ({
-          key: `RCP-${row.receiptId}`,
-          date: row.receiptDate as string,
-          reference: row.receiptNo ?? `RCP-${row.receiptId}`,
-          customer: row.customerName,
-          amount: row.cashCollected,
-          status: row.salesStatus,
-        }))
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [filteredRows],
-  );
-
-  const commissionTransactions = useMemo(
+  const commissionTableRows = useMemo(
     () =>
       filteredRows
         .map((row) => ({
           key: `COM-${row.commissionId}`,
-          date: row.receiptDate ?? row.invoiceDate,
-          reference: row.invoiceNo,
-          customer: row.customerName,
-          amount: row.commissionAmount,
+          commissionId: row.commissionId,
+          receiptNo: row.receiptNo,
+          invoiceNo: row.invoiceNo,
+          invoiceDate: row.invoiceDate,
+          dueDate: row.dueDate,
+          paidDate: row.paidDate,
+          daysToPay: row.daysToPay,
+          commissionRate: row.commissionRate,
+          commissionAmount: row.commissionAmount,
           status: row.status,
         }))
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+        .sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()),
     [filteredRows],
   );
-
-  const transactionRows = useMemo(() => {
-    if (activeTab === "invoices") return invoiceTransactions;
-    if (activeTab === "receipts") return receiptTransactions;
-    return commissionTransactions;
-  }, [activeTab, commissionTransactions, invoiceTransactions, receiptTransactions]);
 
   return (
     <section className="space-y-5 pb-16">
@@ -383,7 +347,7 @@ const CommissionRepDetailPage = () => {
         </div>
       </header>
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="rounded-2xl border border-stone-200 bg-white p-4">
           <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Total Sales (LKR)</p>
           <p className="mt-1 text-[20px] leading-none text-stone-900 [font-family:var(--font-playfair)]">
@@ -408,13 +372,6 @@ const CommissionRepDetailPage = () => {
             {formatCurrency(totals.totalCommission)}
           </p>
         </div>
-        <div className="rounded-2xl border border-stone-200 bg-white p-4">
-          <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Avg Commission %</p>
-          <p className="mt-1 text-[20px] leading-none text-[#2b2d7e] [font-family:var(--font-playfair)]">
-            {formatPercent(totals.avgCommissionPct)}
-          </p>
-          <p className="mt-1 text-[12px] text-stone-500">Commission / Sales</p>
-        </div>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-3">
@@ -435,54 +392,99 @@ const CommissionRepDetailPage = () => {
           </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-stone-200 bg-white p-4">
-            <h2 className="mb-3 text-[16px] font-semibold text-[#2b2d7e]">Payment Behavior</h2>
-            <div className="h-[220px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={paymentStatusData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={2}
-                  >
-                    {paymentStatusData.map((entry) => (
-                      <Cell key={entry.name} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {paymentStatusData.map((item) => (
-                <span
-                  key={item.name}
-                  className="inline-flex items-center gap-1 rounded-full border border-stone-200 px-2 py-0.5 text-[11px] text-stone-600"
+        <div className="rounded-2xl border border-stone-200 bg-white p-4">
+          <h2 className="mb-3 text-[16px] font-semibold text-[#2b2d7e]">Payment Behavior</h2>
+          <div className="h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={paymentStatusData}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={2}
                 >
-                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
-                  {item.name}: {formatCurrency(item.value)}
-                </span>
-              ))}
-            </div>
+                  {paymentStatusData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {paymentStatusData.map((item) => (
+              <span
+                key={item.name}
+                className="inline-flex items-center gap-1 rounded-full border border-stone-200 px-2 py-0.5 text-[11px] text-stone-600"
+              >
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
+                {item.name}: {formatCurrency(item.value)}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
 
-          <div className="rounded-2xl border border-stone-200 bg-white p-4">
-            <h2 className="text-[16px] font-semibold text-[#2b2d7e]">Efficiency</h2>
-            <p className="mt-2 text-[24px] leading-none text-[#1a5c2e] [font-family:var(--font-playfair)]">
-              {formatPercent(totals.avgCommissionPct)}
-            </p>
-            <p className="mt-2 text-[12px] text-stone-500">Commission % of sales</p>
-            <div className="mt-3 h-2 rounded-full bg-stone-100">
-              <div
-                className="h-full rounded-full bg-[#1a5c2e]"
-                style={{ width: `${Math.min(totals.avgCommissionPct, 100)}%` }}
-              />
-            </div>
-          </div>
+      <section className="rounded-2xl border border-stone-200 bg-white p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-[16px] font-semibold text-[#2b2d7e]">Commission Table</h2>
+          <p className="text-[12px] text-stone-500">Rep-specific commission records</p>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1120px] border-collapse text-left text-[14px]">
+            <thead className="bg-stone-50 text-[11px] uppercase tracking-[0.1em] text-stone-500">
+              <tr>
+                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Commission #</th>
+                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Receipt #</th>
+                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Invoice #</th>
+                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Invoice Date</th>
+                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Due Date</th>
+                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Paid Date</th>
+                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Days</th>
+                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Rate</th>
+                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Amount</th>
+                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {commissionTableRows.map((row) => (
+                <tr key={row.key} className="border-b border-stone-100 hover:bg-stone-50">
+                  <td className="px-3 py-2 [font-family:var(--font-jetbrains)] text-[#2b2d7e]">{row.commissionId}</td>
+                  <td className="px-3 py-2 [font-family:var(--font-jetbrains)] text-[#2b2d7e]">{row.receiptNo ?? "-"}</td>
+                  <td className="px-3 py-2 [font-family:var(--font-jetbrains)] text-[#2b2d7e]">{row.invoiceNo}</td>
+                  <td className="px-3 py-2 text-stone-700">{formatDate(row.invoiceDate)}</td>
+                  <td className="px-3 py-2 text-stone-700">{formatDate(row.dueDate)}</td>
+                  <td className="px-3 py-2 text-stone-700">{row.paidDate ? formatDate(row.paidDate) : "-"}</td>
+                  <td className="px-3 py-2 text-stone-700">{row.daysToPay}</td>
+                  <td className="px-3 py-2 text-stone-700">{formatPercent(row.commissionRate)}</td>
+                  <td className="px-3 py-2 font-semibold text-[#1a5c2e]">{formatCurrency(row.commissionAmount)}</td>
+                  <td className="px-3 py-2">
+                    {row.status in statusConfig ? (
+                      <span
+                        className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${statusConfig[row.status as keyof typeof statusConfig].pill}`}
+                      >
+                        {statusConfig[row.status as keyof typeof statusConfig].label}
+                      </span>
+                    ) : (
+                      <span className="inline-flex rounded-full border border-stone-200 px-2 py-0.5 text-[11px] font-medium text-stone-600">
+                        {row.status}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {!detailQuery.isLoading && commissionTableRows.length === 0 && (
+                <tr>
+                  <td colSpan={10} className="px-3 py-8 text-center text-[13px] text-stone-500">
+                    No commission records found for this sales rep.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -515,72 +517,6 @@ const CommissionRepDetailPage = () => {
                 <tr>
                   <td colSpan={5} className="px-3 py-8 text-center text-[13px] text-stone-500">
                     No customer insight data available for this range.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-stone-200 bg-white p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-[16px] font-semibold text-[#2b2d7e]">Transaction Table</h2>
-          <div className="inline-flex rounded-lg border border-stone-200 bg-stone-50 p-1">
-            {([
-              ["invoices", "Invoices"],
-              ["receipts", "Receipts"],
-              ["commissions", "Commissions"],
-            ] as Array<[TabKey, string]>).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setActiveTab(key)}
-                className={`rounded-md px-2 py-1 text-[11px] uppercase tracking-[0.08em] ${activeTab === key ? "bg-white text-[#2b2d7e] shadow-sm" : "text-stone-500"}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] border-collapse text-left text-[14px]">
-            <thead className="bg-stone-50 text-[11px] uppercase tracking-[0.1em] text-stone-500">
-              <tr>
-                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Date</th>
-                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Reference</th>
-                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Customer</th>
-                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Amount</th>
-                <th className="sticky top-0 border-b border-stone-200 px-3 py-2 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactionRows.map((row) => (
-                <tr key={row.key} className="border-b border-stone-100 hover:bg-stone-50">
-                  <td className="px-3 py-2 text-stone-700">{formatDate(row.date)}</td>
-                  <td className="px-3 py-2 [font-family:var(--font-jetbrains)] text-[#2b2d7e]">{row.reference}</td>
-                  <td className="px-3 py-2 text-stone-800">{row.customer}</td>
-                  <td className="px-3 py-2 text-stone-800">{formatCurrency(row.amount)}</td>
-                  <td className="px-3 py-2">
-                    {row.status in statusConfig ? (
-                      <span
-                        className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${statusConfig[row.status as keyof typeof statusConfig].pill}`}
-                      >
-                        {statusConfig[row.status as keyof typeof statusConfig].label}
-                      </span>
-                    ) : (
-                      <span className="inline-flex rounded-full border border-stone-200 px-2 py-0.5 text-[11px] font-medium text-stone-600">
-                        {row.status}
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {!detailQuery.isLoading && transactionRows.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-3 py-8 text-center text-[13px] text-stone-500">
-                    No transactions found for this selection.
                   </td>
                 </tr>
               )}
