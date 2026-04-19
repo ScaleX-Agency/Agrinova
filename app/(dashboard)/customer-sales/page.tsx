@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   Bar,
   BarChart,
@@ -21,6 +22,7 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
+import DataTable from "@/components/ui/DataTable";
 
 type DatePreset = "today" | "month" | "custom";
 
@@ -115,6 +117,49 @@ export default function CustomerSalesDashboardPage() {
     collected: Math.max(0, customer.totalSales - customer.outstanding),
   }));
 
+  const customerSummaryColumns: ColumnDef<DashboardResponse["topCustomers"][number]>[] = [
+    {
+      accessorKey: "customerName",
+      header: "Customer",
+      cell: ({ row }) => <span className="font-medium text-stone-800">{row.original.customerName}</span>,
+    },
+    {
+      accessorKey: "totalSales",
+      header: "Total Sales",
+      cell: ({ row }) => <span className="text-stone-700">{formatCurrency(row.original.totalSales)}</span>,
+      meta: { align: "right" },
+    },
+    {
+      accessorKey: "outstanding",
+      header: "Outstanding",
+      cell: ({ row }) => (
+        <span className={row.original.outstanding > 0 ? "text-red-700 font-medium" : "text-emerald-700"}>
+          {formatCurrency(row.original.outstanding)}
+        </span>
+      ),
+      meta: { align: "right" },
+    },
+    {
+      accessorKey: "salesRep",
+      header: "Sales Rep",
+      cell: ({ row }) => <span className="text-stone-600">{row.original.salesRep}</span>,
+      meta: { align: "right" },
+    },
+    {
+      id: "actions",
+      header: "",
+      cell: ({ row }) => (
+        <Link
+          href={`/customer-sales/${row.original.customerId}`}
+          className="inline-flex items-center rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-stone-700 hover:bg-stone-50"
+        >
+          View
+        </Link>
+      ),
+      meta: { align: "right" },
+    },
+  ];
+
   const clearDateFilters = () => {
     setDatePreset("month");
     setCustomStart("");
@@ -128,7 +173,7 @@ export default function CustomerSalesDashboardPage() {
           <p className="text-[11px] uppercase tracking-[0.13em] text-stone-400 font-semibold [font-family:var(--font-dmsans)]">
             Customer Sales
           </p>
-          <h1 className="text-[28px] leading-tight text-stone-900 font-semibold [font-family:var(--font-playfair)] mt-1">
+          <h1 className="text-[28px] leading-tight text-stone-900 font-semibold [font-family:var(--font-dmsans)] mt-1">
             Customer Sales Dashboard
           </h1>
           <p className="text-[13px] text-stone-500 mt-1 [font-family:var(--font-dmsans)]">
@@ -228,47 +273,14 @@ export default function CustomerSalesDashboardPage() {
             </div>
           </section>
 
-          <div className="bg-white border border-stone-200 rounded-2xl p-4 lg:p-5">
-            <p className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-playfair)] mb-2">
-              Customer Sales Summary
-            </p>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-[13px] [font-family:var(--font-dmsans)]">
-                <thead>
-                  <tr className="border-b border-stone-200 text-stone-500 uppercase text-[10.5px] tracking-[0.08em]">
-                    <th className="py-2 text-left">Customer</th>
-                    <th className="py-2 text-right">Total Sales</th>
-                    <th className="py-2 text-right">Outstanding</th>
-                    <th className="py-2 text-right">Sales Rep</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dashboardQuery.data.topCustomers.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="py-8 text-center text-stone-400">
-                        No customer sales found for this period.
-                      </td>
-                    </tr>
-                  ) : (
-                    dashboardQuery.data.topCustomers.map((customer) => (
-                      <tr key={customer.customerId} className="border-b border-stone-100 hover:bg-stone-50">
-                        <td className="py-2.5">
-                          <Link href={`/customer-sales/${customer.customerId}`} className="font-medium text-blue-700 hover:underline">
-                            {customer.customerName}
-                          </Link>
-                        </td>
-                        <td className="py-2.5 text-right text-stone-700">{formatCurrency(customer.totalSales)}</td>
-                        <td className={`py-2.5 text-right ${customer.outstanding > 0 ? "text-red-700 font-medium" : "text-emerald-700"}`}>
-                          {formatCurrency(customer.outstanding)}
-                        </td>
-                        <td className="py-2.5 text-right text-stone-600">{customer.salesRep}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+        
+            <DataTable
+              data={dashboardQuery.data.topCustomers}
+              columns={customerSummaryColumns}
+              minWidth={820}
+              searchPlaceholder="Search customer or sales rep"
+              emptyMessage="No customer sales found for this period."
+            />
         </>
       )}
     </div>
@@ -293,7 +305,7 @@ function KpiCard({
         <p className="text-[10.5px] uppercase tracking-[0.09em] text-stone-400 font-semibold [font-family:var(--font-dmsans)]">
           {label}
         </p>
-        <p className="text-[20px] leading-tight text-stone-900 font-semibold [font-family:var(--font-playfair)] mt-1">
+        <p className="text-[20px] leading-tight text-stone-900 font-semibold [font-family:var(--font-dmsans)] mt-1">
           {value}
         </p>
         <p className="text-[11px] text-stone-500 mt-1 [font-family:var(--font-dmsans)]">{helper}</p>

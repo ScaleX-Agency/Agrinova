@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  ArrowLeft,
   Calendar,
   User,
   MapPin,
@@ -12,6 +11,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import BackNavigationLink from "@/components/ui/BackNavigationLink";
 import GinPrintButton from "./GinPrintButton";
 
 const formatDate = (value: Date) =>
@@ -97,13 +97,11 @@ const GoodsIssueNoteDetailPage = async ({
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div>
-            <Link
+            <BackNavigationLink
               href="/goods-issue-notes"
+              label="Back to Goods Issue Notes"
               className="mb-1 inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 transition-colors hover:text-stone-700 [font-family:var(--font-dmsans)]"
-            >
-              <ArrowLeft size={14} />
-              Back to Goods Issue Notes
-            </Link>
+            />
             <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-stone-500">
               Operations Document
             </p>

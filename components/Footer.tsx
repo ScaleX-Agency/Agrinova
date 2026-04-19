@@ -20,7 +20,7 @@ export default function Footer() {
           </div>
           <p className="text-[12px] text-stone-500 [font-family:var(--font-dmsans)]">
             © {year}{" "}
-            <span className="font-semibold text-stone-700 [font-family:var(--font-playfair)]">
+            <span className="font-semibold text-stone-700 [font-family:var(--font-dmsans)]">
               Agrinova
             </span>{" "}
             — Your Partner in Lifesciences
@@ -33,7 +33,7 @@ export default function Footer() {
             <span>All systems operational</span>
           </div>
           <div className="h-3 w-px bg-stone-200" />
-          <p className="text-[11.5px] text-stone-400 [font-family:var(--font-dmsans)] font-mono">
+          <p className="text-[11.5px] text-stone-400 [font-family:var(--font-dmsans)] [font-family:var(--font-jetbrains)]">
             v1.0.0
           </p>
         </div>

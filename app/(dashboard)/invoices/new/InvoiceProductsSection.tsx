@@ -188,7 +188,7 @@ const InvoiceProductsSection = ({
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-blue-100 bg-blue-50 text-blue-700">
             <Boxes size={16} />
           </span>
-          <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">
+          <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-dmsans)]">
             Products
           </h2>
         </div>

@@ -1,15 +1,8 @@
 import type { Metadata } from "next";
-import { Playfair_Display, DM_Sans, JetBrains_Mono } from "next/font/google";
+import { DM_Sans, JetBrains_Mono } from "next/font/google";
 import { ClerkProvider } from '@clerk/nextjs'
 import "../globals.css";
 import Providers from "@/app/providers";
-
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  weight: ["600", "700"],
-  variable: "--font-playfair",
-  display: "swap",
-});
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -38,7 +31,7 @@ export default function AuthLayout({
   return (
     <html
       lang="en"
-      className={`${playfair.variable} ${dmSans.variable} ${jetbrains.variable} h-full antialiased`}
+      className={`${dmSans.variable} ${jetbrains.variable} h-full antialiased`}
     >
       <body className="h-full bg-stone-50 text-stone-900 [font-family:var(--font-dmsans)]">
         <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>

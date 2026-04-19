@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Download, Eye, Filter, X } from "lucide-react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import {
@@ -22,6 +23,7 @@ import type {
   CommissionRepDetailResponse,
   CommissionSummaryResponse,
 } from "@/types/api";
+import DataTable from "@/components/ui/DataTable";
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-LK", {
@@ -309,6 +311,94 @@ const CommissionClient = () => {
     return rows;
   }, [filteredRows, sortMode]);
 
+  const repColumns = useMemo<ColumnDef<(typeof repTableRows)[number]>[]>(
+    () => [
+      {
+        accessorKey: "repName",
+        header: "Rep Name",
+        cell: ({ row }) => (
+          <button
+            type="button"
+            onClick={() => setDrillDownRepId(row.original.repId)}
+            className="font-medium text-[#2b2d7e] hover:underline"
+          >
+            {row.original.repName}
+          </button>
+        ),
+      },
+      {
+        accessorKey: "invoiceCount",
+        header: "Invoices",
+        cell: ({ row }) => (
+          <span className="inline-flex rounded-full border border-stone-200 px-2 py-0.5 text-[11px] font-medium text-stone-700">
+            {row.original.invoiceCount}
+          </span>
+        ),
+      },
+      {
+        id: "salesStatus",
+        header: "Sales Status",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <div className="flex flex-wrap gap-1">
+            <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${salesStatusConfig.PAID.pill}`}>
+              Paid {row.original.paidCount}
+            </span>
+            <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${salesStatusConfig.UNPAID.pill}`}>
+              Unpaid {row.original.unpaidCount}
+            </span>
+            <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${salesStatusConfig.OVERDUE.pill}`}>
+              Overdue {row.original.overdueCount}
+            </span>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "totalSales",
+        header: "Total Sales",
+        cell: ({ row }) => <span className="text-stone-800">{formatCurrency(row.original.totalSales)}</span>,
+      },
+      {
+        accessorKey: "totalCommission",
+        header: "Commission",
+        cell: ({ row }) => (
+          <span className="font-semibold text-[#1a5c2e]">{formatCurrency(row.original.totalCommission)}</span>
+        ),
+      },
+      {
+        accessorKey: "avgRate",
+        header: "Avg Rate",
+        cell: ({ row }) => <span className="text-stone-700">{formatPercent(row.original.avgRate)}</span>,
+      },
+      {
+        accessorKey: "oldestOpenInvoiceDate",
+        header: "Oldest Open Invoice",
+        cell: ({ row }) => (
+          <span className="text-stone-700">
+            {row.original.oldestOpenInvoiceDate
+              ? formatDate(new Date(row.original.oldestOpenInvoiceDate).toISOString())
+              : "-"}
+          </span>
+        ),
+      },
+      {
+        id: "action",
+        header: "Action",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <Link
+            href={`/commission/${row.original.repId}`}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] hover:bg-[#eeeffe]"
+          >
+            <Eye size={12} />
+            Drill Down
+          </Link>
+        ),
+      },
+    ],
+    [],
+  );
+
   const selectedRepSummary = useMemo(() => {
     if (!drillDownRepId) return null;
     const rows = filteredRows.filter((row) => row.repId === drillDownRepId);
@@ -382,9 +472,9 @@ const CommissionClient = () => {
     <section className="space-y-5 pb-16">
       <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">Commission</p>
-          <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-playfair)] font-semibold">
-            Commission Intelligence Dashboard
+          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">Sales Rep Sales</p>
+          <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)] font-semibold">
+            Rep. Sales Dashboard
           </h1>
           <p className="text-[13px] text-stone-500">
             Track payout quality, sales efficiency, and unpaid liabilities in one place.
@@ -400,16 +490,7 @@ const CommissionClient = () => {
             <Filter size={13} />
             Reset Filters
           </button>
-          {accountQuery.data === "admin" && (
-            <button
-              type="button"
-              onClick={handleExport}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-medium text-white hover:bg-[#2d7a42]"
-            >
-              <Download size={13} />
-              Export Excel
-            </button>
-          )}
+          
         </div>
       </header>
 
@@ -482,14 +563,14 @@ const CommissionClient = () => {
       <section className="grid grid-cols-2 gap-3 xl:grid-cols-2">
         <div className="rounded-2xl border border-stone-200 bg-white p-4">
           <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Total Commission</p>
-          <p className="mt-1 text-[20px] leading-none text-[#1a5c2e] [font-family:var(--font-playfair)]">
+          <p className="mt-1 text-[20px] leading-none text-[#1a5c2e] [font-family:var(--font-dmsans)]">
             {formatCurrency(totals.totalCommission)}
           </p>
           <p className="mt-1 text-[12px] text-stone-500">This filtered period</p>
         </div>
         <div className="rounded-2xl border border-stone-200 bg-white p-4">
           <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Top Rep</p>
-          <p className="mt-1 truncate text-[18px] leading-none text-[#2b2d7e] [font-family:var(--font-playfair)]">
+          <p className="mt-1 truncate text-[18px] leading-none text-[#2b2d7e] [font-family:var(--font-dmsans)]">
             {totals.topRep?.[1].repName ?? "-"}
           </p>
           <p className="mt-1 text-[12px] text-stone-500">
@@ -527,86 +608,15 @@ const CommissionClient = () => {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-stone-200 bg-white overflow-hidden">
-        <div className="flex items-center justify-between border-b border-stone-200 px-4 py-3">
-          <div>
-            <p className="text-[13px] font-medium text-stone-800">Commission by Sales Rep</p>
-            <p className="text-[12px] text-stone-500">Per-rep performance with sales payment status mix.</p>
-          </div>
-          <p className="text-[12px] text-stone-500">{repTableRows.length} reps</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1320px] border-collapse text-left text-[14px]">
-            <thead className="bg-stone-50 text-[11px] uppercase tracking-[0.1em] text-stone-500">
-              <tr>
-                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Rep Name</th>
-                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Invoices</th>
-                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Sales Status</th>
-                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Total Sales</th>
-                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Commission</th>
-                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Avg Rate</th>
-                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Oldest Open Invoice</th>
-                <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {repTableRows.map((row) => (
-                <tr key={row.repId} className="border-b border-stone-100 hover:bg-stone-50">
-                  <td className="px-4 py-3 text-stone-900">
-                    <button
-                      type="button"
-                      onClick={() => setDrillDownRepId(row.repId)}
-                      className="font-medium text-[#2b2d7e] hover:underline"
-                    >
-                      {row.repName}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="inline-flex rounded-full border border-stone-200 px-2 py-0.5 text-[11px] font-medium text-stone-700">
-                      {row.invoiceCount}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-stone-700">
-                    <div className="flex flex-wrap gap-1">
-                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${salesStatusConfig.PAID.pill}`}>
-                        Paid {row.paidCount}
-                      </span>
-                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${salesStatusConfig.UNPAID.pill}`}>
-                        Unpaid {row.unpaidCount}
-                      </span>
-                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${salesStatusConfig.OVERDUE.pill}`}>
-                        Overdue {row.overdueCount}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-stone-800">{formatCurrency(row.totalSales)}</td>
-                  <td className="px-4 py-3 font-semibold text-[#1a5c2e]">{formatCurrency(row.totalCommission)}</td>
-                  <td className="px-4 py-3 text-stone-700">{formatPercent(row.avgRate)}</td>
-                  <td className="px-4 py-3 text-stone-700">
-                    {row.oldestOpenInvoiceDate ? formatDate(new Date(row.oldestOpenInvoiceDate).toISOString()) : "-"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/commission/${row.repId}`}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] hover:bg-[#eeeffe]"
-                    >
-                      <Eye size={12} />
-                      Drill Down
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-              {!commissionQuery.isLoading && isAllDetailsLoaded && repTableRows.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-[13px] text-stone-500">
-                    No commission rows match these filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+        
+        <DataTable
+          data={repTableRows}
+          columns={repColumns}
+          minWidth={1320}
+          searchPlaceholder="Search by rep name"
+          emptyMessage="No commission rows match these filters."
+        />
+     
 
       {(commissionQuery.isLoading || !isAllDetailsLoaded) && (
         <p className="text-[13px] text-stone-500">Loading commission analytics...</p>
@@ -633,7 +643,7 @@ const CommissionClient = () => {
             <div className="mb-3 flex items-start justify-between">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Rep Drill-Down</p>
-                <h3 className="text-[24px] text-[#2b2d7e] [font-family:var(--font-playfair)]">{selectedRepSummary.repName}</h3>
+                <h3 className="text-[24px] text-[#2b2d7e] [font-family:var(--font-dmsans)]">{selectedRepSummary.repName}</h3>
               </div>
               <button
                 type="button"

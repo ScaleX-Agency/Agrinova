@@ -4,8 +4,11 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Pie, PieChart, ResponsiveContainer, Tooltip, Cell } from "recharts";
-import { AlertCircle, ArrowLeft, Phone, ShieldAlert, Star, Filter } from "lucide-react";
+import { AlertCircle, Phone, ShieldAlert, Star, Filter } from "lucide-react";
+import DataTable from "@/components/ui/DataTable";
+import BackNavigationLink from "@/components/ui/BackNavigationLink";
 
 type DetailResponse = {
   period: {
@@ -165,17 +168,42 @@ export default function CustomerSalesDetailPage() {
     return detailQuery.data.transactions.receipts;
   }, [detailQuery.data, activeTab]);
 
+  const transactionColumns: ColumnDef<(typeof transactionRows)[number]>[] = [
+    {
+      accessorKey: "reference",
+      header: "Reference",
+      cell: ({ row }) => <span className="text-stone-700 font-medium">{row.original.reference}</span>,
+    },
+    {
+      accessorKey: "date",
+      header: "Date",
+      cell: ({ row }) => <span className="text-stone-500">{formatDate(row.original.date)}</span>,
+    },
+    {
+      accessorKey: "amount",
+      header: "Amount",
+      cell: ({ row }) => <span className="text-stone-700">{formatCurrency(row.original.amount)}</span>,
+      meta: { align: "right" },
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => <span className="text-stone-500">{row.original.status}</span>,
+      meta: { align: "right" },
+    },
+  ];
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Link
+          <BackNavigationLink
             href="/customer-sales"
+            label="Back to Customer Sales Dashboard"
+            iconSize={13}
             className="inline-flex items-center gap-1 text-[12px] text-stone-500 hover:text-stone-700 [font-family:var(--font-dmsans)]"
-          >
-            <ArrowLeft size={13} /> Back to Customer Sales Dashboard
-          </Link>
-          <h1 className="mt-1 text-[28px] leading-tight text-stone-900 font-semibold [font-family:var(--font-playfair)]">
+          />
+          <h1 className="mt-1 text-[28px] leading-tight text-stone-900 font-semibold [font-family:var(--font-dmsans)]">
             {detailQuery.data?.customer.name ?? "Customer"}
           </h1>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-stone-500 [font-family:var(--font-dmsans)]">
@@ -294,7 +322,7 @@ export default function CustomerSalesDetailPage() {
 
           <div className="bg-white border border-stone-200 rounded-2xl p-4 lg:p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-              <p className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">
+              <p className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-dmsans)]">
                 Recent Transactions
               </p>
               <div className="inline-flex items-center gap-1 bg-stone-100 p-1 rounded-lg">
@@ -303,36 +331,13 @@ export default function CustomerSalesDetailPage() {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-[13px] [font-family:var(--font-dmsans)]">
-                <thead>
-                  <tr className="border-b border-stone-200 text-stone-500 uppercase text-[10.5px] tracking-[0.08em]">
-                    <th className="py-2 text-left">Reference</th>
-                    <th className="py-2 text-left">Date</th>
-                    <th className="py-2 text-right">Amount</th>
-                    <th className="py-2 text-right">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {transactionRows.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="py-8 text-center text-stone-400">
-                        No transactions found.
-                      </td>
-                    </tr>
-                  ) : (
-                    transactionRows.slice(0, 20).map((row) => (
-                      <tr key={`${activeTab}-${row.id}`} className="border-b border-stone-100">
-                        <td className="py-2.5 text-stone-700 font-medium">{row.reference}</td>
-                        <td className="py-2.5 text-stone-500">{formatDate(row.date)}</td>
-                        <td className="py-2.5 text-right text-stone-700">{formatCurrency(row.amount)}</td>
-                        <td className="py-2.5 text-right text-stone-500">{row.status}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <DataTable
+              data={transactionRows.slice(0, 20)}
+              columns={transactionColumns}
+              minWidth={760}
+              searchPlaceholder="Search reference or status"
+              emptyMessage="No transactions found."
+            />
           </div>
         </>
       )}
@@ -361,7 +366,7 @@ function MiniKpiCard({
       <p className="text-[10.5px] uppercase tracking-[0.09em] text-stone-400 font-semibold [font-family:var(--font-dmsans)]">
         {label}
       </p>
-      <p className={`text-[20px] leading-tight font-semibold [font-family:var(--font-playfair)] mt-1 ${toneClass}`}>
+      <p className={`text-[20px] leading-tight font-semibold [font-family:var(--font-dmsans)] mt-1 ${toneClass}`}>
         {value}
       </p>
     </div>

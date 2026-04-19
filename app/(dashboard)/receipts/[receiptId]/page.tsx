@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  ArrowLeft,
   Calendar,
   CreditCard,
   User,
@@ -11,6 +10,7 @@ import {
   Building2,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import BackNavigationLink from "@/components/ui/BackNavigationLink";
 import ReceiptPrintButton from "./ReceiptPrintButton";
 
 const METHOD_LABEL: Record<"CASH" | "CHEQUE" | "BANK_TRANSFER", string> = {
@@ -114,13 +114,11 @@ const ReceiptDetailPage = async ({
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div>
-            <Link
+            <BackNavigationLink
               href="/receipts"
+              label="Back to Receipts"
               className="mb-1 inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 transition-colors hover:text-stone-700 [font-family:var(--font-dmsans)]"
-            >
-              <ArrowLeft size={14} />
-              Back to Receipts
-            </Link>
+            />
             <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-stone-500">
               Sales Document
             </p>
@@ -260,7 +258,7 @@ const ReceiptDetailPage = async ({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-green-700">Amount Received</p>
-            <p className="mt-1.5 text-[30px] leading-none font-bold text-[#1a5c2e] [font-family:var(--font-playfair)]">
+            <p className="mt-1.5 text-[30px] leading-none font-bold text-[#1a5c2e] [font-family:var(--font-dmsans)]">
               {formatCurrency(Number(receipt.amount_received))}
             </p>
           </div>

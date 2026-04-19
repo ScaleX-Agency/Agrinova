@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  ArrowLeft,
   Calendar,
   MapPin,
   Package,
   FileText,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import BackNavigationLink from "@/components/ui/BackNavigationLink";
 import GrnPrintButton from "./GrnPrintButton";
 
 const ENTRY_TYPE_LABEL: Record<"LOCAL_PURCHASE" | "FOREIGN_IMPORT", string> = {
@@ -95,13 +95,11 @@ const GoodsReceivingNoteDetailPage = async ({
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div>
-            <Link
+            <BackNavigationLink
               href="/goods-receiving-notes"
+              label="Back to Goods Receiving Notes"
               className="mb-1 inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 transition-colors hover:text-stone-700 [font-family:var(--font-dmsans)]"
-            >
-              <ArrowLeft size={14} />
-              Back to Goods Receiving Notes
-            </Link>
+            />
             <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-stone-500">
               Inventory Document
             </p>

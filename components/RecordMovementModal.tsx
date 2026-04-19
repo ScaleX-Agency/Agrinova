@@ -130,7 +130,7 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
               <div className="text-[#e8eaf0] font-medium">
                 {row.product_name}
               </div>
-              <div className="text-[11px] text-[#8b91a8] font-mono mt-0.5">
+              <div className="text-[11px] text-[#8b91a8] [font-family:var(--font-jetbrains)] mt-0.5">
                 {row.product_code}
               </div>
             </div>
@@ -149,7 +149,7 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
               <div className="text-[11px] font-semibold text-[#555c78] uppercase tracking-wide mb-1">
                 Current Stock
               </div>
-              <div className="text-[20px] font-bold text-[#e8eaf0] [font-family:var(--font-playfair)]">
+              <div className="text-[20px] font-bold text-[#e8eaf0] [font-family:var(--font-dmsans)]">
                 {row.quantity_on_hand}
               </div>
             </div>

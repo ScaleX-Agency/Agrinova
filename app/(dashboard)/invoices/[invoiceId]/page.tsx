@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  ArrowLeft,
   Calendar,
   User,
   FileText,
@@ -14,6 +13,7 @@ import {
   Receipt,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import BackNavigationLink from "@/components/ui/BackNavigationLink";
 import InvoicePrintButton from "./InvoicePrintButton";
 
 const formatDate = (value: Date) =>
@@ -188,13 +188,11 @@ const InvoiceDetailPage = async ({
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div>
-            <Link
+            <BackNavigationLink
               href="/invoices"
+              label="Back to Invoices"
               className="mb-1 inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 transition-colors hover:text-stone-700 [font-family:var(--font-dmsans)]"
-            >
-              <ArrowLeft size={14} />
-              Back to Invoices
-            </Link>
+            />
             <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-stone-500">
               Sales Document
             </p>
@@ -381,7 +379,7 @@ const InvoiceDetailPage = async ({
                     {formatCurrency(Number(line.unit_price))}
                   </td>
                   <td className="border-r border-stone-200 px-5 py-3.5 text-center text-stone-700">
-                    {Number(line.discount) > 0 ? `${Number(line.discount)}%` : "—"}
+                    {Number(line.discount) > 0 ? `${Number(line.discount)}%` : "-"}
                   </td>
                   <td className="px-5 py-3.5 text-right font-semibold text-stone-900">
                     {formatCurrency(Number(line.line_total))}

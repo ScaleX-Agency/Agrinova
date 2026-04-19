@@ -60,7 +60,7 @@ const GinDetailsSection = ({
 
   return (
     <section className="rounded-2xl border border-stone-200 bg-white p-4 md:p-5">
-      <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-playfair)]">
+      <h2 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-dmsans)]">
         Note Details
       </h2>
 

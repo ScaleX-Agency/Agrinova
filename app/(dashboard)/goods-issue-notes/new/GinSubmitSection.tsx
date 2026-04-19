@@ -1,4 +1,4 @@
-import Link from "next/link";
+import BackNavigationLink from "@/components/ui/BackNavigationLink";
 
 type GinSubmitSectionProps = {
   submitError: string;
@@ -22,12 +22,12 @@ const GinSubmitSection = ({
       {successMessage && (
         <div className="space-y-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-[13px] text-green-700">
           <p>{successMessage}</p>
-          <Link
+          <BackNavigationLink
             href="/goods-issue-notes"
+            label="Back to Goods Issue Notes"
+            showIcon={false}
             className="inline-flex text-[12px] font-semibold text-green-800 underline"
-          >
-            Back to Goods Issue Notes
-          </Link>
+          />
         </div>
       )}
 
