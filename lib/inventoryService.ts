@@ -1,5 +1,6 @@
 // src/lib/inventoryService.ts
 import { prisma } from "./prisma";
+import { Prisma } from "@prisma/client";
 import { unstable_cache, revalidateTag } from "next/cache";
 import type {
   StockOverviewRow,
@@ -425,7 +426,7 @@ export async function getProductStats() {
   };
 }
 
-export async function createProduct(dto: CreateProductDto) {
+export async function createProduct(dto: CreateProductDto, userId?: number) {
   const category = await prisma.category.findUniqueOrThrow({
     where: { category_id: dto.category_id },
   });
@@ -434,15 +435,41 @@ export async function createProduct(dto: CreateProductDto) {
   });
   const product_code = `${category.tag}-${String(count + 1).padStart(4, "0")}`;
 
-  const product = await prisma.product.create({
-    data: {
-      product_name: dto.product_name,
-      pack_size: dto.pack_size,
-      category_id: dto.category_id,
-      selling_price: dto.selling_price,
-      product_code,
-    },
-    include: { category: true },
+  const product = await prisma.$transaction(async (tx) => {
+    const createdProduct = await tx.product.create({
+      data: {
+        product_name: dto.product_name,
+        pack_size: dto.pack_size,
+        category_id: dto.category_id,
+        selling_price: dto.selling_price,
+        product_code,
+      },
+      include: { category: true },
+    });
+
+    if (dto.initial_qty && dto.initial_qty > 0 && dto.location_id && userId) {
+      const stock = await tx.stock.create({
+        data: {
+          product_id: createdProduct.product_id,
+          location_id: dto.location_id,
+          quantity_on_hand: dto.initial_qty,
+        },
+      });
+
+      await tx.stockMovement.create({
+        data: {
+          stock_id: stock.stock_id,
+          product_id: createdProduct.product_id,
+          created_by: userId,
+          movement_type: "PURCHASE",
+          quantity: dto.initial_qty,
+          movement_date: new Date(),
+          notes: "Initial stock addition",
+        },
+      });
+    }
+
+    return createdProduct;
   });
 
   revalidateTag("inventory", "max");

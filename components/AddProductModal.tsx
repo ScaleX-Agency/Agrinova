@@ -144,7 +144,7 @@ export default function AddProductModal({
     }
     setSaving(true);
     try {
-      const payload: Partial<CreateProductDto & { reorder_threshold?: number }> = {
+      const payload: Partial<CreateProductDto> = {
         product_name: form.product_name,
         pack_size: form.pack_size,
         category_id: parseInt(form.category_id),
@@ -156,6 +156,12 @@ export default function AddProductModal({
       }
 
       if (mode === "add") {
+        if (form.initial_qty && parseInt(form.initial_qty) > 0) {
+          payload.initial_qty = parseInt(form.initial_qty);
+          if (form.location_id) {
+            payload.location_id = parseInt(form.location_id);
+          }
+        }
         const res = await fetch("/api/products", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

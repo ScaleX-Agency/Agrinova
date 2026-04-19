@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import { getAllProducts, createProduct, getProductStats } from "@/lib/inventoryService";
 import type { CreateProductDto } from "@/types/inventory";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function GET(req: Request) {
   try {
@@ -25,8 +26,13 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const dto = (await req.json()) as CreateProductDto;
-    const product = await createProduct(dto);
+    const product = await createProduct(dto, user.user_id);
     return NextResponse.json(product, { status: 201 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed to create product";

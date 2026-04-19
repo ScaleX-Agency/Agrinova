@@ -60,6 +60,9 @@ export interface CreateProductDto {
   pack_size: string;
   category_id: number;
   selling_price: number;
+  initial_qty?: number;
+  location_id?: number;
+  reorder_threshold?: number;
 }
 
 export interface CreateMovementDto {
