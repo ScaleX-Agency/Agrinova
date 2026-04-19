@@ -121,11 +121,7 @@ export default function CustomerSalesDashboardPage() {
     {
       accessorKey: "customerName",
       header: "Customer",
-      cell: ({ row }) => (
-        <Link href={`/customer-sales/${row.original.customerId}`} className="font-medium text-blue-700 hover:underline">
-          {row.original.customerName}
-        </Link>
-      ),
+      cell: ({ row }) => <span className="font-medium text-stone-800">{row.original.customerName}</span>,
     },
     {
       accessorKey: "totalSales",
@@ -147,6 +143,19 @@ export default function CustomerSalesDashboardPage() {
       accessorKey: "salesRep",
       header: "Sales Rep",
       cell: ({ row }) => <span className="text-stone-600">{row.original.salesRep}</span>,
+      meta: { align: "right" },
+    },
+    {
+      id: "actions",
+      header: "",
+      cell: ({ row }) => (
+        <Link
+          href={`/customer-sales/${row.original.customerId}`}
+          className="inline-flex items-center rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-stone-700 hover:bg-stone-50"
+        >
+          View
+        </Link>
+      ),
       meta: { align: "right" },
     },
   ];
