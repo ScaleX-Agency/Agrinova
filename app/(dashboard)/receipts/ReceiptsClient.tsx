@@ -161,20 +161,7 @@ const ReceiptsClient = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-xl border border-[#c0c3f0] bg-white px-3 py-2 text-[13px] font-medium text-[#2b2d7e] transition-colors hover:bg-[#eeeffe]"
-          >
-            <Printer size={14} />
-            Print
-          </button>
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-xl border border-[#c0c3f0] bg-white px-3 py-2 text-[13px] font-medium text-[#2b2d7e] transition-colors hover:bg-[#eeeffe]"
-          >
-            <Download size={14} />
-            Export
-          </button>
+          
           <Link
             href="/invoices"
             className="inline-flex items-center gap-2 rounded-xl bg-[#1a5c2e] px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"

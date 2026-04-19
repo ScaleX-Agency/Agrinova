@@ -490,16 +490,7 @@ const CommissionClient = () => {
             <Filter size={13} />
             Reset Filters
           </button>
-          {accountQuery.data === "admin" && (
-            <button
-              type="button"
-              onClick={handleExport}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-medium text-white hover:bg-[#2d7a42]"
-            >
-              <Download size={13} />
-              Export Excel
-            </button>
-          )}
+          
         </div>
       </header>
 

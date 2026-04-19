@@ -220,18 +220,7 @@ export default function OperatorsPageClient() {
       )}
 
       <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden">
-        <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-stone-100">
-          <div className="flex items-center gap-2">
-            <ShieldUser size={15} className="text-stone-400" />
-            <span className="text-[13px] font-semibold text-stone-800 [font-family:var(--font-dmsans)]">
-              Operator Accounts
-            </span>
-            <span className="text-[11px] text-stone-400 bg-stone-100 px-2.5 py-0.5 rounded-full [font-family:var(--font-dmsans)]">
-              {operators.length}
-            </span>
-          </div>
-
-        </div>
+        
 
         {loading ? (
           <div className="px-4 py-8 text-[13px] text-stone-500">Loading operators...</div>
