@@ -58,6 +58,11 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Products",
       },
       {
+        href: "/goods-receiving-notes",
+        icon: <ClipboardList size={15} />,
+        label: "Goods Receiving Notes",
+      },
+      {
         href: "/inventory/movements",
         icon: <ArrowLeftRight size={15} />,
         label: "Movements",
