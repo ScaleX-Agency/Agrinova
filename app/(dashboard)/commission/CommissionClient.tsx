@@ -472,9 +472,9 @@ const CommissionClient = () => {
     <section className="space-y-5 pb-16">
       <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">Commission</p>
+          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">Sales Rep Sales</p>
           <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)] font-semibold">
-            Commission Intelligence Dashboard
+            Rep. Sales Dashboard
           </h1>
           <p className="text-[13px] text-stone-500">
             Track payout quality, sales efficiency, and unpaid liabilities in one place.
