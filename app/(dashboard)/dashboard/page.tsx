@@ -67,6 +67,7 @@ function RecordMovementModal({
   onClose: () => void;
   onSaved: (mov: MovementRow) => void;
 }) {
+  const { user } = useUser();
   const [selectedStock, setSelectedStock] = useState<StockOverviewRow | null>(null);
   const [type,          setType]          = useState<MovementType>("ISSUE");
   const [qty,           setQty]           = useState("");
@@ -113,7 +114,7 @@ function RecordMovementModal({
         location_code:   selectedStock.location_code,
         qty_delta:       delta,
         notes:           notes || null,
-        created_by_name: "Admin",
+        created_by_name: user?.firstName || "Admin",
       });
       onClose();
     } catch (err) {

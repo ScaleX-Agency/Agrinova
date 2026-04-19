@@ -3,6 +3,7 @@
 // Modal for recording ISSUE / RETURN / ADJUSTMENT on a stock row.
 
 import { useState } from "react";
+import { useUser } from "@clerk/nextjs";
 import {
   StockOverviewRow,
   MovementRow,
@@ -22,6 +23,7 @@ const MOVEMENT_TYPES: { value: MovementType; label: string }[] = [
 ];
 
 export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
+  const { user } = useUser();
   const [movementType, setMovementType] = useState<MovementType>("ISSUE");
   const [quantity, setQuantity] = useState("");
   const [notes, setNotes] = useState("");
@@ -87,7 +89,7 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
         product_name: row.product_name,
         product_code: row.product_code,
         location_code: row.location_code,
-        created_by_name: "Admin",
+        created_by_name: user?.firstName || "Admin",
         qty_delta: delta,
       };
 
