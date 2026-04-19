@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
+import { useUser } from "@clerk/nextjs";
 
 import {
   useAllStock,
@@ -82,6 +83,7 @@ function RecordMovementModal({
     projected === null ? null :
     projected <= 0    ? "out" :
     selectedStock && projected < selectedStock.reorder_threshold ? "low" : "ok";
+  const { user } = useUser();
 
   const handleSave = async () => {
     if (!selectedStock)  { setError("Select a product"); return; }
@@ -103,6 +105,11 @@ function RecordMovementModal({
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
       const delta = isNeg ? -qtyNum : qtyNum;
+      
+      const userName = user?.firstName
+        ? `${user.firstName} ${user.lastName || ""}`.trim()
+        : "System User";
+
       onSaved({
         movement_id:     Date.now(),
         movement_date:   new Date().toISOString(),
@@ -112,7 +119,7 @@ function RecordMovementModal({
         location_code:   selectedStock.location_code,
         qty_delta:       delta,
         notes:           notes || null,
-        created_by_name: "Admin",
+        created_by_name: userName,
       });
       onClose();
     } catch (err) {
@@ -287,6 +294,7 @@ export default function DashboardPage() {
   const stock = stockResponse.stock;
   const { data: summaries  = [] } = useLocationSummaries();
   const { data: allMovements = { items: [], pagination: { total: 0 } } as any } = useAllMovements();
+  const { user, isLoaded } = useUser();
   const qc = useQueryClient();
 
   const [showMovModal, setShowMovModal] = useState(false);
@@ -321,7 +329,7 @@ export default function DashboardPage() {
         <div>
           <p className="text-[12px] font-medium text-stone-400 uppercase tracking-[0.12em] [font-family:var(--font-dmsans)] mb-1">{today}</p>
           <h1 className="text-[26px] font-semibold text-stone-900 tracking-tight [font-family:var(--font-dmsans)] leading-tight">
-            {greeting()}, Admin 👋
+            {greeting()}{isLoaded && user?.firstName ? `, ${user.firstName}` : ""} 👋
           </h1>
           <p className="text-[13px] text-stone-400 mt-1 [font-family:var(--font-dmsans)]">
             Here's what's happening across your inventory today.
