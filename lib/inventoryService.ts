@@ -1,7 +1,6 @@
 // src/lib/inventoryService.ts
 import { prisma } from "./prisma";
 import { unstable_cache, revalidateTag } from "next/cache";
-import { Prisma } from "@prisma/client";
 import type {
   StockOverviewRow,
   LocationSummary,
@@ -277,7 +276,7 @@ export async function createMovement(
   ]);
 
   // Bust server-side cache so next RSC render gets fresh data
-  revalidateTag("inventory" as any);
+  revalidateTag("inventory", "max");
 
   return {
     updatedStock: {
@@ -372,7 +371,7 @@ export async function createProduct(dto: CreateProductDto) {
     include: { category: true },
   });
 
-  revalidateTag("inventory" as any);
+  revalidateTag("inventory", "max");
   return product;
 }
 
@@ -386,247 +385,48 @@ export async function deleteProduct(productId: number) {
   const product = await prisma.product.delete({
     where: { product_id: productId },
   });
-  revalidateTag("inventory" as any);
+  revalidateTag("inventory", "max");
   return product;
 }
-
-const STOCK_ENTRY_TYPES = new Set([
-  "LOCAL_PURCHASE",
-  "FOREIGN_IMPORT",
-] as const);
-
-const getGrnPrefix = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  return `GRN-${year}${month}-`;
-};
-
-const getNextGrnNumber = async (
-  tx: Prisma.TransactionClient,
-  entryDate: Date,
-) => {
-  const prefix = getGrnPrefix(entryDate);
-  const latest = await tx.goodsReceivingNote.findFirst({
-    where: { grn_number: { startsWith: prefix } },
-    orderBy: { grn_number: "desc" },
-    select: { grn_number: true },
-  });
-
-  const latestSequence = latest
-    ? Number(latest.grn_number.split("-").at(-1) ?? "0")
-    : 0;
-
-  return `${prefix}${String((Number.isFinite(latestSequence) ? latestSequence : 0) + 1).padStart(3, "0")}`;
-};
 
 export async function createStockEntry(
   dto: CreateStockEntryDto,
   userId: number,
 ) {
-  const locationId = Number(dto.location_id);
-  if (!Number.isInteger(locationId) || locationId <= 0) {
-    throw new Error("location_id must be a positive integer.");
-  }
-
-  if (!STOCK_ENTRY_TYPES.has(dto.entry_type)) {
-    throw new Error("entry_type must be LOCAL_PURCHASE or FOREIGN_IMPORT.");
-  }
-
-  if (!Array.isArray(dto.items) || dto.items.length === 0) {
-    throw new Error("At least one stock entry line is required.");
-  }
-
-  const entryDate = new Date(dto.date);
-  if (Number.isNaN(entryDate.getTime())) {
-    throw new Error("date is invalid.");
-  }
-
-  const normalizedItems = dto.items.map((line, index) => {
-    const lineNumber = index + 1;
-    const productId = Number(line.product_id);
-    const quantity = Number(line.quantity);
-    const unitPrice = Number(line.unit_price);
-
-    if (!Number.isInteger(productId) || productId <= 0) {
-      throw new Error(
-        `Line ${lineNumber}: product_id must be a positive integer.`,
-      );
-    }
-    if (!Number.isInteger(quantity) || quantity <= 0) {
-      throw new Error(
-        `Line ${lineNumber}: quantity must be a positive integer.`,
-      );
-    }
-    if (!Number.isFinite(unitPrice) || unitPrice < 0) {
-      throw new Error(
-        `Line ${lineNumber}: unit_price must be a non-negative number.`,
-      );
-    }
-
-    return {
-      product_id: productId,
-      quantity,
-      unit_price: unitPrice,
-      line_total: quantity * unitPrice,
-    };
+  const existing = await prisma.stock.findFirst({
+    where: { product_id: dto.product_id, location_id: dto.location_id },
   });
 
-  const result = await prisma.$transaction(async (tx) => {
-    const location = await tx.inventoryLocation.findUnique({
-      where: { location_id: locationId },
-      select: { location_id: true },
+  let stock;
+  if (existing) {
+    stock = await prisma.stock.update({
+      where: { stock_id: existing.stock_id },
+      data: { quantity_on_hand: { increment: dto.quantity } },
     });
-    if (!location) {
-      throw new Error("Selected inventory location not found.");
-    }
-
-    const productIds = Array.from(
-      new Set(normalizedItems.map((line) => line.product_id)),
-    );
-    const products = await tx.product.findMany({
-      where: { product_id: { in: productIds } },
-      select: { product_id: true },
-    });
-    const existingProductIds = new Set(
-      products.map((product) => product.product_id),
-    );
-    const missingProductId = productIds.find(
-      (productId) => !existingProductIds.has(productId),
-    );
-    if (typeof missingProductId === "number") {
-      throw new Error(`Product ${missingProductId} was not found.`);
-    }
-
-    const quantityByProduct = normalizedItems.reduce<Map<number, number>>(
-      (map, line) => {
-        map.set(
-          line.product_id,
-          (map.get(line.product_id) ?? 0) + line.quantity,
-        );
-        return map;
-      },
-      new Map(),
-    );
-
-    let grnNumber = await getNextGrnNumber(tx, entryDate);
-    let createdNote: { grn_id: number; grn_number: string } | null = null;
-
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      try {
-        createdNote = await tx.goodsReceivingNote.create({
-          data: {
-            grn_number: grnNumber,
-            grn_date: entryDate,
-            entry_type: dto.entry_type,
-            location_id: locationId,
-            reference_no: dto.reference_no?.trim() || null,
-            notes: dto.notes?.trim() || null,
-            created_by: userId,
-            lines: {
-              create: normalizedItems.map((line) => ({
-                product_id: line.product_id,
-                quantity: line.quantity,
-                unit_price: line.unit_price,
-                line_total: line.line_total,
-              })),
-            },
-          },
-          select: {
-            grn_id: true,
-            grn_number: true,
-          },
-        });
-        break;
-      } catch (error) {
-        const isNumberConflict =
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === "P2002" &&
-          Array.isArray(error.meta?.target) &&
-          (error.meta.target as string[]).includes("grn_number");
-
-        if (!isNumberConflict) {
-          throw error;
-        }
-
-        grnNumber = await getNextGrnNumber(tx, entryDate);
-      }
-    }
-
-    if (!createdNote) {
-      throw new Error("Unable to generate a unique GRN number. Please retry.");
-    }
-
-    const existingStocks = await tx.stock.findMany({
-      where: {
-        location_id: locationId,
-        product_id: { in: productIds },
-      },
-      select: {
-        stock_id: true,
-        product_id: true,
+  } else {
+    stock = await prisma.stock.create({
+      data: {
+        product_id: dto.product_id,
+        location_id: dto.location_id,
+        quantity_on_hand: dto.quantity,
       },
     });
-    const stockByProductId = new Map(
-      existingStocks.map((stock) => [stock.product_id, stock]),
-    );
+  }
 
-    const movementNote = [
-      `GRN ${createdNote.grn_number}`,
-      dto.reference_no?.trim() ? `Ref: ${dto.reference_no.trim()}` : null,
-      dto.notes?.trim() ? dto.notes.trim() : null,
-    ]
-      .filter(Boolean)
-      .join(" • ");
-
-    const stockUpdates: Array<{
-      stock_id: number;
-      product_id: number;
-      quantity_on_hand: number;
-    }> = [];
-
-    for (const [productId, qty] of quantityByProduct.entries()) {
-      const existingStock = stockByProductId.get(productId);
-      const stock = existingStock
-        ? await tx.stock.update({
-            where: { stock_id: existingStock.stock_id },
-            data: { quantity_on_hand: { increment: qty } },
-          })
-        : await tx.stock.create({
-            data: {
-              product_id: productId,
-              location_id: locationId,
-              quantity_on_hand: qty,
-            },
-          });
-
-      await tx.stockMovement.create({
-        data: {
-          stock_id: stock.stock_id,
-          product_id: productId,
-          created_by: userId,
-          movement_type: "PURCHASE",
-          quantity: qty,
-          movement_date: entryDate,
-          notes: movementNote || "Stock received via GRN.",
-        },
-      });
-
-      stockUpdates.push({
-        stock_id: stock.stock_id,
-        product_id: productId,
-        quantity_on_hand: stock.quantity_on_hand,
-      });
-    }
-
-    return {
-      grn_id: createdNote.grn_id,
-      grn_number: createdNote.grn_number,
-      stock_updates: stockUpdates,
-    };
+  await prisma.stockMovement.create({
+    data: {
+      stock_id: stock.stock_id,
+      product_id: dto.product_id,
+      created_by: userId,
+      movement_type: "PURCHASE",
+      quantity: dto.quantity,
+      movement_date: new Date(),
+      notes: "Initial stock entry",
+    },
   });
 
-  revalidateTag("inventory" as any);
-  return result;
+  revalidateTag("inventory", "max");
+  return stock;
 }
 
 export async function getAllCategories() {
@@ -650,7 +450,7 @@ export async function updateProduct(
     include: { category: true },
   });
 
-  revalidateTag("inventory" as any);
+  revalidateTag("inventory", "max");
   return product;
 }
 
@@ -711,7 +511,7 @@ export async function importStock(data: any[], userId: number) {
     imported.push(stock);
   }
 
-  revalidateTag("inventory" as any);
+  revalidateTag("inventory", "max");
   return imported;
 }
 
@@ -743,6 +543,12 @@ export async function deleteMovement(movementId: number) {
 
   await prisma.stockMovement.delete({ where: { movement_id: movementId } });
 
-  revalidateTag("inventory" as any);
+  revalidateTag("inventory", "max");
   return movement;
+}
+
+export async function getAllLocations() {
+  return prisma.inventoryLocation.findMany({
+    orderBy: { location_id: "asc" },
+  });
 }
