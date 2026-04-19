@@ -1,7 +1,6 @@
 // src/lib/inventoryService.ts
 import { prisma } from "./prisma";
 import { unstable_cache, revalidateTag } from "next/cache";
-import { Prisma } from "@prisma/client";
 import type {
   StockOverviewRow,
   LocationSummary,
@@ -819,4 +818,10 @@ export async function deleteMovement(movementId: number) {
 
   revalidateTag("inventory", "max");
   return movement;
+}
+
+export async function getAllLocations() {
+  return prisma.inventoryLocation.findMany({
+    orderBy: { location_id: "asc" },
+  });
 }

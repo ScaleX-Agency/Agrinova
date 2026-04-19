@@ -32,6 +32,11 @@ export const metadata: Metadata = {
   title: { default: "Agrinova IMS", template: "%s — Agrinova IMS" },
   description:
     "Agrinova Inventory Management System — Your Partner in Lifesciences",
+  icons: {
+    icon: "/agrinova-logo.jpeg",
+    shortcut: "/agrinova-logo.jpeg",
+    apple: "/agrinova-logo.jpeg",
+  },
 };
 
 export default function RootLayout({
