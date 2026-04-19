@@ -4,27 +4,18 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "@clerk/nextjs";
-import { Badge, Avatar, Input, Tooltip, Skeleton } from "antd";
+import { Badge, Avatar, Skeleton } from "antd";
 import {
   Bell,
   Search,
   PanelLeftClose,
   X,
-  AlertTriangle,
-  CheckCircle2,
   ChevronRight,
 } from "lucide-react";
-
-const { Search: AntSearch } = Input;
+import { GlobalSearchPalette } from "./GlobalSearch";
 
 // In a real app, these would come from an API or websocket
 const notifications: any[] = [];
-
-const TYPE_STYLE: Record<string, string> = {
-  danger: "bg-red-50 text-red-700 border-red-100",
-  warn: "bg-amber-50 text-amber-700 border-amber-100",
-  ok: "bg-green-50 text-green-700 border-green-100",
-};
 
 interface NavbarProps {
   onToggleSidebar?: () => void;
@@ -45,8 +36,21 @@ function formatRole(roleName: string) {
 
 export default function Navbar({ onToggleSidebar }: NavbarProps) {
   const [notifOpen, setNotifOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [roleName, setRoleName] = useState("");
   const { user, isLoaded } = useUser();
+
+  // Ctrl+K / Cmd+K shortcut
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen((o) => !o);
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
 
   useEffect(() => {
     if (!isLoaded || !user) {
@@ -88,6 +92,11 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
 
   return (
     <>
+      <GlobalSearchPalette
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+      />
+
       <motion.header
         initial={{ y: -16, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -106,15 +115,24 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
 
         {/* Right */}
         <div className="flex items-center gap-2.5">
-          {/* Search */}
-          <div className="hidden md:block w-[240px]">
-            <AntSearch
-              placeholder="Search products, locations…"
-              allowClear
-              prefix={<Search size={13} className="text-stone-400" />}
-              className="[&_.ant-input-affix-wrapper]:!rounded-xl [&_.ant-input-affix-wrapper]:!border-stone-200 [&_.ant-input-affix-wrapper]:!shadow-none [&_.ant-input-affix-wrapper]:!bg-stone-50 [&_.ant-input]:!text-[13px] [&_.ant-input]:!bg-stone-50"
-            />
-          </div>
+          {/* Search trigger — consistent with other icon buttons */}
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="hidden md:flex items-center gap-2 h-9 px-3 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 transition-colors group"
+          >
+            <Search size={14} className="text-stone-400 group-hover:text-stone-600 transition-colors" />
+            <span className="text-[13px] text-stone-400 group-hover:text-stone-600 transition-colors [font-family:var(--font-dmsans)] w-[148px] text-left">
+              Search…
+            </span>
+          </button>
+
+          {/* Mobile search icon */}
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="md:hidden w-9 h-9 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 flex items-center justify-center transition-colors"
+          >
+            <Search size={16} className="text-stone-600" />
+          </button>
 
           {/* Status pill */}
           <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-stone-200 bg-stone-50">
@@ -126,20 +144,19 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
 
           {/* Notifications */}
           <div className="relative">
-            <Tooltip title="Notifications" placement="bottom">
-              <button
-                onClick={() => setNotifOpen((o) => !o)}
-                className="relative w-9 h-9 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 flex items-center justify-center transition-colors"
+            <button
+              onClick={() => setNotifOpen((o) => !o)}
+              className="relative w-9 h-9 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 flex items-center justify-center transition-colors"
+              title="Notifications"
+            >
+              <Badge
+                count={notifications.length}
+                size="small"
+                offset={[2, -2]}
               >
-                <Badge
-                  count={notifications.length}
-                  size="small"
-                  offset={[2, -2]}
-                >
-                  <Bell size={16} className="text-stone-600" />
-                </Badge>
-              </button>
-            </Tooltip>
+                <Bell size={16} className="text-stone-600" />
+              </Badge>
+            </button>
 
             <AnimatePresence>
               {notifOpen && (
@@ -173,11 +190,6 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
                             key={n.id}
                             className="flex gap-3 px-4 py-3 hover:bg-stone-50 transition-colors cursor-pointer"
                           >
-                            <div
-                              className={`mt-0.5 w-6 h-6 rounded-full border flex items-center justify-center flex-shrink-0 ${TYPE_STYLE[n.type]}`}
-                            >
-                              {n.icon}
-                            </div>
                             <div className="min-w-0 flex-1">
                               <p className="text-[12.5px] font-semibold text-stone-800">
                                 {n.title}
@@ -200,7 +212,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
                             All caught up!
                           </p>
                           <p className="text-[11.5px] text-stone-500 mt-1 max-w-[180px]">
-                            You don't have any new notifications at the moment.
+                            You don&apos;t have any new notifications at the moment.
                           </p>
                         </div>
                       )}
