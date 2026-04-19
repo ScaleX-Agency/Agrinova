@@ -14,10 +14,8 @@ export async function GET(req: Request) {
     const search = searchParams.get("search") || undefined;
     const category_id = searchParams.get("category_id") ? parseInt(searchParams.get("category_id") as string, 10) : undefined;
 
-    const [data, stats] = await Promise.all([
-      getAllProducts(page, pageSize, { search, category_id }),
-      getProductStats(),
-    ]);
+    const data = await getAllProducts(page, pageSize, { search, category_id });
+    const stats = await getProductStats();
     return NextResponse.json({ products: data.items, pagination: data.pagination, stats });
   } catch (err) {
     console.error("[GET /api/products]", err);

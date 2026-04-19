@@ -28,10 +28,8 @@ export default async function LocationStockRoute({ params }: Props) {
   if (!loc) notFound();
 
   // Both calls hit unstable_cache — fast on repeated visits
-  const [stock, movementsResult] = await Promise.all([
-    getStockByLocation(id),
-    getMovementsByLocation(id),
-  ]);
+  const stock = await getStockByLocation(id);
+  const movementsResult = await getMovementsByLocation(id);
 
   return (
     <LocationStockPage

@@ -14,10 +14,8 @@ export async function GET(req: Request) {
     const location_id = searchParams.get("location_id") ? parseInt(searchParams.get("location_id") as string, 10) : undefined;
     const status = searchParams.get("status") || undefined;
 
-    const [stockData, summaries] = await Promise.all([
-      getAllStock(page, pageSize, { search, location_id, status }),
-      getLocationSummaries(),
-    ]);
+    const stockData = await getAllStock(page, pageSize, { search, location_id, status });
+    const summaries = await getLocationSummaries();
     
     return NextResponse.json({ 
       stock: stockData.items, 
