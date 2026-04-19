@@ -41,20 +41,25 @@ interface NavGroup {
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    title: "Inventory",
+    title: "Dashboard",
     items: [
       {
         href: "/dashboard",
         icon: <LayoutDashboard size={15} />,
         label: "Dashboard",
       },
+    ],
+  },
+  {
+    title: "Inventory Operations",
+    items: [
       {
         href: "/inventory",
         icon: <Boxes size={15} />,
         label: "Stock Overview",
       },
       {
-        href: "/inventory/products",
+        href: "/products",
         icon: <Package size={15} />,
         label: "Products",
       },
@@ -64,6 +69,11 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Goods Receiving Notes",
       },
       {
+        href: "/goods-issue-notes",
+        icon: <ClipboardList size={15} />,
+        label: "Goods Issue Notes",
+      },
+      {
         href: "/inventory/movements",
         icon: <ArrowLeftRight size={15} />,
         label: "Movements",
@@ -71,39 +81,52 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    title: "Operations",
+    title: "Sales",
     items: [
-      {
-        href: "/goods-issue-notes",
-        icon: <ClipboardList size={15} />,
-        label: "Goods Issue Notes",
-      },
       { href: "/invoices", icon: <FileText size={15} />, label: "Invoices" },
       { href: "/receipts", icon: <Receipt size={15} />, label: "Receipts" },
-      { href: "/customers", icon: <Users size={15} />, label: "Customers" },
       {
-        href: "/operators",
-        icon: <UserCog size={15} />,
-        label: "Operators",
+        href: "/customer-sales",
+        icon: <BarChart3 size={15} />,
+        label: "Customer Sales",
       },
+      {
+        href: "/commission",
+        icon: <UserCheck size={15} />,
+        label: "Sales Rep Sales",
+      },
+    ],
+  },
+  {
+    title: "People",
+    items: [
+      { href: "/customers", icon: <Users size={15} />, label: "Customers" },
       {
         href: "/sales-reps",
         icon: <UserCheck size={15} />,
         label: "Sales Reps",
       },
       {
-        href: "/commission",
-        icon: <UserCheck size={15} />,
-        label: "Commission",
-      },
-      {
-        href: "/customer-sales",
-        icon: <BarChart3 size={15} />,
-        label: "Customer Sales",
+        href: "/operators",
+        icon: <UserCog size={15} />,
+        label: "Operators",
       },
     ],
   },
 ];
+
+const isPathActive = (pathname: string, href: string) => {
+  if (href.includes("?")) {
+    const [basePath] = href.split("?");
+    return pathname === basePath;
+  }
+
+  if (pathname === href) {
+    return true;
+  }
+
+  return pathname.startsWith(`${href}/`);
+};
 
 const SidebarContent = ({
   collapsed,
@@ -156,17 +179,7 @@ const SidebarContent = ({
           )}
           <ul className="space-y-0.5">
             {group.items.map((item) => {
-              let active = false;
-              if (
-                item.href === "/inventory/movements" ||
-                item.href === "/inventory?tab=movements"
-              ) {
-                active = pathname === "/inventory/movements";
-              } else if (item.href === "/inventory") {
-                active = pathname === "/inventory";
-              } else {
-                active = pathname === item.href;
-              }
+              const active = isPathActive(pathname, item.href);
               return (
                 <li key={item.href}>
                   <Link
