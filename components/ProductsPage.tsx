@@ -19,6 +19,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import AddProductModal from "./AddProductModal";
+import AddCategoryModal from "./AddCategoryModal";
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -84,6 +85,7 @@ export default function ProductsPage({ initialProducts }: { initialProducts: { i
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState<number | "ALL">("ALL");
   const [showAdd, setShowAdd] = useState(false);
+  const [showAddCategory, setShowAddCategory] = useState(false);
   const [editTarget, setEditTarget] = useState<Product | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -100,15 +102,25 @@ export default function ProductsPage({ initialProducts }: { initialProducts: { i
 
   const [categories, setCategories] = useState<{id: number | "ALL", name: string}[]>([{ id: "ALL", name: "All" }]);
 
-  useEffect(() => {
+  const loadCategories = () => {
     fetch("/api/categories")
-      .then(res => res.json())
-      .then(data => {
-         if (data && data.categories) {
-            setCategories([{ id: "ALL", name: "All" }, ...data.categories.map((c: any) => ({ id: c.category_id, name: c.name }))]);
-         }
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.categories) {
+          setCategories([
+            { id: "ALL", name: "All" },
+            ...data.categories.map((c: any) => ({
+              id: c.category_id,
+              name: c.name,
+            })),
+          ]);
+        }
       })
       .catch(console.error);
+  };
+
+  useEffect(() => {
+    loadCategories();
   }, []);
 
   const initialStats = isPaginated ? (initialProducts as any).stats : { avgPrice: 0, maxPrice: 0 };
@@ -229,6 +241,12 @@ export default function ProductsPage({ initialProducts }: { initialProducts: { i
 
         {/* Actions */}
         <div className="flex items-center gap-2 ml-auto">
+          <button
+            onClick={() => setShowAddCategory(true)}
+            className="flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-stone-600 border border-stone-200 rounded-xl bg-white hover:bg-stone-50 transition-colors [font-family:var(--font-dmsans)]"
+          >
+            <Plus size={12} /> New Category
+          </button>
           <button
             onClick={() => setShowAdd(true)}
             className="flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-white bg-green-700 border border-transparent rounded-xl hover:bg-green-800 transition-colors [font-family:var(--font-dmsans)]"
@@ -426,6 +444,19 @@ export default function ProductsPage({ initialProducts }: { initialProducts: { i
             onSaved={() => {
               setShowAdd(false);
               window.location.reload();
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── Add Category Modal ── */}
+      <AnimatePresence>
+        {showAddCategory && (
+          <AddCategoryModal
+            onClose={() => setShowAddCategory(false)}
+            onSaved={() => {
+              setShowAddCategory(false);
+              loadCategories();
             }}
           />
         )}

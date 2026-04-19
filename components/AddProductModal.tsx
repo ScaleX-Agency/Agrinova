@@ -12,7 +12,6 @@ interface FormState {
   pack_size: string;
   category_id: string;
   selling_price: string;
-  reorder_threshold: string;
   location_id: string;
   initial_qty: string;
 }
@@ -101,7 +100,6 @@ export default function AddProductModal({
     pack_size: initialValues?.pack_size || "",
     category_id: initialValues?.category_id?.toString() || "",
     selling_price: initialValues?.selling_price?.toString() || "",
-    reorder_threshold: initialValues?.reorder_threshold?.toString() || "50",
     location_id: "1",
     initial_qty: "0",
   });
@@ -115,7 +113,7 @@ export default function AddProductModal({
   const categoryTag = categories.find(
     (c) => String(c.category_id) === form.category_id,
   )?.tag;
-  const previewCode = categoryTag ? `${categoryTag}-XXXX` : null;
+  const previewCode = categoryTag ? `${categoryTag}XXXX` : null;
 
   const set = (k: keyof FormState, v: string) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -150,10 +148,6 @@ export default function AddProductModal({
         category_id: parseInt(form.category_id),
         selling_price: parseFloat(form.selling_price),
       };
-
-      if (form.reorder_threshold) {
-        payload.reorder_threshold = parseInt(form.reorder_threshold);
-      }
 
       if (mode === "add") {
         if (form.initial_qty && parseInt(form.initial_qty) > 0) {
@@ -205,16 +199,16 @@ export default function AddProductModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.97, y: 8 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
-        className="bg-[#181c27] border border-[#2a2f45] rounded-2xl w-full max-w-[560px] overflow-hidden flex flex-col"
+        className="bg-white border border-stone-200 rounded-2xl w-full max-w-[560px] overflow-hidden flex flex-col"
       >
         {/* ── Header ── */}
-        <div className="px-6 py-4 border-b border-[#2a2f45] flex items-center justify-between shrink-0">
-          <p className="text-[16px] font-semibold text-[#e8eaf0] [font-family:var(--font-dmsans)] leading-none">
+        <div className="px-6 py-4 border-b border-stone-100 flex items-center justify-between shrink-0">
+          <p className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-dmsans)] leading-none">
             {mode === "edit" ? "Edit Product" : "Add New Product"}
           </p>
           <button
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-lg bg-[#242840] hover:bg-[#2a2f45] text-stone-400 transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-stone-100 text-stone-500 transition-colors"
           >
             <X size={13} />
           </button>
@@ -296,8 +290,8 @@ export default function AddProductModal({
             </div>
           </div>
 
-          {/* Price + Threshold */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Price */}
+          <div>
             <div>
               <FieldLabel label="Selling Price (LKR)" required />
               <div className="relative">
@@ -315,18 +309,6 @@ export default function AddProductModal({
                 />
               </div>
               <FieldError msg={errors.selling_price} />
-            </div>
-
-            <div>
-              <FieldLabel label="Reorder Threshold" />
-              <input
-                type="number"
-                min="0"
-                className={inputCls()}
-                value={form.reorder_threshold}
-                onChange={(e) => set("reorder_threshold", e.target.value)}
-              />
-              <FieldHint>Low-stock alert triggers below this</FieldHint>
             </div>
           </div>
 
@@ -396,10 +378,10 @@ export default function AddProductModal({
         </div>
 
         {/* ── Footer ── */}
-        <div className="px-6 py-4 border-t border-[#2a2f45] flex items-center justify-end gap-2 shrink-0">
+        <div className="px-6 py-4 border-t border-stone-100 flex items-center justify-end gap-2 shrink-0">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-[13px] font-medium text-[#8b91a8] hover:bg-[#242840] hover:text-[#e8eaf0] rounded-xl transition-colors"
+            className="px-4 py-2 text-[13px] font-medium text-stone-500 hover:bg-stone-100 rounded-xl transition-colors"
           >
             Cancel
           </button>

@@ -433,7 +433,7 @@ export async function createProduct(dto: CreateProductDto, userId?: number) {
   const count = await prisma.product.count({
     where: { category_id: dto.category_id },
   });
-  const product_code = `${category.tag}-${String(count + 1).padStart(4, "0")}`;
+  const product_code = `${category.tag}${String(count + 1).padStart(4, "0")}`;
 
   const product = await prisma.$transaction(async (tx) => {
     const createdProduct = await tx.product.create({
@@ -733,6 +733,29 @@ export async function getAllCategories() {
   return prisma.category.findMany({
     orderBy: { name: "asc" },
   });
+}
+
+export async function createCategory(dto: { name: string; tag: string }) {
+  const name = dto.name.trim();
+  const tag = dto.tag.trim().toUpperCase();
+
+  if (!name) {
+    throw new Error("Category name is required");
+  }
+
+  if (!tag) {
+    throw new Error("Category tag is required");
+  }
+
+  const category = await prisma.category.create({
+    data: {
+      name,
+      tag,
+    },
+  });
+
+  revalidateTag("inventory", "max");
+  return category;
 }
 
 export async function updateProduct(
