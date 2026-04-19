@@ -102,26 +102,6 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
           >
             <PanelLeftClose size={17} className="text-stone-600" />
           </button>
-
-          <div className="hidden sm:flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg border border-stone-200 flex items-center justify-center overflow-hidden bg-white">
-              <img
-                src="/agrinova-logo.jpeg"
-                alt="Agrinova Logo"
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="h-6 w-px bg-stone-200" />
-          </div>
-
-          <div className="min-w-0">
-            <h1 className="text-[19px] font-semibold text-stone-900 tracking-tight [font-family:var(--font-playfair)] leading-none">
-              Agrinova IMS
-            </h1>
-            <p className="text-[11px] text-stone-400 mt-0.5 [font-family:var(--font-dmsans)] hidden sm:block">
-              Inventory Management System
-            </p>
-          </div>
         </div>
 
         {/* Right */}

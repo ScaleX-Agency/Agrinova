@@ -132,7 +132,7 @@ const SidebarContent = ({
           <p className="text-[17px] font-semibold text-stone-900 tracking-tight [font-family:var(--font-playfair)] leading-none">
             Agrinova
           </p>
-          <p className="text-[10px] text-stone-400 mt-0.5 uppercase tracking-[0.12em] [font-family:var(--font-dmsans)] truncate">
+          <p className="text-[10px] text-stone-400 mt-0.5 tracking-[0.12em] [font-family:var(--font-dmsans)] truncate">
             Your Partner in Lifesciences
           </p>
         </div>
