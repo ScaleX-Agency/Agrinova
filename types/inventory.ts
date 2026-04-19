@@ -8,6 +8,7 @@ export interface StockOverviewRow {
   product_name: string;
   category_name: string;
   pack_size: string;
+  selling_price: number;
   quantity_on_hand: number;
   reorder_threshold: number; // derive: use 20% of max stock or a fixed business rule
   status: StockStatus; // "ok" | "low" | "out" — computed, not stored

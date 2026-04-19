@@ -137,10 +137,10 @@ const NewGoodsIssueNotePage = () => {
     queryKey: ["gin-products", locationId],
     enabled: locationId !== null,
     queryFn: async () => {
-      const response = await fetch(`/api/inventory/${locationId}`);
-      const result = (await response.json()) as StockByLocationResponse;
+      const response = await fetch(`/api/inventory/${locationId}?all=true`);
+      const result = (await response.json()) as { stock?: StockByLocationResponse["data"]; error?: string };
       if (!response.ok) throw new Error(result.error ?? "Failed to load products for selected location.");
-      return Array.isArray(result.data) ? result.data : [];
+      return Array.isArray(result.stock) ? result.stock : [];
     },
   });
 

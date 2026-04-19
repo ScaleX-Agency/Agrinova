@@ -152,13 +152,13 @@ const NewInvoicePage = () => {
     queryKey: ["invoice-products", locationId],
     enabled: locationId !== null,
     queryFn: async () => {
-      const response = await fetch(`/api/inventory/${locationId}`);
-      const result = (await response.json()) as StockByLocationResponse;
+      const response = await fetch(`/api/inventory/${locationId}?all=true`);
+      const result = (await response.json()) as { stock?: StockByLocationResponse["data"]; error?: string };
       if (!response.ok) {
         throw new Error(result.error ?? "Failed to load products for selected location.");
       }
 
-      const rows = Array.isArray(result.data) ? result.data : [];
+      const rows = Array.isArray(result.stock) ? result.stock : [];
       return rows
         .filter((row) => row.quantity_on_hand > 0)
         .map((row) => ({
