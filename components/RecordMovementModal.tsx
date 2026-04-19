@@ -8,7 +8,6 @@ import {
   MovementRow,
   MovementType,
 } from "../types/inventory";
-import { useUser } from "@clerk/nextjs";
 
 interface Props {
   row: StockOverviewRow;
@@ -28,7 +27,6 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const { user } = useUser();
 
   const qty = parseInt(quantity) || 0;
   const delta =
@@ -80,10 +78,6 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
               : "ok",
       };
 
-      const userName = user?.firstName
-        ? `${user.firstName} ${user.lastName || ""}`.trim()
-        : "System User";
-
       const newMovement: MovementRow = {
         movement_id,
         movement_type: movementType,
@@ -93,7 +87,7 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
         product_name: row.product_name,
         product_code: row.product_code,
         location_code: row.location_code,
-        created_by_name: userName,
+        created_by_name: "Admin",
         qty_delta: delta,
       };
 
