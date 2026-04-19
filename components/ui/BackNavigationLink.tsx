@@ -10,7 +10,7 @@ type BackNavigationLinkProps = {
 };
 
 const defaultClassName =
-  "inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 transition-colors hover:text-stone-700 [font-family:var(--font-dmsans)]";
+  "inline-flex w-fit items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] font-medium text-stone-700 transition-colors hover:bg-stone-50 [font-family:var(--font-dmsans)]";
 
 const BackNavigationLink = ({
   href,

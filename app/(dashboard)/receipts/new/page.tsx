@@ -186,8 +186,14 @@ const NewReceiptPage = () => {
 
   return (
     <section className="space-y-5">
-      <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+      <header className="flex flex-col gap-3">
         <div>
+          <div className="mb-2">
+            <BackNavigationLink
+              href="/invoices"
+              label="Back to Invoices"
+            />
+          </div>
           <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">Sales</p>
           <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)] font-semibold">
             Record Payment
@@ -196,12 +202,6 @@ const NewReceiptPage = () => {
             Record a payment against an invoice. Invoice details are prefilled when launched from invoice actions.
           </p>
         </div>
-
-        <BackNavigationLink
-          href="/invoices"
-          label="Back to Invoices"
-          className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] font-medium text-stone-700 hover:bg-stone-50"
-        />
       </header>
 
       <form className="space-y-4" onSubmit={handleSubmit}>
