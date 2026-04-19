@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { GINStatus, InvoiceStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getCommissionDueDate } from "@/lib/commission";
 import type {
   CreateInvoiceRequestDto,
   CreateInvoiceSuccessResponse,
@@ -271,6 +272,20 @@ export async function POST(request: Request) {
         },
         select: {
           invoice_id: true,
+        },
+      });
+
+      await tx.commission.create({
+        data: {
+          rep_id: repId,
+          invoice_id: createdInvoice.invoice_id,
+          receipt_id: null,
+          commission_rate: 0,
+          commission_amount: 0,
+          days_to_pay: 0,
+          due_date: getCommissionDueDate(invoiceDate),
+          paid_date: null,
+          status: "PENDING",
         },
       });
 

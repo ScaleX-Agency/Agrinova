@@ -2,20 +2,9 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { CommissionSummaryResponse, RepCommissionSummaryDto } from "@/types/api";
 
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
-
 const getMonthRange = (monthParam: string | null) => {
 	if (!monthParam || !/^\d{4}-\d{2}$/.test(monthParam)) {
-		const now = new Date();
-		const year = now.getFullYear();
-		const month = now.getMonth();
-		const start = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
-		const end = new Date(Date.UTC(year, month + 1, 1, 0, 0, 0, 0));
-		return {
-			month: `${year}-${String(month + 1).padStart(2, "0")}`,
-			start,
-			end,
-		};
+		return { month: null, start: null, end: null };
 	}
 
 	const [year, month] = monthParam.split("-").map(Number);
@@ -24,51 +13,61 @@ const getMonthRange = (monthParam: string | null) => {
 	return { month: monthParam, start, end };
 };
 
-const getDaysToPay = (invoiceDate: Date, cashCollectedDate: Date) =>
-	Math.floor((cashCollectedDate.getTime() - invoiceDate.getTime()) / MS_PER_DAY);
-
-const getCommissionRate = (days: number) => {
-	if (days <= 0) return 0.025;
-	if (days <= 65) return 0.02;
-	return 0;
-};
-
 export async function GET(request: Request) {
 	try {
 		const { searchParams } = new URL(request.url);
 		const { month, start, end } = getMonthRange(searchParams.get("month"));
 
-		const receipts = await prisma.receipt.findMany({
-			where: {
-				receipt_date: {
-					gte: start,
-					lt: end,
-				},
-			},
+		const dateFilter =
+			start && end
+				? {
+					invoice: {
+						invoice_date: {
+							gte: start,
+							lt: end,
+						},
+					},
+				}
+				: {};
+
+		const commissions = await prisma.commission.findMany({
+			where: dateFilter,
 			select: {
-				receipt_id: true,
-				receipt_date: true,
-				amount_received: true,
+				commission_id: true,
+				rep_id: true,
+				days_to_pay: true,
+				commission_rate: true,
+				commission_amount: true,
+				due_date: true,
+				paid_date: true,
+				status: true,
+				rep: {
+					select: {
+						rep_id: true,
+						full_name: true,
+					},
+				},
 				invoice: {
 					select: {
 						invoice_id: true,
 						invoice_date: true,
 						total_amount: true,
-						rep: {
-							select: {
-								rep_id: true,
-								full_name: true,
-							},
-						},
+					},
+				},
+				receipt: {
+					select: {
+						receipt_id: true,
+						receipt_date: true,
+						amount_received: true,
 					},
 				},
 			},
-			orderBy: { receipt_date: "desc" },
 		});
 
 		type Aggregate = {
 			repId: number;
 			repName: string;
+			receiptIds: Set<number>;
 			invoiceIds: Set<number>;
 			totalSales: number;
 			cashCollected: number;
@@ -79,19 +78,20 @@ export async function GET(request: Request) {
 
 		const byRep = new Map<number, Aggregate>();
 
-		for (const receipt of receipts) {
-			const repId = receipt.invoice.rep.rep_id;
-			const repName = receipt.invoice.rep.full_name;
-			const invoiceId = receipt.invoice.invoice_id;
-			const invoiceAmount = Number(receipt.invoice.total_amount);
-			const cashCollected = Number(receipt.amount_received);
-			const days = getDaysToPay(receipt.invoice.invoice_date, receipt.receipt_date);
-			const rate = getCommissionRate(days);
-			const commissionAmount = invoiceAmount * rate;
+		for (const commission of commissions) {
+			const repId = commission.rep_id;
+			const repName = commission.rep.full_name;
+			const receiptId = commission.receipt?.receipt_id ?? null;
+			const invoiceId = commission.invoice.invoice_id;
+			const invoiceAmount = Number(commission.invoice.total_amount);
+			const cashCollected = commission.receipt ? Number(commission.receipt.amount_received) : 0;
+			const days = Number(commission.days_to_pay);
+			const commissionAmount = Number(commission.commission_amount);
 
 			const existing = byRep.get(repId) ?? {
 				repId,
 				repName,
+				receiptIds: new Set<number>(),
 				invoiceIds: new Set<number>(),
 				totalSales: 0,
 				cashCollected: 0,
@@ -100,11 +100,11 @@ export async function GET(request: Request) {
 				commissionAmount: 0,
 			};
 
-			if (!existing.invoiceIds.has(invoiceId)) {
-				existing.invoiceIds.add(invoiceId);
-				existing.totalSales += invoiceAmount;
+			if (receiptId) {
+				existing.receiptIds.add(receiptId);
 			}
-
+			existing.invoiceIds.add(invoiceId);
+			existing.totalSales += invoiceAmount;
 			existing.cashCollected += cashCollected;
 			existing.daysSum += days;
 			existing.daysCount += 1;
@@ -121,6 +121,7 @@ export async function GET(request: Request) {
 				return {
 					repId: row.repId,
 					repName: row.repName,
+					receiptCount: row.receiptIds.size,
 					invoiceCount: row.invoiceIds.size,
 					totalSales: Number(row.totalSales.toFixed(2)),
 					cashCollected: Number(row.cashCollected.toFixed(2)),
@@ -137,9 +138,9 @@ export async function GET(request: Request) {
 
 		const responseBody: CommissionSummaryResponse = {
 			data: {
-				month,
-				startDate: start.toISOString(),
-				endDate: end.toISOString(),
+				month: month ?? "all",
+				startDate: start ? start.toISOString() : "",
+				endDate: end ? end.toISOString() : "",
 				rows,
 				grandTotalCommission,
 			},
