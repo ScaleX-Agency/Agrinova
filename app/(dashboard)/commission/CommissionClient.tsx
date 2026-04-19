@@ -608,14 +608,7 @@ const CommissionClient = () => {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-stone-200 bg-white overflow-hidden p-4">
-        <div className="flex items-center justify-between border-b border-stone-200 px-4 py-3">
-          <div>
-            <p className="text-[13px] font-medium text-stone-800">Commission by Sales Rep</p>
-            <p className="text-[12px] text-stone-500">Per-rep performance with sales payment status mix.</p>
-          </div>
-          <p className="text-[12px] text-stone-500">{repTableRows.length} reps</p>
-        </div>
+        
         <DataTable
           data={repTableRows}
           columns={repColumns}
@@ -623,7 +616,7 @@ const CommissionClient = () => {
           searchPlaceholder="Search by rep name"
           emptyMessage="No commission rows match these filters."
         />
-      </section>
+     
 
       {(commissionQuery.isLoading || !isAllDetailsLoaded) && (
         <p className="text-[13px] text-stone-500">Loading commission analytics...</p>

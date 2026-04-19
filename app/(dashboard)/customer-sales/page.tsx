@@ -264,10 +264,7 @@ export default function CustomerSalesDashboardPage() {
             </div>
           </section>
 
-          <div className="bg-white border border-stone-200 rounded-2xl p-4 lg:p-5">
-            <p className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-dmsans)] mb-2">
-              Customer Sales Summary
-            </p>
+        
             <DataTable
               data={dashboardQuery.data.topCustomers}
               columns={customerSummaryColumns}
@@ -275,7 +272,6 @@ export default function CustomerSalesDashboardPage() {
               searchPlaceholder="Search customer or sales rep"
               emptyMessage="No customer sales found for this period."
             />
-          </div>
         </>
       )}
     </div>
