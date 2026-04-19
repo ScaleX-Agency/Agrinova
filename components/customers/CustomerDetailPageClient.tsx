@@ -4,13 +4,13 @@ import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   Phone,
   ShieldUser,
   Trash2,
   UserRound,
   X,
 } from "lucide-react";
+import BackNavigationLink from "@/components/ui/BackNavigationLink";
 
 interface SalesRepOption {
   rep_id: number;
@@ -273,13 +273,7 @@ export default function CustomerDetailPageClient({
   if (loadError || !customer) {
     return (
       <div className="space-y-4">
-        <Link
-          href="/customers"
-          className="inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 hover:text-stone-700 [font-family:var(--font-dmsans)]"
-        >
-          <ArrowLeft size={14} />
-          Back to Customers
-        </Link>
+        <BackNavigationLink href="/customers" label="Back to Customers" />
         <div className="px-4 py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 text-[13px] [font-family:var(--font-dmsans)]">
           {loadError || "Customer not found."}
         </div>
@@ -291,13 +285,7 @@ export default function CustomerDetailPageClient({
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <Link
-            href="/customers"
-            className="inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 hover:text-stone-700 [font-family:var(--font-dmsans)]"
-          >
-            <ArrowLeft size={14} />
-            Back to Customers
-          </Link>
+          <BackNavigationLink href="/customers" label="Back to Customers" />
           <h1 className="mt-2 text-[26px] font-semibold text-stone-900 [font-family:var(--font-dmsans)] leading-tight">
             {customer.name}
           </h1>

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import type {
@@ -26,6 +26,7 @@ import { getFirstGoodsIssueNoteFieldError, getGoodsIssueNoteFieldErrors } from "
 import GinDetailsSection from "./GinDetailsSection";
 import GinProductsSection from "./GinProductsSection";
 import GinSubmitSection from "./GinSubmitSection";
+import BackNavigationLink from "@/components/ui/BackNavigationLink";
 
 const parsePositiveInt = (value: string | null) => {
   if (!value) return null;
@@ -413,13 +414,11 @@ const NewGoodsIssueNotePage = () => {
             <FileText size={14} />
             New Invoice
           </Link>
-          <Link
+          <BackNavigationLink
             href="/goods-issue-notes"
+            label="Back to Goods Issue Notes"
             className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] font-medium text-stone-700 hover:bg-stone-50"
-          >
-            <ArrowLeft size={14} />
-            Back to Goods Issue Notes
-          </Link>
+          />
         </div>
       </header>
 

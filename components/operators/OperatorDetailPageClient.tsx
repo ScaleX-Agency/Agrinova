@@ -4,13 +4,13 @@ import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   Mail,
   ShieldUser,
   Trash2,
   UserRound,
   X,
 } from "lucide-react";
+import BackNavigationLink from "@/components/ui/BackNavigationLink";
 
 interface Operator {
   user_id: number;
@@ -211,13 +211,7 @@ export default function OperatorDetailPageClient({
   if (loadError || !operator) {
     return (
       <div className="space-y-4">
-        <Link
-          href="/operators"
-          className="inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 hover:text-stone-700 [font-family:var(--font-dmsans)]"
-        >
-          <ArrowLeft size={14} />
-          Back to Operators
-        </Link>
+        <BackNavigationLink href="/operators" label="Back to Operators" />
         <div className="px-4 py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 text-[13px] [font-family:var(--font-dmsans)]">
           {loadError || "Operator not found."}
         </div>
@@ -229,13 +223,7 @@ export default function OperatorDetailPageClient({
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <Link
-            href="/operators"
-            className="inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 hover:text-stone-700 [font-family:var(--font-dmsans)]"
-          >
-            <ArrowLeft size={14} />
-            Back to Operators
-          </Link>
+          <BackNavigationLink href="/operators" label="Back to Operators" />
           <h1 className="mt-2 text-[26px] font-semibold text-stone-900 [font-family:var(--font-dmsans)] leading-tight">
             {operator.full_name}
           </h1>

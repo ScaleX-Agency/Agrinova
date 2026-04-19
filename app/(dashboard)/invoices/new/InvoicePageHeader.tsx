@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { ArrowLeft, FilePlus2 } from "lucide-react";
+import { FilePlus2 } from "lucide-react";
+import BackNavigationLink from "@/components/ui/BackNavigationLink";
 
 const InvoicePageHeader = () => {
   return (
@@ -20,14 +20,11 @@ const InvoicePageHeader = () => {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-      
-        <Link
+        <BackNavigationLink
           href="/invoices"
+          label="Back to Invoices"
           className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] font-medium text-stone-700 hover:bg-stone-50 [font-family:var(--font-dmsans)]"
-        >
-          <ArrowLeft size={14} />
-          Back to Invoices
-        </Link>
+        />
       </div>
     </header>
   );

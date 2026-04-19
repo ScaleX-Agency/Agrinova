@@ -13,6 +13,7 @@ import type {
   ReceiptMethod,
 } from "@/types/api";
 import SearchableSelect from "@/components/SearchableSelect";
+import BackNavigationLink from "@/components/ui/BackNavigationLink";
 
 const parsePositiveInt = (value: string | null) => {
   if (!value) return null;
@@ -184,12 +185,11 @@ const NewReceiptPage = () => {
           </p>
         </div>
 
-        <Link
+        <BackNavigationLink
           href="/invoices"
+          label="Back to Invoices"
           className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] font-medium text-stone-700 hover:bg-stone-50"
-        >
-          Back to Invoices
-        </Link>
+        />
       </header>
 
       <form className="space-y-4" onSubmit={handleSubmit}>

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
@@ -21,6 +20,7 @@ import {
 } from "recharts";
 import type { CommissionRepDetailResponse } from "@/types/api";
 import DataTable from "@/components/ui/DataTable";
+import BackNavigationLink from "@/components/ui/BackNavigationLink";
 
 const formatDate = (value: string) =>
   new Date(value).toLocaleDateString("en-GB", {
@@ -435,13 +435,11 @@ const CommissionRepDetailPage = () => {
               <option value="OVERDUE">Overdue</option>
             </select>
           </label>
-          <Link
+          <BackNavigationLink
             href="/commission"
+            label="Back to Commission"
             className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] font-medium text-stone-700 hover:bg-stone-50"
-          >
-            <ArrowLeft size={14} />
-            Back to Commission
-          </Link>
+          />
         </div>
       </header>
 

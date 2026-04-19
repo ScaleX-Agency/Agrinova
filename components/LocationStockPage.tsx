@@ -3,9 +3,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import Link from "next/link";
 import {
-  ArrowLeft,
   Package,
   AlertTriangle,
   XCircle,
@@ -21,6 +19,7 @@ import {
   CheckCircle2,
   Clock,
 } from "lucide-react";
+import BackNavigationLink from "@/components/ui/BackNavigationLink";
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -469,12 +468,12 @@ export default function LocationStockPage({
     <div className="space-y-5">
       {/* ── Back + Header ── */}
       <div>
-        <Link
+        <BackNavigationLink
           href="/inventory"
-          className="inline-flex items-center gap-1.5 text-[12.5px] text-stone-400 hover:text-stone-700 transition-colors mb-3 [font-family:var(--font-dmsans)]"
-        >
-          <ArrowLeft size={13} /> Back to Stock Overview
-        </Link>
+          label="Back to Stock Overview"
+          iconSize={13}
+          className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] text-stone-400 transition-colors hover:text-stone-700 [font-family:var(--font-dmsans)]"
+        />
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2.5 mb-1">

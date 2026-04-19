@@ -6,8 +6,9 @@ import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Pie, PieChart, ResponsiveContainer, Tooltip, Cell } from "recharts";
-import { AlertCircle, ArrowLeft, Phone, ShieldAlert, Star, Filter } from "lucide-react";
+import { AlertCircle, Phone, ShieldAlert, Star, Filter } from "lucide-react";
 import DataTable from "@/components/ui/DataTable";
+import BackNavigationLink from "@/components/ui/BackNavigationLink";
 
 type DetailResponse = {
   period: {
@@ -196,12 +197,12 @@ export default function CustomerSalesDetailPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Link
+          <BackNavigationLink
             href="/customer-sales"
+            label="Back to Customer Sales Dashboard"
+            iconSize={13}
             className="inline-flex items-center gap-1 text-[12px] text-stone-500 hover:text-stone-700 [font-family:var(--font-dmsans)]"
-          >
-            <ArrowLeft size={13} /> Back to Customer Sales Dashboard
-          </Link>
+          />
           <h1 className="mt-1 text-[28px] leading-tight text-stone-900 font-semibold [font-family:var(--font-dmsans)]">
             {detailQuery.data?.customer.name ?? "Customer"}
           </h1>
