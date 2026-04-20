@@ -230,7 +230,7 @@ export function useCategories() {
 export function useLocations() {
   return useQuery({
     queryKey: ["locations"],
-    queryFn: () => fetchJSON<{ locations: { location_id: number; code: string; name: string }[] }>("/api/locations").then((d) => d.locations),
+    queryFn: () => fetchJSON<{ data: { id: number; code: string; label: string }[] }>("/api/locations").then((d) => d.data),
     staleTime: 300_000,
   });
 }

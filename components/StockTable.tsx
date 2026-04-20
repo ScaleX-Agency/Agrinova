@@ -89,8 +89,8 @@ export default function StockTable({
         >
           <option value="">All Locations</option>
           {LOCATIONS.map((l) => (
-            <option key={l.location_id} value={l.location_id}>
-              {l.code} — {l.name}
+            <option key={l.id} value={l.id}>
+              {l.label}
             </option>
           ))}
         </select>
@@ -126,7 +126,7 @@ export default function StockTable({
                 r.product_name,
                 r.pack_size,
                 r.category_name,
-                LOCATIONS.find((l) => l.location_id === r.location_id)?.code ||
+                LOCATIONS.find((l) => l.id === r.location_id)?.code ||
                   "",
                 String(r.quantity_on_hand),
                 String(r.reorder_threshold),
@@ -211,7 +211,7 @@ export default function StockTable({
                   ),
                 );
                 const locObj = LOCATIONS.find(
-                  (l) => l.location_id === row.location_id,
+                  (l) => l.id === row.location_id,
                 );
 
                 return (

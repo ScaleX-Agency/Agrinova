@@ -332,8 +332,8 @@ export default function AddProductModal({
                       onChange={(e) => set("location_id", e.target.value)}
                     >
                       {locations.map((l) => (
-                        <option key={l.location_id} value={l.location_id}>
-                          {l.code} — {l.name}
+                        <option key={l.id} value={l.id}>
+                          {l.label}
                         </option>
                       ))}
                     </select>
