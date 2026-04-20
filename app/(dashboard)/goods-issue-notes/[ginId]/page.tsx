@@ -127,7 +127,7 @@ const GoodsIssueNoteDetailPage = async ({
             locationName={note.location.name}
             preparedBy={note.prepared_by}
             receivedBy={note.received_by}
-            lines={note.lines.map((line) => {
+            lines={note.lines.map((line: any) => {
               const unitPrice = Number(line.product.selling_price);
               return {
                 lineId: line.gin_line_id,
@@ -228,7 +228,7 @@ const GoodsIssueNoteDetailPage = async ({
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
-              {note.lines.map((line) => {
+              {note.lines.map((line: any) => {
                 const unitPrice = Number(line.product.selling_price);
                 const lineTotal = line.quantity * unitPrice;
 
