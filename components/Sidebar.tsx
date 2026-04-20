@@ -40,16 +40,16 @@ interface NavGroup {
 }
 
 const NAV_GROUPS: NavGroup[] = [
-  {
-    title: "Dashboard",
-    items: [
-      {
-        href: "/dashboard",
-        icon: <LayoutDashboard size={15} />,
-        label: "Dashboard",
-      },
-    ],
-  },
+  // {
+  //   title: "Dashboard",
+  //   items: [
+  //     {
+  //       href: "/dashboard",
+  //       icon: <LayoutDashboard size={15} />,
+  //       label: "Dashboard",
+  //     },
+  //   ],
+  // },
   {
     title: "Inventory Operations",
     items: [
