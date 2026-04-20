@@ -84,7 +84,7 @@ const GoodsReceivingNoteDetailPage = async ({
   }
 
   const totalQuantity = note.lines.reduce(
-    (sum, line) => sum + line.quantity,
+    (sum: number, line: any) => sum + line.quantity,
     0,
   );
 
@@ -118,7 +118,7 @@ const GoodsReceivingNoteDetailPage = async ({
             notes={note.notes}
             createdBy={note.creator.full_name}
             createdByUsername={note.creator.username}
-            lines={note.lines.map((line) => ({
+            lines={note.lines.map((line: any) => ({
               lineId: line.grn_line_id,
               productCode: line.product.product_code,
               productName: line.product.product_name,
@@ -225,7 +225,7 @@ const GoodsReceivingNoteDetailPage = async ({
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
-              {note.lines.map((line) => (
+              {note.lines.map((line: any) => (
                 <tr
                   key={line.grn_line_id}
                   className="transition-colors hover:bg-stone-50"
