@@ -87,5 +87,6 @@ export interface CreateStockEntryDto {
   location_id: number;
   reference_no?: string | null;
   notes?: string | null;
+  grn_number?: string | null;
   items: CreateStockEntryItemDto[];
 }
