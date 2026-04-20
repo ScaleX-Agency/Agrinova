@@ -111,7 +111,7 @@ const GoodsReceivingNoteDetailPage = async ({
           <GrnPrintButton
             grnNumber={note.grn_number}
             grnDate={note.grn_date.toISOString()}
-            entryType={note.entry_type}
+            entryType={note.entry_type as "LOCAL_PURCHASE" | "FOREIGN_IMPORT"}
             locationCode={note.location.code}
             locationName={note.location.name}
             referenceNo={note.reference_no}
@@ -157,7 +157,7 @@ const GoodsReceivingNoteDetailPage = async ({
                 Entry Type
               </p>
               <p className="mt-1 text-[15px] font-semibold text-stone-900">
-                {ENTRY_TYPE_LABEL[note.entry_type]}
+                {ENTRY_TYPE_LABEL[note.entry_type as "LOCAL_PURCHASE" | "FOREIGN_IMPORT"]}
               </p>
             </div>
           </div>
