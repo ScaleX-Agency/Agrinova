@@ -613,10 +613,17 @@ export async function createStockEntry(
       new Map(),
     );
 
-    let grnNumber = await getNextGrnNumber(tx, entryDate);
+    const requestedGrnNumber = dto.grn_number?.trim() ?? "";
+    const shouldAutoGenerateGrn = requestedGrnNumber.length === 0;
+
+    let grnNumber = shouldAutoGenerateGrn
+      ? await getNextGrnNumber(tx, entryDate)
+      : requestedGrnNumber;
     let createdNote: { grn_id: number; grn_number: string } | null = null;
 
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    const maxAttempts = shouldAutoGenerateGrn ? 3 : 1;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       try {
         createdNote = await tx.goodsReceivingNote.create({
           data: {
@@ -649,6 +656,10 @@ export async function createStockEntry(
 
         if (!isNumberConflict) {
           throw error;
+        }
+
+        if (!shouldAutoGenerateGrn) {
+          throw new Error("GRN number already exists. Please use a different GRN number.");
         }
 
         grnNumber = await getNextGrnNumber(tx, entryDate);
