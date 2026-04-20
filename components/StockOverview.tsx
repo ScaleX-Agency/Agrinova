@@ -130,7 +130,7 @@ export default function StockOverview({
         <StatCard
           label="Total Products"
           value={stats.totalProducts}
-          delta="across 4 locations"
+          delta={`${summaries.length} locations tracked`}
           deltaVariant="neutral"
           icon={<Package size={18} className="text-green-700" />}
           iconBg="bg-green-50"
@@ -138,8 +138,12 @@ export default function StockOverview({
         <StatCard
           label="Total Units"
           value={stats.totalUnits.toLocaleString()}
-          delta="+155 this week"
-          deltaVariant="up"
+          delta={
+            movements.pagination.total > 0
+              ? `${movements.pagination.total} stock movements recorded`
+              : "No stock movements recorded"
+          }
+          deltaVariant={movements.pagination.total > 0 ? "up" : "neutral"}
           icon={<TrendingUp size={18} className="text-blue-800" />}
           iconBg="bg-blue-50"
         />

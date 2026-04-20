@@ -11,7 +11,7 @@ interface Props {
 
 export default function LocationCards({ summaries, selectedId, onSelect }: Props) {
   return (
-    <div className="grid grid-cols-4 gap-2.5">
+    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
       {summaries.map((loc) => {
         const isSelected = selectedId === loc.location_id;
         return (
