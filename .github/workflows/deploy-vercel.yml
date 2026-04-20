@@ -1,0 +1,40 @@
+name: Deploy to Vercel
+
+on:
+  push:
+    branches:
+      - deploy
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20.16.0"
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Print environment info
+        run: |
+          node -v
+          npm -v
+          vercel --version
+
+      - name: Install dependencies with legacy peer deps
+        run: npm install --legacy-peer-deps
+
+      - name: Build with Next.js
+        run: npm run build
+
+      - name: Deploy to Vercel
+        run: vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
