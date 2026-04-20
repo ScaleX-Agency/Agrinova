@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
-import { Prisma } from "@prisma/client";
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import * as z from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -208,7 +208,7 @@ export async function PATCH(req: Request) {
     });
   } catch (error: unknown) {
     if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error instanceof PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
       return NextResponse.json(
