@@ -17,6 +17,17 @@ import { prisma } from "@/lib/prisma";
 import BackNavigationLink from "@/components/ui/BackNavigationLink";
 import InvoicePrintButton from "./InvoicePrintButton";
 
+type InvoiceLineItem = {
+  line_id: number | string;
+  quantity: number;
+  unit_price: number | string;
+  discount: number | string;
+  line_total: number | string;
+  product: {
+    product_name: string;
+    pack_size: string | null;
+  };
+};
 const formatDate = (value: Date) =>
   value.toLocaleDateString("en-GB", {
     day: "2-digit",
@@ -277,7 +288,7 @@ const InvoiceDetailPage = async ({
                 invoice.status as "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE"
               ]
             }
-            lines={invoice.invoice_lines.map((line) => ({
+            lines={invoice.invoice_lines.map((line: InvoiceLineItem) => ({
               lineId: line.line_id,
               productName: line.product.product_name,
               packSize: line.product.pack_size,
