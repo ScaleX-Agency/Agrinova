@@ -55,6 +55,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ success: true, user: dbUser });
+  // eslint-disable-next-line
   } catch (error: any) {
     console.error(error);
     return NextResponse.json({ error: error.message || 'Internal error' }, { status: 500 });

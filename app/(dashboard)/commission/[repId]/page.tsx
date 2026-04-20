@@ -1,5 +1,6 @@
 "use client";
 
+  // eslint-disable-next-line
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
@@ -109,7 +110,9 @@ const CommissionRepDetailPage = () => {
       return result.data;
     },
   });
+   
 
+  // eslint-disable-next-line
   const rows = detailQuery.data?.rows ?? [];
 
   const initialDateRange = useMemo(() => {

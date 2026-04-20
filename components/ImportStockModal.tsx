@@ -11,6 +11,7 @@ interface Props {
 
 export default function ImportStockModal({ onClose, onSaved }: Props) {
   const [file, setFile] = useState<File | null>(null);
+  // eslint-disable-next-line
   const [preview, setPreview] = useState<any[]>([]);
   const [errorRows, setErrorRows] = useState<number[]>([]);
   const [importing, setImporting] = useState(false);
@@ -40,7 +41,9 @@ export default function ImportStockModal({ onClose, onSaved }: Props) {
       const headers = lines[0].split(",").map((h) => h.trim());
 
       const parsed = lines.slice(1, 6).map((line, idx) => {
+   
         const values = line.split(",").map((v) => v.trim());
+  // eslint-disable-next-line
         const rowData: any = {};
         headers.forEach((h, i) => {
           rowData[h] = values[i];

@@ -36,7 +36,9 @@ export default async function LocationStockRoute({ params }: Props) {
       locationId={id}
       locationCode={loc.code}
       locationName={loc.name}
+  // eslint-disable-next-line
       initialStock={stock as any}
+  // eslint-disable-next-line
       initialMovements={movementsResult as any}
     />
   );

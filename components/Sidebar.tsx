@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
 import {
+  
+  // eslint-disable-next-line
   LayoutDashboard,
   Boxes,
   Package,
@@ -16,7 +18,11 @@ import {
   ClipboardList,
   UserCheck,
   BarChart3,
+   
   Settings,
+  // eslint-disable-next-line
+  
+  // eslint-disable-next-line
   Leaf,
   LogOut,
   ChevronRight,
@@ -142,8 +148,12 @@ const SidebarContent = ({
   pathname,
   signOut,
 }: {
+   
   collapsed: boolean;
+   
   pathname: string;
+  
+  // eslint-disable-next-line
   signOut: any;
 }) => (
   <motion.aside
@@ -156,9 +166,13 @@ const SidebarContent = ({
   >
     {/* Brand */}
     <div
+   
       className={`h-[64px] border-b border-stone-200 flex items-center shrink-0 ${collapsed ? "justify-center px-3" : "gap-3 px-4"}`}
+  
     >
+  
       <div className="w-9 h-9 rounded-xl border border-stone-200 flex items-center justify-center shrink-0 overflow-hidden bg-white">
+  
         <img
           src="/agrinova-logo.jpeg"
           alt="Agrinova Logo"

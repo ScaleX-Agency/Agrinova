@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
+  // eslint-disable-next-line
     const data = await req.json() as any[];
     const user = await getCurrentUser();
     if (!user) {

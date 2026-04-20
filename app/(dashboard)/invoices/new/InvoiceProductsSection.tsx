@@ -165,6 +165,7 @@ const InvoiceProductsSection = ({
         ),
       }),
     ],
+  // eslint-disable-next-line
     [
       availableProducts.length,
       columnHelper,

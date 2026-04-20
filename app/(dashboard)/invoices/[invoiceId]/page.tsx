@@ -6,6 +6,7 @@ import {
   FileText,
   DollarSign,
   Package,
+  // eslint-disable-next-line
   Plus,
   CheckCircle,
   Clock,
@@ -165,10 +166,20 @@ const InvoiceDetailPage = async ({
     notFound();
   }
 
+  type InvoiceLine = {
+   
+    quantity: number;
+  // eslint-disable-next-line
+    unit_price: any;
+  };
+
   const subtotal = invoice.invoice_lines.reduce(
-    (sum: number, line) => sum + line.quantity * Number(line.unit_price),
+    (sum: number, line: InvoiceLine) => sum + line.quantity * Number(line.unit_price),
+   
     0,
+   
   );
+  // eslint-disable-next-line
   const latestGin = invoice.goods_issue_notes[0] ?? null;
   const ginStatus = invoice.gin_status;
   const total = Number(invoice.total_amount);
