@@ -69,7 +69,7 @@ const InvoiceDetailsSection = ({
           <span className="text-[12px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">Invoice No.</span>
           <input
             type="text"
-            placeholder="Auto-generated if left blank"
+            placeholder="fill"
             value={invoiceNo}
             onChange={(event) => onInvoiceNoChange(event.target.value)}
             className={editableInputClassName}
