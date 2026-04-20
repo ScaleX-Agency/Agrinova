@@ -435,7 +435,6 @@ export default function LocationStockPage({
    
    
   const [movements, setMovements] = useState<MovementRow[]>(initialMovements.items);
-  // eslint-disable-next-line
   const [movementsPage, setMovementsPage] = useState(1);
   // eslint-disable-next-line
   const [movementsPageSize, setMovementsPageSize] = useState(20);

@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
 import {
@@ -20,10 +21,6 @@ import {
   BarChart3,
    
   Settings,
-  // eslint-disable-next-line
-  
-  // eslint-disable-next-line
-  Leaf,
   LogOut,
   ChevronRight,
 } from "lucide-react";
@@ -171,12 +168,13 @@ const SidebarContent = ({
   
     >
   
-      <div className="w-9 h-9 rounded-xl border border-stone-200 flex items-center justify-center shrink-0 overflow-hidden bg-white">
+      <div className="w-9 h-9 rounded-xl border border-stone-200 flex items-center justify-center shrink-0 overflow-hidden bg-white relative">
   
-        <img
+        <Image
           src="/agrinova-logo.jpeg"
           alt="Agrinova Logo"
-          className="w-full h-full object-cover"
+          fill
+          className="object-cover"
         />
       </div>
       {!collapsed && (

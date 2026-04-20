@@ -248,9 +248,7 @@ export function useRecordMovement() {
    
    
 
-  // eslint-disable-next-line
-  // eslint-disable-next-line
-  // eslint-disable-next-line
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     onError: (_, __, ctx) => {
       // no-op, just invalidate
     },

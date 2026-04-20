@@ -2,7 +2,7 @@
 
   // eslint-disable-next-line
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -138,14 +138,14 @@ const CommissionRepDetailPage = () => {
   const effectiveStart = startDate || initialDateRange.start;
   const effectiveEnd = endDate || initialDateRange.end;
 
-  const inRange = (value: string | null) => {
+  const inRange = useCallback((value: string | null) => {
     if (!value) return false;
     const time = new Date(value).getTime();
     const startTime = new Date(effectiveStart).getTime();
     const end = new Date(effectiveEnd);
     end.setHours(23, 59, 59, 999);
     return time >= startTime && time <= end.getTime();
-  };
+  }, [effectiveStart, effectiveEnd]);
 
   const filteredRows = useMemo(
     () =>
@@ -154,7 +154,7 @@ const CommissionRepDetailPage = () => {
         const hasDateInRange = inRange(row.invoiceDate) || inRange(row.receiptDate);
         return matchesStatus && hasDateInRange;
       }),
-    [rows, statusFilter, effectiveStart, effectiveEnd],
+    [rows, statusFilter, inRange],
   );
 
   const invoiceMap = useMemo(() => {

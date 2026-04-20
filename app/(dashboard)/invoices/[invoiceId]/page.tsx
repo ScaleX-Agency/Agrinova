@@ -184,7 +184,8 @@ const InvoiceDetailPage = async ({
   const ginStatus = invoice.gin_status;
   const total = Number(invoice.total_amount);
   const discountTotal = Math.max(0, subtotal - total);
-  const receiptsWithNumber = invoice.receipts.map((receipt) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const receiptsWithNumber = invoice.receipts.map((receipt: any) => {
     const year = receipt.receipt_date.getFullYear();
     const month = String(receipt.receipt_date.getMonth() + 1).padStart(2, "0");
     return {
@@ -241,7 +242,8 @@ const InvoiceDetailPage = async ({
             customerAddress={invoice.customer.address ?? null}
             repName={invoice.rep.full_name}
             statusLabel={STATUS_LABEL[invoice.status as "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE"]}
-            lines={invoice.invoice_lines.map((line) => ({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            lines={invoice.invoice_lines.map((line: any) => ({
               lineId: line.line_id,
               productName: line.product.product_name,
               packSize: line.product.pack_size,
@@ -377,7 +379,8 @@ const InvoiceDetailPage = async ({
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
-              {invoice.invoice_lines.map((line) => (
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              {invoice.invoice_lines.map((line: any) => (
                 <tr key={line.line_id} className="hover:bg-stone-50 transition-colors">
                   <td className="border-r border-stone-200 px-5 py-3.5 text-left font-medium text-stone-900">
                     {line.product.product_name}
@@ -450,7 +453,8 @@ const InvoiceDetailPage = async ({
         </div>
         {receiptsWithNumber.length > 0 ? (
           <div className="flex flex-wrap gap-2">
-            {receiptsWithNumber.map((receipt) => (
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {receiptsWithNumber.map((receipt: any) => (
               <Link
                 key={receipt.receipt_id}
                 href={`/receipts/${receipt.receipt_id}`}
@@ -479,7 +483,8 @@ const InvoiceDetailPage = async ({
         </div>
         {invoice.goods_issue_notes.length > 0 ? (
           <div className="flex flex-wrap gap-2">
-            {invoice.goods_issue_notes.map((gin) => (
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {invoice.goods_issue_notes.map((gin: any) => (
               <Link
                 key={gin.gin_id}
                 href={`/goods-issue-notes/${gin.gin_id}`}

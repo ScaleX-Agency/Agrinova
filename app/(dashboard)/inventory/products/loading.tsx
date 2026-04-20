@@ -20,7 +20,7 @@ export default function ProductsLoading() {
   {/* eslint-disable-next-line */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
   // eslint-disable-next-line
-        {STAT_ACCENTS.map(({ ring, icon }, i) => (
+        {STAT_ACCENTS.map(({ icon }, i) => (
           <div
             key={i}
             className="bg-white border border-stone-200 rounded-2xl p-4 flex items-start gap-3"
