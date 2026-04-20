@@ -17,17 +17,6 @@ import { prisma } from "@/lib/prisma";
 import BackNavigationLink from "@/components/ui/BackNavigationLink";
 import InvoicePrintButton from "./InvoicePrintButton";
 
-type InvoiceLineItem = {
-  line_id: number | string;
-  quantity: number;
-  unit_price: number | string;
-  discount: number | string;
-  line_total: number | string;
-  product: {
-    product_name: string;
-    pack_size: string | null;
-  };
-};
 const formatDate = (value: Date) =>
   value.toLocaleDateString("en-GB", {
     day: "2-digit",
@@ -43,18 +32,14 @@ const formatCurrency = (value: number) =>
     maximumFractionDigits: 2,
   }).format(value);
 
-const STATUS_LABEL: Record<"PAID" | "PARTIAL" | "UNPAID" | "OVERDUE", string> =
-  {
-    PAID: "Paid",
-    PARTIAL: "Partial",
-    UNPAID: "Unpaid",
-    OVERDUE: "Overdue",
-  };
+const STATUS_LABEL: Record<"PAID" | "PARTIAL" | "UNPAID" | "OVERDUE", string> = {
+  PAID: "Paid",
+  PARTIAL: "Partial",
+  UNPAID: "Unpaid",
+  OVERDUE: "Overdue",
+};
 
-const STATUS_BADGE_STYLE: Record<
-  "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE",
-  { bg: string; text: string; icon: React.ReactNode }
-> = {
+const STATUS_BADGE_STYLE: Record<"PAID" | "PARTIAL" | "UNPAID" | "OVERDUE", { bg: string; text: string; icon: React.ReactNode }> = {
   PAID: {
     bg: "bg-emerald-50",
     text: "text-emerald-700",
@@ -182,33 +167,26 @@ const InvoiceDetailPage = async ({
   }
 
   type InvoiceLine = {
+   
     quantity: number;
-    // eslint-disable-next-line
+  // eslint-disable-next-line
     unit_price: any;
   };
 
   const subtotal = invoice.invoice_lines.reduce(
-    (sum: number, line: InvoiceLine) =>
-      sum + line.quantity * Number(line.unit_price),
-
+    (sum: number, line: InvoiceLine) => sum + line.quantity * Number(line.unit_price),
+   
     0,
+   
   );
   // eslint-disable-next-line
-  type InvoiceReceipt = {
-    receipt_id: number | string;
-    receipt_date: Date | string;
-  };
-
   const latestGin = invoice.goods_issue_notes[0] ?? null;
   const ginStatus = invoice.gin_status;
   const total = Number(invoice.total_amount);
   const discountTotal = Math.max(0, subtotal - total);
-
-  const receiptsWithNumber = invoice.receipts.map((receipt: InvoiceReceipt) => {
-    const receiptDate = new Date(receipt.receipt_date);
-    const year = receiptDate.getFullYear();
-    const month = String(receiptDate.getMonth() + 1).padStart(2, "0");
-
+  const receiptsWithNumber = invoice.receipts.map((receipt) => {
+    const year = receipt.receipt_date.getFullYear();
+    const month = String(receipt.receipt_date.getMonth() + 1).padStart(2, "0");
     return {
       ...receipt,
       receipt_number: `RCP-${year}${month}-${String(receipt.receipt_id).padStart(3, "0")}`,
@@ -235,40 +213,19 @@ const InvoiceDetailPage = async ({
               </h1>
               <div
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium ${
-                  STATUS_BADGE_STYLE[
-                    invoice.status as "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE"
-                  ].bg
+                  STATUS_BADGE_STYLE[invoice.status as "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE"].bg
                 } ${STATUS_BADGE_STYLE[invoice.status as "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE"].text}`}
               >
-                {
-                  STATUS_BADGE_STYLE[
-                    invoice.status as "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE"
-                  ].icon
-                }
-                {
-                  STATUS_LABEL[
-                    invoice.status as "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE"
-                  ]
-                }
+                {STATUS_BADGE_STYLE[invoice.status as "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE"].icon}
+                {STATUS_LABEL[invoice.status as "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE"]}
               </div>
               <div
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium ${
-                  GIN_STATUS_BADGE_STYLE[
-                    ginStatus as "PENDING" | "ISSUED" | "PARTIAL"
-                  ].bg
+                  GIN_STATUS_BADGE_STYLE[ginStatus as "PENDING" | "ISSUED" | "PARTIAL"].bg
                 } ${GIN_STATUS_BADGE_STYLE[ginStatus as "PENDING" | "ISSUED" | "PARTIAL"].text}`}
               >
-                {
-                  GIN_STATUS_BADGE_STYLE[
-                    ginStatus as "PENDING" | "ISSUED" | "PARTIAL"
-                  ].icon
-                }
-                GIN:{" "}
-                {
-                  GIN_STATUS_LABEL[
-                    ginStatus as "PENDING" | "ISSUED" | "PARTIAL"
-                  ]
-                }
+                {GIN_STATUS_BADGE_STYLE[ginStatus as "PENDING" | "ISSUED" | "PARTIAL"].icon}
+                GIN: {GIN_STATUS_LABEL[ginStatus as "PENDING" | "ISSUED" | "PARTIAL"]}
               </div>
             </div>
           </div>
@@ -283,12 +240,8 @@ const InvoiceDetailPage = async ({
             customerPhone={invoice.customer.phone ?? null}
             customerAddress={invoice.customer.address ?? null}
             repName={invoice.rep.full_name}
-            statusLabel={
-              STATUS_LABEL[
-                invoice.status as "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE"
-              ]
-            }
-            lines={invoice.invoice_lines.map((line: InvoiceLineItem) => ({
+            statusLabel={STATUS_LABEL[invoice.status as "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE"]}
+            lines={invoice.invoice_lines.map((line) => ({
               lineId: line.line_id,
               productName: line.product.product_name,
               packSize: line.product.pack_size,
@@ -349,12 +302,8 @@ const InvoiceDetailPage = async ({
               <Calendar size={18} />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">
-                Invoice Date
-              </p>
-              <p className="mt-1 text-[15px] font-semibold text-stone-900">
-                {formatDate(invoice.invoice_date)}
-              </p>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Invoice Date</p>
+              <p className="mt-1 text-[15px] font-semibold text-stone-900">{formatDate(invoice.invoice_date)}</p>
             </div>
           </div>
         </div>
@@ -366,16 +315,10 @@ const InvoiceDetailPage = async ({
               <User size={18} />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">
-                Customer
-              </p>
-              <p className="mt-1 truncate text-[14px] font-semibold text-stone-900">
-                {invoice.customer.name}
-              </p>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Customer</p>
+              <p className="mt-1 truncate text-[14px] font-semibold text-stone-900">{invoice.customer.name}</p>
               {invoice.customer.phone && (
-                <p className="mt-0.5 text-[11px] text-stone-500">
-                  {invoice.customer.phone}
-                </p>
+                <p className="mt-0.5 text-[11px] text-stone-500">{invoice.customer.phone}</p>
               )}
             </div>
           </div>
@@ -388,12 +331,8 @@ const InvoiceDetailPage = async ({
               <User size={18} />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">
-                Sales Rep
-              </p>
-              <p className="mt-1 truncate text-[14px] font-semibold text-stone-900">
-                {invoice.rep.full_name}
-              </p>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Sales Rep</p>
+              <p className="mt-1 truncate text-[14px] font-semibold text-stone-900">{invoice.rep.full_name}</p>
             </div>
           </div>
         </div>
@@ -405,12 +344,8 @@ const InvoiceDetailPage = async ({
               <DollarSign size={18} />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">
-                Grand Total
-              </p>
-              <p className="mt-1 text-[14px] font-semibold text-[#1a5c2e]">
-                {formatCurrency(total)}
-              </p>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Grand Total</p>
+              <p className="mt-1 text-[14px] font-semibold text-[#1a5c2e]">{formatCurrency(total)}</p>
             </div>
           </div>
         </div>
@@ -433,38 +368,21 @@ const InvoiceDetailPage = async ({
           <table className="w-full min-w-[900px] border-collapse text-[13px]">
             <thead className="bg-stone-50 text-[11px] uppercase tracking-[0.1em] text-stone-600 font-semibold">
               <tr>
-                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-left">
-                  Product
-                </th>
-                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-left">
-                  Pack Size
-                </th>
-                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-center">
-                  Qty
-                </th>
-                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-right">
-                  Unit Price
-                </th>
-                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-center">
-                  Discount (%)
-                </th>
-                <th className="border-b border-stone-200 px-5 py-3.5 text-right">
-                  Line Total
-                </th>
+                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-left">Product</th>
+                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-left">Pack Size</th>
+                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-center">Qty</th>
+                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-right">Unit Price</th>
+                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-center">Discount (%)</th>
+                <th className="border-b border-stone-200 px-5 py-3.5 text-right">Line Total</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
               {invoice.invoice_lines.map((line) => (
-                <tr
-                  key={line.line_id}
-                  className="hover:bg-stone-50 transition-colors"
-                >
+                <tr key={line.line_id} className="hover:bg-stone-50 transition-colors">
                   <td className="border-r border-stone-200 px-5 py-3.5 text-left font-medium text-stone-900">
                     {line.product.product_name}
                   </td>
-                  <td className="border-r border-stone-200 px-5 py-3.5 text-left text-stone-700">
-                    {line.product.pack_size}
-                  </td>
+                  <td className="border-r border-stone-200 px-5 py-3.5 text-left text-stone-700">{line.product.pack_size}</td>
                   <td className="border-r border-stone-200 px-5 py-3.5 text-center text-stone-700 font-medium">
                     {line.quantity}
                   </td>
@@ -472,9 +390,7 @@ const InvoiceDetailPage = async ({
                     {formatCurrency(Number(line.unit_price))}
                   </td>
                   <td className="border-r border-stone-200 px-5 py-3.5 text-center text-stone-700">
-                    {Number(line.discount) > 0
-                      ? `${Number(line.discount)}%`
-                      : "-"}
+                    {Number(line.discount) > 0 ? `${Number(line.discount)}%` : "-"}
                   </td>
                   <td className="px-5 py-3.5 text-right font-semibold text-stone-900">
                     {formatCurrency(Number(line.line_total))}
@@ -489,12 +405,8 @@ const InvoiceDetailPage = async ({
       {/* ── Totals Summary ── */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-stone-200 bg-white p-4">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">
-            Subtotal
-          </p>
-          <p className="mt-1.5 text-[20px] font-semibold text-stone-900">
-            {formatCurrency(subtotal)}
-          </p>
+          <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Subtotal</p>
+          <p className="mt-1.5 text-[20px] font-semibold text-stone-900">{formatCurrency(subtotal)}</p>
         </div>
 
         <div
@@ -521,12 +433,8 @@ const InvoiceDetailPage = async ({
         </div>
 
         <div className="rounded-2xl border border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-4">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-green-700">
-            Grand Total
-          </p>
-          <p className="mt-1.5 text-[22px] font-bold text-[#1a5c2e]">
-            {formatCurrency(total)}
-          </p>
+          <p className="text-[11px] font-medium uppercase tracking-wide text-green-700">Grand Total</p>
+          <p className="mt-1.5 text-[22px] font-bold text-[#1a5c2e]">{formatCurrency(total)}</p>
         </div>
       </div>
 
@@ -550,9 +458,7 @@ const InvoiceDetailPage = async ({
               >
                 <Receipt size={13} className="text-emerald-700" />
                 <span>{receipt.receipt_number}</span>
-                <span className="text-[11px] text-emerald-700">
-                  {formatCurrency(Number(receipt.amount_received))}
-                </span>
+                <span className="text-[11px] text-emerald-700">{formatCurrency(Number(receipt.amount_received))}</span>
               </Link>
             ))}
           </div>
@@ -581,9 +487,7 @@ const InvoiceDetailPage = async ({
               >
                 <FileText size={13} className="text-blue-700" />
                 <span>{gin.gin_number}</span>
-                <span className="text-[11px] text-blue-700">
-                  ({gin.location.code})
-                </span>
+                <span className="text-[11px] text-blue-700">({gin.location.code})</span>
               </Link>
             ))}
           </div>
