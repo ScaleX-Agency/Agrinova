@@ -4,6 +4,7 @@
 // Server-fetched initialData hydrates the cache on first render (no loading flash).
 
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useQueryClient }  from "@tanstack/react-query";
 import {
   Package, TrendingUp, AlertTriangle, XCircle,
@@ -16,7 +17,6 @@ import LocationCards      from "./LocationCards";
 import StockTable         from "./StockTable";
 import MovementsLog       from "./MovementsLog";
 import RecordMovementModal from "./RecordMovementModal";
-import NewStockEntryModal  from "./NewStockEntryModal";
 import ImportStockModal    from "./ImportStockModal";
 
 import {
@@ -45,6 +45,7 @@ export default function StockOverview({
 }: StockOverviewProps) {
 
   const qc = useQueryClient();
+  const router = useRouter();
 
   // ── Data from React Query (seeded by RSC initialData) ────────
   // ── UI-only state ─────────────────────────────────────────────
@@ -76,7 +77,6 @@ export default function StockOverview({
     initialMovements
   );
   const [movementTarget, setMovementTarget] = useState<StockOverviewRow | null>(null);
-  const [showNewStock,   setShowNewStock]   = useState(false);
   const [showImport,     setShowImport]     = useState(false);
 
   // ── Derived data ──────────────────────────────────────────────
@@ -117,15 +117,6 @@ export default function StockOverview({
   // update into the RQ cache and fire an invalidation for server sync.
 
   const handleMovementSaved = (updated: StockOverviewRow, newMov: MovementRow) => {
-    // Invalidate instead of manually updating to support pagination
-    qc.invalidateQueries({ queryKey: ["stock"] });
-    qc.invalidateQueries({ queryKey: ["movements"] });
-  };
-
-  const handleStockEntrySaved = (
-    updatedRows: StockOverviewRow[],
-    newMovements: MovementRow[],
-  ) => {
     // Invalidate instead of manually updating to support pagination
     qc.invalidateQueries({ queryKey: ["stock"] });
     qc.invalidateQueries({ queryKey: ["movements"] });
@@ -210,7 +201,7 @@ export default function StockOverview({
               <Upload size={13} /> Import Stock
             </button>
             <button
-              onClick={() => setShowNewStock(true)}
+              onClick={() => router.push("/stock-entries/new")}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-green-700 rounded-lg hover:bg-green-800 transition-colors"
             >
               <Plus size={13} /> New Stock Entry
@@ -226,7 +217,7 @@ export default function StockOverview({
           filter={filter}
           onFilterChange={(f) => { setFilter(f); setPage(1); }}
           onRecordMovement={setMovementTarget}
-          onNewStockEntry={() => setShowNewStock(true)}
+          onNewStockEntry={() => router.push("/stock-entries/new")}
           pagination={{
             page,
             pageSize,
@@ -256,13 +247,6 @@ export default function StockOverview({
           row={movementTarget}
           onClose={() => setMovementTarget(null)}
           onSaved={handleMovementSaved}
-        />
-      )}
-
-      {showNewStock && (
-        <NewStockEntryModal
-          onClose={() => setShowNewStock(false)}
-          onSaved={handleStockEntrySaved}
         />
       )}
 
