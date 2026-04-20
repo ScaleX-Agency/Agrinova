@@ -116,16 +116,25 @@ const NAV_GROUPS: NavGroup[] = [
 ];
 
 const isPathActive = (pathname: string, href: string) => {
-  if (href.includes("?")) {
-    const [basePath] = href.split("?");
-    return pathname === basePath;
+  const currentPath = pathname.endsWith("/") && pathname !== "/"
+    ? pathname.slice(0, -1)
+    : pathname;
+
+  // Treat Stock Overview as a specific route, not a broad parent matcher.
+  if (href === "/inventory") {
+    return currentPath === "/inventory" || /^\/inventory\/\d+$/.test(currentPath);
   }
 
-  if (pathname === href) {
+  if (href.includes("?")) {
+    const [basePath] = href.split("?");
+    return currentPath === basePath;
+  }
+
+  if (currentPath === href) {
     return true;
   }
 
-  return pathname.startsWith(`${href}/`);
+  return currentPath.startsWith(`${href}/`);
 };
 
 const SidebarContent = ({

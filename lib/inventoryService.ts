@@ -446,7 +446,7 @@ export async function createProduct(dto: CreateProductDto, userId?: number) {
   const count = await prisma.product.count({
     where: { category_id: dto.category_id },
   });
-  const product_code = `${category.tag}${String(count + 1).padStart(4, "0")}`;
+  const product_code = `${category.tag}${String(count + 1).padStart(3, "0")}`;
 
   const product = await prisma.$transaction(async (tx) => {
     const createdProduct = await tx.product.create({
@@ -558,7 +558,6 @@ export async function createStockEntry(
     const lineNumber = index + 1;
     const productId = Number(line.product_id);
     const quantity = Number(line.quantity);
-    const unitPrice = Number(line.unit_price);
 
     if (!Number.isInteger(productId) || productId <= 0) {
       throw new Error(
@@ -570,17 +569,10 @@ export async function createStockEntry(
         `Line ${lineNumber}: quantity must be a positive integer.`,
       );
     }
-    if (!Number.isFinite(unitPrice) || unitPrice < 0) {
-      throw new Error(
-        `Line ${lineNumber}: unit_price must be a non-negative number.`,
-      );
-    }
 
     return {
       product_id: productId,
       quantity,
-      unit_price: unitPrice,
-      line_total: quantity * unitPrice,
     };
   });
 
@@ -639,8 +631,6 @@ export async function createStockEntry(
               create: normalizedItems.map((line) => ({
                 product_id: line.product_id,
                 quantity: line.quantity,
-                unit_price: line.unit_price,
-                line_total: line.line_total,
               })),
             },
           },

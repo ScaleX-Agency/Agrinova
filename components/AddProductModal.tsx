@@ -113,7 +113,7 @@ export default function AddProductModal({
   const categoryTag = categories.find(
     (c) => String(c.category_id) === form.category_id,
   )?.tag;
-  const previewCode = categoryTag ? `${categoryTag}XXXX` : null;
+  const previewCode = categoryTag ? `${categoryTag}XXX` : null;
 
   const set = (k: keyof FormState, v: string) => {
     setForm((f) => ({ ...f, [k]: v }));

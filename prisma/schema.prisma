@@ -137,8 +137,6 @@ model GoodsReceivingNoteLine {
   grn_id               Int
   product_id           Int
   quantity             Int
-  unit_price           Decimal            @db.Decimal(10, 2)
-  line_total           Decimal            @db.Decimal(10, 2)
   goods_receiving_note GoodsReceivingNote @relation(fields: [grn_id], references: [grn_id])
   product              Product            @relation(fields: [product_id], references: [product_id])
 

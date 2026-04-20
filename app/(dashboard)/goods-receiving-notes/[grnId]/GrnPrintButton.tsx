@@ -10,8 +10,6 @@ type GrnPrintLine = {
   productName: string;
   packSize: string;
   quantity: number;
-  unitPrice: number;
-  lineTotal: number;
 };
 
 type GrnPrintButtonProps = {
@@ -25,7 +23,7 @@ type GrnPrintButtonProps = {
   createdBy: string;
   createdByUsername: string;
   lines: GrnPrintLine[];
-  totalValue: number;
+  totalQuantity: number;
 };
 
 const ENTRY_TYPE_LABEL: Record<"LOCAL_PURCHASE" | "FOREIGN_IMPORT", string> = {
@@ -59,7 +57,7 @@ const GrnPrintButton = ({
   createdBy,
   createdByUsername,
   lines,
-  totalValue,
+  totalQuantity,
 }: GrnPrintButtonProps) => {
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -108,8 +106,6 @@ const GrnPrintButton = ({
                     <th>Product</th>
                     <th>Pack Size</th>
                     <th className="text-center">Qty</th>
-                    <th className="text-right">Unit Price</th>
-                    <th className="text-right">Line Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -119,12 +115,6 @@ const GrnPrintButton = ({
                       <td>{line.productName}</td>
                       <td>{line.packSize}</td>
                       <td className="text-center">{line.quantity}</td>
-                      <td className="text-right">
-                        {formatCurrency(line.unitPrice)}
-                      </td>
-                      <td className="text-right">
-                        {formatCurrency(line.lineTotal)}
-                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -133,8 +123,8 @@ const GrnPrintButton = ({
 
             <section className="mt-6 ml-auto w-[320px] text-[14px] font-semibold">
               <div className="flex items-center justify-between border-t border-stone-300 pt-2 text-[#1a5c2e]">
-                <span>Total Value</span>
-                <span>{formatCurrency(totalValue)}</span>
+                <span>Total Quantity</span>
+                <span>{totalQuantity} units</span>
               </div>
             </section>
 

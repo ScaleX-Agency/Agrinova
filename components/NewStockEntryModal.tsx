@@ -17,7 +17,6 @@ type EntryItem = {
   id: number;
   productId: string;
   qty: string;
-  price: string;
 };
 
 type ProductOption = {
@@ -47,7 +46,6 @@ const createItem = (): EntryItem => ({
   id: Date.now() + Math.floor(Math.random() * 1000),
   productId: "",
   qty: "",
-  price: "",
 });
 
 export default function NewStockEntryModal({ onClose, onSaved }: Props) {
@@ -126,15 +124,8 @@ export default function NewStockEntryModal({ onClose, onSaved }: Props) {
     };
   }, []);
 
-  const totalAmount = useMemo(
-    () =>
-      items.reduce((sum, item) => {
-        const q = Number(item.qty) || 0;
-        const p = Number(item.price) || 0;
-        return sum + q * p;
-      }, 0),
-    [items],
-  );
+  // Unit price no longer used - removed from form
+  // const totalAmount = useMemo(() => ..., [items]);
 
   const handleAddItem = () => {
     setItems((prev) => [...prev, createItem()]);
@@ -159,9 +150,6 @@ export default function NewStockEntryModal({ onClose, onSaved }: Props) {
     for (const item of items) {
       if (!item.productId) return "All rows must have a product selected.";
       if (!item.qty || Number(item.qty) <= 0) return "Quantity must be greater than 0.";
-      if (item.price === "" || Number(item.price) < 0) {
-        return "Unit price must be 0 or greater.";
-      }
     }
 
     return "";
@@ -186,7 +174,7 @@ export default function NewStockEntryModal({ onClose, onSaved }: Props) {
       items: items.map((item) => ({
         product_id: Number(item.productId),
         quantity: Number(item.qty),
-        unit_price: Number(item.price),
+        unit_price: 0, // Unit price not collected from form
       })),
     };
 
@@ -217,25 +205,25 @@ export default function NewStockEntryModal({ onClose, onSaved }: Props) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4 min-h-[600px]"
       onClick={(event) => event.target === event.currentTarget && onClose()}
     >
-      <div className="bg-[#181c27] border border-[#2a2f45] rounded-2xl w-full max-w-[640px] overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="px-6 py-4 border-b border-[#2a2f45] flex items-center justify-between shrink-0">
-          <p className="text-[16px] font-semibold text-[#e8eaf0]">New Stock Entry</p>
+      <div className="bg-white border border-stone-200 rounded-2xl w-full max-w-[640px] overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="px-6 py-4 border-b border-stone-200 flex items-center justify-between shrink-0">
+          <p className="text-[16px] font-semibold text-stone-900">New Stock Entry</p>
           <button
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-lg bg-[#242840] hover:bg-[#2a2f45] text-stone-400 transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-600 transition-colors"
           >
             <X size={14} />
           </button>
         </div>
 
         <div className="px-6 py-5 flex-1 overflow-y-auto">
-          <div className="flex gap-2 p-1 bg-[#181c27] border border-[#2a2f45] rounded-xl mb-4">
+          <div className="flex gap-2 p-1 bg-stone-100 border border-stone-200 rounded-xl mb-4">
             <button
               onClick={() => setEntryType("LOCAL_PURCHASE")}
               className={`flex-1 py-2 rounded-lg text-[13px] font-medium transition-colors ${
                 entryType === "LOCAL_PURCHASE"
-                  ? "bg-[#1f4a2c] text-[#4ade80] border border-[#1a4a2e]"
-                  : "bg-transparent text-[#8b91a8] hover:text-[#e8eaf0]"
+                  ? "bg-green-50 text-green-700 border border-green-200"
+                  : "bg-transparent text-stone-500 hover:text-stone-700"
               }`}
             >
               Local Purchase
@@ -244,8 +232,8 @@ export default function NewStockEntryModal({ onClose, onSaved }: Props) {
               onClick={() => setEntryType("FOREIGN_IMPORT")}
               className={`flex-1 py-2 rounded-lg text-[13px] font-medium transition-colors ${
                 entryType === "FOREIGN_IMPORT"
-                  ? "bg-[#1f4a2c] text-[#4ade80] border border-[#1a4a2e]"
-                  : "bg-transparent text-[#8b91a8] hover:text-[#e8eaf0]"
+                  ? "bg-green-50 text-green-700 border border-green-200"
+                  : "bg-transparent text-stone-500 hover:text-stone-700"
               }`}
             >
               Foreign Import
@@ -254,18 +242,18 @@ export default function NewStockEntryModal({ onClose, onSaved }: Props) {
 
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-[11px] font-semibold text-[#555c78] uppercase tracking-wide mb-1.5">
+              <label className="block text-[11px] font-semibold text-stone-600 uppercase tracking-wide mb-1.5">
                 Date *
               </label>
               <input
                 type="date"
                 value={date}
                 onChange={(event) => setDate(event.target.value)}
-                className="w-full bg-[#242840] border border-[#2a2f45] text-[#e8eaf0] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#1a3050]"
+                className="w-full bg-white border border-stone-200 text-stone-900 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-green-600 focus:ring-1 focus:ring-green-200"
               />
             </div>
             <div>
-              <label className="block text-[11px] font-semibold text-[#555c78] uppercase tracking-wide mb-1.5">
+              <label className="block text-[11px] font-semibold text-stone-600 uppercase tracking-wide mb-1.5">
                 Reference No.
               </label>
               <input
@@ -273,20 +261,20 @@ export default function NewStockEntryModal({ onClose, onSaved }: Props) {
                 placeholder="Optional"
                 value={reference}
                 onChange={(event) => setReference(event.target.value)}
-                className="w-full bg-[#242840] border border-[#2a2f45] text-[#e8eaf0] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#1a3050]"
+                className="w-full bg-white border border-stone-200 text-stone-900 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-green-600 focus:ring-1 focus:ring-green-200 placeholder:text-stone-400"
               />
             </div>
           </div>
 
           <div className="mb-4">
-            <label className="block text-[11px] font-semibold text-[#555c78] uppercase tracking-wide mb-1.5">
+            <label className="block text-[11px] font-semibold text-stone-600 uppercase tracking-wide mb-1.5">
               Inventory Location *
             </label>
             <select
               value={location}
               onChange={(event) => setLocation(event.target.value)}
               disabled={loadingOptions || locations.length === 0}
-              className="w-full bg-[#242840] border border-[#2a2f45] text-[#e8eaf0] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#1a3050] disabled:opacity-60"
+              className="w-full bg-white border border-stone-200 text-stone-900 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-green-600 focus:ring-1 focus:ring-green-200 disabled:opacity-60"
             >
               {locations.map((entry) => (
                 <option key={entry.location_id} value={String(entry.location_id)}>
@@ -296,32 +284,29 @@ export default function NewStockEntryModal({ onClose, onSaved }: Props) {
             </select>
           </div>
 
-          <div className="border-t border-[#2a2f45] my-5" />
+          <div className="border-t border-stone-200 my-5" />
 
-          <p className="text-[11px] font-semibold text-[#555c78] uppercase tracking-wide mb-2">
+          <p className="text-[11px] font-semibold text-stone-600 uppercase tracking-wide mb-2">
             Products Received
           </p>
-          <div className="border border-[#2a2f45] rounded-xl overflow-hidden mb-3">
+          <div className="border border-stone-200 rounded-xl overflow-hidden mb-3">
             <table className="w-full text-left border-collapse">
-              <thead className="bg-[#1e2335]">
+              <thead className="bg-stone-50">
                 <tr>
-                  <th className="px-3 py-2 text-[10px] uppercase font-medium text-[#555c78] w-[45%]">
+                  <th className="px-3 py-2 text-[10px] uppercase font-medium text-stone-600 w-[65%]">
                     Product
                   </th>
-                  <th className="px-3 py-2 text-[10px] uppercase font-medium text-[#555c78] w-[20%]">
+                  <th className="px-3 py-2 text-[10px] uppercase font-medium text-stone-600 w-[20%]">
                     Qty
                   </th>
-                  <th className="px-3 py-2 text-[10px] uppercase font-medium text-[#555c78] w-[25%]">
-                    Unit Price LKR
-                  </th>
-                  <th className="px-3 py-2 text-[10px] uppercase font-medium text-[#555c78] w-[10%] text-center">
+                  <th className="px-3 py-2 text-[10px] uppercase font-medium text-stone-600 w-[15%] text-center">
                     ×
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-[#181c27]">
+              <tbody className="bg-white">
                 {items.map((item) => (
-                  <tr key={item.id} className="border-b border-[#2a2f45] last:border-0">
+                  <tr key={item.id} className="border-b border-stone-200 last:border-0 hover:bg-stone-50 transition-colors">
                     <td className="px-2 py-2.5">
                       <select
                         value={item.productId}
@@ -329,7 +314,7 @@ export default function NewStockEntryModal({ onClose, onSaved }: Props) {
                           handleItemChange(item.id, "productId", event.target.value)
                         }
                         disabled={loadingOptions || products.length === 0}
-                        className="w-full bg-[#242840] border border-[#2a2f45] text-[#e8eaf0] rounded-md px-2 py-1.5 text-[12px] focus:outline-none focus:border-[#1a3050] disabled:opacity-60"
+                        className="w-full bg-white border border-stone-200 text-stone-900 rounded-md px-2 py-1.5 text-[12px] focus:outline-none focus:border-green-600 focus:ring-1 focus:ring-green-200 disabled:opacity-60"
                       >
                         <option value="">Select product...</option>
                         {products.map((product) => (
@@ -351,27 +336,14 @@ export default function NewStockEntryModal({ onClose, onSaved }: Props) {
                         onChange={(event) =>
                           handleItemChange(item.id, "qty", event.target.value)
                         }
-                        className="w-full bg-[#242840] border border-[#2a2f45] text-[#e8eaf0] rounded-md px-2 py-1.5 text-[12px] focus:outline-none focus:border-[#1a3050]"
-                      />
-                    </td>
-                    <td className="px-2 py-2.5">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="0.00"
-                        value={item.price}
-                        onChange={(event) =>
-                          handleItemChange(item.id, "price", event.target.value)
-                        }
-                        className="w-full bg-[#242840] border border-[#2a2f45] text-[#e8eaf0] rounded-md px-2 py-1.5 text-[12px] focus:outline-none focus:border-[#1a3050]"
+                        className="w-full bg-white border border-stone-200 text-stone-900 rounded-md px-2 py-1.5 text-[12px] focus:outline-none focus:border-green-600 focus:ring-1 focus:ring-green-200 placeholder:text-stone-400"
                       />
                     </td>
                     <td className="px-2 py-2.5 text-center">
                       {items.length > 1 && (
                         <button
                           onClick={() => handleRemoveItem(item.id)}
-                          className="text-[#f87171] hover:text-[#fca5a5] p-1"
+                          className="text-red-600 hover:text-red-700 p-1"
                         >
                           <X size={14} />
                         </button>
@@ -383,52 +355,44 @@ export default function NewStockEntryModal({ onClose, onSaved }: Props) {
             </table>
           </div>
 
-          <div className="flex items-center justify-between mb-5">
+          <div className="mb-5">
             <button
               onClick={handleAddItem}
-              className="flex items-center gap-1 text-[12px] font-medium text-[#8b91a8] hover:text-[#e8eaf0] transition-colors"
+              className="flex items-center gap-1 text-[12px] font-medium text-stone-600 hover:text-stone-900 transition-colors"
             >
               <Plus size={12} /> Add Row
             </button>
-            {totalAmount > 0 && (
-              <span className="text-[13px] font-semibold [font-family:var(--font-jetbrains)] text-[#4ade80]">
-                Total: LKR{" "}
-                {totalAmount.toLocaleString("en-LK", {
-                  minimumFractionDigits: 2,
-                })}
-              </span>
-            )}
           </div>
 
           <div className="mb-2">
-            <label className="block text-[11px] font-semibold text-[#555c78] uppercase tracking-wide mb-1.5">
+            <label className="block text-[11px] font-semibold text-stone-600 uppercase tracking-wide mb-1.5">
               Notes
             </label>
             <textarea
               placeholder="Supplier, delivery reference, customs info..."
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
-              className="w-full bg-[#242840] border border-[#2a2f45] text-[#e8eaf0] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#1a3050] min-h-[60px]"
+              className="w-full bg-white border border-stone-200 text-stone-900 rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-green-600 focus:ring-1 focus:ring-green-200 min-h-[60px] placeholder:text-stone-400"
             />
           </div>
 
           {loadingOptions && (
-            <div className="bg-[#152233] border border-[#1a3050] text-[#7dd3fc] rounded-lg p-3 text-[12px] mt-4">
+            <div className="bg-blue-50 border border-blue-200 text-blue-700 rounded-lg p-3 text-[12px] mt-4">
               Loading products and locations...
             </div>
           )}
 
           {error && (
-            <div className="bg-[#2a0d0d] border border-[#4a1a1a] text-[#f87171] rounded-lg p-3 text-[12px] mt-4">
+            <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-[12px] mt-4">
               {error}
             </div>
           )}
         </div>
 
-        <div className="px-6 py-4 border-t border-[#2a2f45] flex items-center justify-end gap-2 shrink-0">
+        <div className="px-6 py-4 border-t border-stone-200 flex items-center justify-end gap-2 shrink-0">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-[13px] font-medium text-[#8b91a8] hover:bg-[#242840] hover:text-[#e8eaf0] rounded-xl transition-colors"
+            className="px-4 py-2 text-[13px] font-medium text-stone-700 hover:bg-stone-100 rounded-xl transition-colors"
           >
             Cancel
           </button>

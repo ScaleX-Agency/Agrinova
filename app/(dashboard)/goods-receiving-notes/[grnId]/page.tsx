@@ -67,8 +67,6 @@ const GoodsReceivingNoteDetailPage = async ({
         select: {
           grn_line_id: true,
           quantity: true,
-          unit_price: true,
-          line_total: true,
           product: {
             select: {
               product_code: true,
@@ -85,8 +83,8 @@ const GoodsReceivingNoteDetailPage = async ({
     notFound();
   }
 
-  const totalValue = note.lines.reduce(
-    (sum, line) => sum + Number(line.line_total),
+  const totalQuantity = note.lines.reduce(
+    (sum, line) => sum + line.quantity,
     0,
   );
 
@@ -126,10 +124,8 @@ const GoodsReceivingNoteDetailPage = async ({
               productName: line.product.product_name,
               packSize: line.product.pack_size,
               quantity: line.quantity,
-              unitPrice: Number(line.unit_price),
-              lineTotal: Number(line.line_total),
             }))}
-            totalValue={totalValue}
+            totalQuantity={totalQuantity}
           />
         </div>
       </div>
@@ -223,14 +219,8 @@ const GoodsReceivingNoteDetailPage = async ({
                 <th className="border-b border-r border-stone-200 px-5 py-3.5 text-left">
                   Pack Size
                 </th>
-                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-center">
+                <th className="border-b border-stone-200 px-5 py-3.5 text-center">
                   Qty
-                </th>
-                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-right">
-                  Unit Price
-                </th>
-                <th className="border-b border-stone-200 px-5 py-3.5 text-right">
-                  Line Total
                 </th>
               </tr>
             </thead>
@@ -249,14 +239,8 @@ const GoodsReceivingNoteDetailPage = async ({
                   <td className="border-r border-stone-200 px-5 py-3.5 text-left text-stone-700">
                     {line.product.pack_size}
                   </td>
-                  <td className="border-r border-stone-200 px-5 py-3.5 text-center font-medium text-stone-700">
+                  <td className="px-5 py-3.5 text-center font-medium text-stone-700">
                     {line.quantity}
-                  </td>
-                  <td className="border-r border-stone-200 px-5 py-3.5 text-right text-stone-700">
-                    {formatCurrency(Number(line.unit_price))}
-                  </td>
-                  <td className="px-5 py-3.5 text-right font-semibold text-stone-900">
-                    {formatCurrency(Number(line.line_total))}
                   </td>
                 </tr>
               ))}
@@ -291,10 +275,10 @@ const GoodsReceivingNoteDetailPage = async ({
 
         <div className="rounded-2xl border border-stone-200 bg-white p-4">
           <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">
-            Total Value
+            Total Quantity
           </p>
           <p className="mt-1.5 text-[20px] font-semibold text-[#1a5c2e]">
-            {formatCurrency(totalValue)}
+            {totalQuantity} units
           </p>
         </div>
       </section>
