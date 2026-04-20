@@ -166,7 +166,7 @@ const InvoiceDetailPage = async ({
   }
 
   const subtotal = invoice.invoice_lines.reduce(
-    (sum, line) => sum + line.quantity * Number(line.unit_price),
+    (sum: number, line) => sum + line.quantity * Number(line.unit_price),
     0,
   );
   const latestGin = invoice.goods_issue_notes[0] ?? null;
@@ -202,19 +202,19 @@ const InvoiceDetailPage = async ({
               </h1>
               <div
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium ${
-                  STATUS_BADGE_STYLE[invoice.status].bg
-                } ${STATUS_BADGE_STYLE[invoice.status].text}`}
+                  STATUS_BADGE_STYLE[invoice.status as "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE"].bg
+                } ${STATUS_BADGE_STYLE[invoice.status as "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE"].text}`}
               >
-                {STATUS_BADGE_STYLE[invoice.status].icon}
-                {STATUS_LABEL[invoice.status]}
+                {STATUS_BADGE_STYLE[invoice.status as "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE"].icon}
+                {STATUS_LABEL[invoice.status as "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE"]}
               </div>
               <div
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium ${
-                  GIN_STATUS_BADGE_STYLE[ginStatus].bg
-                } ${GIN_STATUS_BADGE_STYLE[ginStatus].text}`}
+                  GIN_STATUS_BADGE_STYLE[ginStatus as "PENDING" | "ISSUED" | "PARTIAL"].bg
+                } ${GIN_STATUS_BADGE_STYLE[ginStatus as "PENDING" | "ISSUED" | "PARTIAL"].text}`}
               >
-                {GIN_STATUS_BADGE_STYLE[ginStatus].icon}
-                GIN: {GIN_STATUS_LABEL[ginStatus]}
+                {GIN_STATUS_BADGE_STYLE[ginStatus as "PENDING" | "ISSUED" | "PARTIAL"].icon}
+                GIN: {GIN_STATUS_LABEL[ginStatus as "PENDING" | "ISSUED" | "PARTIAL"]}
               </div>
             </div>
           </div>
@@ -229,7 +229,7 @@ const InvoiceDetailPage = async ({
             customerPhone={invoice.customer.phone ?? null}
             customerAddress={invoice.customer.address ?? null}
             repName={invoice.rep.full_name}
-            statusLabel={STATUS_LABEL[invoice.status]}
+            statusLabel={STATUS_LABEL[invoice.status as "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE"]}
             lines={invoice.invoice_lines.map((line) => ({
               lineId: line.line_id,
               productName: line.product.product_name,
@@ -247,7 +247,7 @@ const InvoiceDetailPage = async ({
           {ginStatus === "ISSUED" ? (
             <span
               className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-[12px] font-medium text-stone-400"
-              title={`GIN already ${GIN_STATUS_LABEL[ginStatus].toLowerCase()}`}
+              title={`GIN already ${GIN_STATUS_LABEL[ginStatus as "PENDING" | "ISSUED" | "PARTIAL"].toLowerCase()}`}
             >
               <Package size={14} />
               Issue Stocks
