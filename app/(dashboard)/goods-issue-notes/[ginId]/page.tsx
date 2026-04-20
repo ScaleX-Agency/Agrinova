@@ -88,7 +88,7 @@ const GoodsIssueNoteDetailPage = async ({
   }
 
   const totalValue = note.lines.reduce(
-    (sum: number, line) => sum + line.quantity * Number(line.product.selling_price),
+    (sum: number, line: any) => sum + line.quantity * Number(line.product.selling_price),
     0,
   );
 
