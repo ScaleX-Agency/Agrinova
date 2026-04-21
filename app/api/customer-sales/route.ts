@@ -110,13 +110,7 @@ export async function GET(request: Request) {
     const previousEnd = endOfDay(new Date(currentRange.start.getTime() - DAY_MS));
     const previousStart = startOfDay(new Date(previousEnd.getTime() - (periodDays - 1) * DAY_MS));
 
-    const [
-      rangeInvoices,
-      openInvoices,
-      allCustomers,
-      recentInvoiceCustomers,
-      receiptsThisPeriod,
-    ] = await Promise.all([
+    const rangeInvoices = await 
       prisma.invoice.findMany({
         where: {
           invoice_date: {
@@ -148,8 +142,9 @@ export async function GET(request: Request) {
             },
           },
         },
-      }),
-      prisma.invoice.findMany({
+      });
+
+      const openInvoices = await prisma.invoice.findMany({
         where: {
           status: {
             in: [InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE],
@@ -176,14 +171,16 @@ export async function GET(request: Request) {
             },
           },
         },
-      }),
-      prisma.customer.findMany({
+      });
+
+      const allCustomers = await prisma.customer.findMany({
         select: {
           customer_id: true,
           created_at: true,
         },
-      }),
-      prisma.invoice.findMany({
+      });
+
+      const recentInvoiceCustomers = await prisma.invoice.findMany({
         where: {
           invoice_date: {
             gte: startOfDay(new Date(currentRange.end.getTime() - 30 * DAY_MS)),
@@ -194,8 +191,9 @@ export async function GET(request: Request) {
         select: {
           customer_id: true,
         },
-      }),
-      prisma.receipt.aggregate({
+      });
+
+      const receiptsThisPeriod = await prisma.receipt.aggregate({
         where: {
           receipt_date: {
             gte: currentRange.start,
@@ -205,8 +203,8 @@ export async function GET(request: Request) {
         _sum: {
           amount_received: true,
         },
-      }),
-    ]);
+      });
+
 
     const currentInvoices = rangeInvoices.filter((invoice) => invoice.invoice_date >= currentRange.start);
     const previousInvoices = rangeInvoices.filter((invoice) => invoice.invoice_date < currentRange.start);
