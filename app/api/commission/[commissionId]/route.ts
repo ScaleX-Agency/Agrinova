@@ -196,12 +196,18 @@ export async function GET(
     const totalSales = Number(
       commissions
         .filter(
-          (c, index, arr) =>
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (c: any, index: number, arr: any[]) =>
             arr.findIndex(
-              (x) => x.invoice.invoice_id === c.invoice.invoice_id,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (x: any) => x.invoice.invoice_id === c.invoice.invoice_id,
             ) === index,
         )
-        .reduce((sum, c) => sum + Number(c.invoice.total_amount), 0)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .reduce(
+          (sum: number, c: any) => sum + Number(c.invoice.total_amount),
+          0,
+        )
         .toFixed(2),
     );
     const cashCollected = Number(
