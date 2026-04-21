@@ -113,17 +113,26 @@ export async function GET(
 
     type CommissionRow = {
       commission_id: number | string;
-      amount_earned?: number | string | null;
-      commission_amount?: number | string | null;
-      status?: string | null;
+      amount_earned?: number | string | null | { toString(): string };
+      commission_amount?: number | string | null | { toString(): string };
+      days_to_pay: number;
+      commission_rate: number | string | null | { toString(): string };
+      due_date: Date | string | null;
+      paid_date: Date | string | null;
+      status?: "PENDING" | "PAID" | "OVERDUE" | null;
       invoice: {
         invoice_id?: number | string;
         invoice_number?: string | null;
-        total_amount: number | string;
+        invoice_date: Date | string | null;
+        total_amount: number | string | { toString(): string };
+        status: "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE";
+        customer: { name: string };
+        location: { location_id: number; code: string } | null;
+        invoice_lines: { product: { category: { name: string } } }[];
       };
       receipt: {
         receipt_id: number | string;
-        amount_received: number | string;
+        amount_received: number | string | { toString(): string };
         receipt_date?: Date | string | null;
         receipt_number?: string | null;
       } | null;
@@ -142,22 +151,43 @@ export async function GET(
 
         return {
           commissionId: Number(commission.commission_id),
+          receiptId,
+          receiptNo: commission.receipt?.receipt_number ?? null,
+          receiptDate: commission.receipt?.receipt_date
+            ? new Date(commission.receipt.receipt_date).toISOString()
+            : null,
+          invoiceId: Number(commission.invoice.invoice_id),
+          invoiceNo: commission.invoice.invoice_number ?? "",
+          invoiceDate: commission.invoice.invoice_date
+            ? new Date(commission.invoice.invoice_date).toISOString()
+            : "",
+          salesStatus: commission.invoice.status,
+          customerName: commission.invoice.customer?.name ?? "",
+          locationId: commission.invoice.location?.location_id ?? null,
+          locationCode: commission.invoice.location?.code ?? null,
+          categories: Array.from(
+            new Set(
+              commission.invoice.invoice_lines.map(
+                (line) => line.product?.category?.name ?? "",
+              ),
+            ),
+          ).filter(Boolean),
           invoiceAmount,
           cashCollected,
-          receiptId,
-          // keep or adjust these fields to match your DTO exactly:
-          amountEarned:
-            commission.amount_earned != null
-              ? Number(commission.amount_earned)
-              : 0,
-          commissionAmount:
-            commission.commission_amount != null
-              ? Number(commission.commission_amount)
-              : 0,
-          status: commission.status ?? null,
-          invoiceNumber: commission.invoice.invoice_number ?? null,
-          receiptNumber: commission.receipt?.receipt_number ?? null,
-          receiptDate: commission.receipt?.receipt_date ?? null,
+          daysToPay: commission.days_to_pay ?? 0,
+          commissionRate: commission.commission_rate
+            ? Number(commission.commission_rate)
+            : 0,
+          commissionAmount: commission.commission_amount
+            ? Number(commission.commission_amount)
+            : 0,
+          dueDate: commission.due_date
+            ? new Date(commission.due_date).toISOString()
+            : "",
+          paidDate: commission.paid_date
+            ? new Date(commission.paid_date).toISOString()
+            : null,
+          status: commission.status ?? "PENDING",
         };
       },
     );

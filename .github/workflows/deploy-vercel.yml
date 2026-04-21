@@ -5,6 +5,7 @@ on:
     branches:
       - deploy
       - fix-build
+      - fix-build2
 
 jobs:
   deploy:

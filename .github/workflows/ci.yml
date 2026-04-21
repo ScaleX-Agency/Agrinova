@@ -7,6 +7,7 @@ on:
       - develop
       - deploy
       - fix-build
+      - fix-build2
 
 jobs:
   quality:
