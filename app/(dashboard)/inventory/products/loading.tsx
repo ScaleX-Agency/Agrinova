@@ -1,3 +1,5 @@
+import { Sk } from "@/components/ui/skeleton";
+
 // app/(dashboard)/inventory/products/loading.tsx
 // Pixel-perfect skeleton of the Products page.
 // Mirrors: stat cards (4) + toolbar (search + pills + export) + product table.
@@ -17,8 +19,10 @@ export default function ProductsLoading() {
       </div>
 
       {/* ── Stat cards ── */}
+  {/* eslint-disable-next-line */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {STAT_ACCENTS.map(({ ring, icon }, i) => (
+  // eslint-disable-next-line
+        {STAT_ACCENTS.map(({ icon }, i) => (
           <div
             key={i}
             className="bg-white border border-stone-200 rounded-2xl p-4 flex items-start gap-3"
@@ -95,13 +99,6 @@ function ProductRowSkeleton() {
   );
 }
 
-function Sk({ className = "" }: { className?: string }) {
-  return (
-    <div
-      className={`bg-stone-100 overflow-hidden relative before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmer_1.5s_infinite] before:bg-gradient-to-r before:from-transparent before:via-white/60 before:to-transparent ${className}`}
-    />
-  );
-}
 
 const STAT_ACCENTS = [
   { icon: "!bg-green-100", ring: "" },

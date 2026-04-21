@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import * as z from "zod";
 import { createCategory, getAllCategories } from "@/lib/inventoryService";
 import { getCurrentUser } from "@/lib/auth";
@@ -11,7 +10,10 @@ const createCategorySchema = z.object({
     .trim()
     .min(2, "Category tag must be at least 2 characters")
     .max(10, "Category tag must be 10 characters or fewer")
-    .regex(/^[A-Za-z0-9]+$/, "Category tag must contain only letters and numbers"),
+    .regex(
+      /^[A-Za-z0-9]+$/,
+      "Category tag must contain only letters and numbers",
+    ),
 });
 
 export async function GET() {
@@ -20,7 +22,10 @@ export async function GET() {
     return NextResponse.json({ categories });
   } catch (err) {
     console.error("[GET /api/categories]", err);
-    return NextResponse.json({ error: "Failed to fetch categories" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch categories" },
+      { status: 500 },
+    );
   }
 }
 
@@ -44,17 +49,21 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error("[POST /api/categories]", err);
 
-    if (
-      err instanceof Prisma.PrismaClientKnownRequestError &&
-      err.code === "P2002"
-    ) {
+    const isP2002 =
+      typeof err === "object" &&
+      err !== null &&
+      "code" in err &&
+      (err as { code?: string }).code === "P2002";
+
+    if (isP2002) {
       return NextResponse.json(
         { error: "Category tag already exists" },
         { status: 409 },
       );
     }
 
-    const message = err instanceof Error ? err.message : "Failed to create category";
+    const message =
+      err instanceof Error ? err.message : "Failed to create category";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

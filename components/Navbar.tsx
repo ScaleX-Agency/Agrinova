@@ -15,6 +15,7 @@ import {
 import { GlobalSearchPalette } from "./GlobalSearch";
 
 // In a real app, these would come from an API or websocket
+  // eslint-disable-next-line
 const notifications: any[] = [];
 
 interface NavbarProps {

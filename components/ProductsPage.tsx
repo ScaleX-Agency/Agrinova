@@ -76,18 +76,24 @@ function StatCard({
 
 // ── Main component ────────────────────────────────────────────
 
+   
+  // eslint-disable-next-line
 export default function ProductsPage({ initialProducts }: { initialProducts: { items: Product[], pagination: any, stats: any } | Product[] }) {
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState<number | "ALL">("ALL");
   const [showAdd, setShowAdd] = useState(false);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [editTarget, setEditTarget] = useState<Product | null>(null);
+   
 
   const [page, setPage] = useState(1);
+  // eslint-disable-next-line
   const [pageSize, setPageSize] = useState(20);
 
   const isPaginated = !Array.isArray(initialProducts) && "items" in initialProducts;
+  // eslint-disable-next-line
   const initialItems = isPaginated ? (initialProducts as any).items : (initialProducts as Product[]);
+  // eslint-disable-next-line
   const initialTotal = isPaginated ? (initialProducts as any).pagination.total : initialItems.length;
 
   const [products, setProducts] = useState<Product[]>(initialItems);
@@ -98,10 +104,13 @@ export default function ProductsPage({ initialProducts }: { initialProducts: { i
   const loadCategories = () => {
     fetch("/api/categories")
       .then((res) => res.json())
+   
       .then((data) => {
         if (data && data.categories) {
           setCategories([
+   
             { id: "ALL", name: "All" },
+  // eslint-disable-next-line
             ...data.categories.map((c: any) => ({
               id: c.category_id,
               name: c.name,

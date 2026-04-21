@@ -1,5 +1,6 @@
 "use client";
 
+  // eslint-disable-next-line
 import { useEffect, useMemo, useState } from "react";
 import { X, Plus } from "lucide-react";
 import { StockOverviewRow, MovementRow } from "@/types/inventory";

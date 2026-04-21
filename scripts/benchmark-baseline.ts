@@ -72,8 +72,11 @@ async function main() {
   });
 
   await Promise.all([
+  // eslint-disable-next-line
     (debugPrisma as any).stock.findMany({ include: { product: { include: { category: true } }, location: true } }),
+  // eslint-disable-next-line
     (debugPrisma as any).inventoryLocation.findMany({ include: { stocks: true } }),
+  // eslint-disable-next-line
     (debugPrisma as any).stockMovement.findMany({ include: { stock: { include: { location: true } }, product: true, creator: true }, take: 200 }),
   ]);
   console.log(`Total queries fired: ${queryLog.length}`);

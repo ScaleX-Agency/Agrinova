@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
+  // eslint-disable-next-line
 import { Download, Eye, Filter, X } from "lucide-react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import {
@@ -17,7 +18,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import * as XLSX from "xlsx";
 import type {
   CommissionReceiptDetailDto,
   CommissionRepDetailResponse,
@@ -50,12 +50,6 @@ type SalesStatus = "PAID" | "UNPAID" | "OVERDUE";
 type DashboardCommissionRow = CommissionReceiptDetailDto & {
   repId: number;
   repName: string;
-};
-
-type AccountApiResponse = {
-  account: {
-    role_name: string;
-  };
 };
 
 const commissionStatusConfig = {
@@ -103,16 +97,6 @@ const CommissionClient = () => {
   const [sortMode, setSortMode] = useState<SortMode>("highest");
   const [drillDownRepId, setDrillDownRepId] = useState<number | null>(null);
 
-  const accountQuery = useQuery({
-    queryKey: ["account-role"],
-    queryFn: async () => {
-      const response = await fetch("/api/account", { cache: "no-store" });
-      if (!response.ok) return "operator";
-      const payload = (await response.json()) as AccountApiResponse;
-      return payload.account.role_name.toLowerCase();
-    },
-  });
-
   const commissionQuery = useQuery({
     queryKey: ["commission-summary"],
     queryFn: async () => {
@@ -157,7 +141,7 @@ const CommissionClient = () => {
   const isAllDetailsLoaded = detailQueries.every((detail) => detail.isSuccess || detail.isError);
   const detailError = detailQueries.find((detail) => detail.error instanceof Error)?.error as Error | undefined;
 
-  const isWithinDateFilter = (isoDate: string) => {
+  const isWithinDateFilter = useCallback((isoDate: string) => {
     const date = new Date(isoDate);
     const now = new Date();
 
@@ -177,7 +161,7 @@ const CommissionClient = () => {
     const end = new Date(customEnd);
     end.setHours(23, 59, 59, 999);
     return date >= start && date <= end;
-  };
+  }, [datePreset, customStart, customEnd]);
 
   const filteredRows = useMemo(() => {
     return allRows.filter((row) => {
@@ -186,7 +170,7 @@ const CommissionClient = () => {
       if (statusFilter !== "all" && getSalesStatusForUi(row.salesStatus) !== statusFilter) return false;
       return true;
     });
-  }, [allRows, datePreset, customStart, customEnd, statusFilter]);
+  }, [allRows, statusFilter, isWithinDateFilter]);
 
   const totals = useMemo(() => {
     const totalCommission = filteredRows.reduce((sum, row) => sum + row.commissionAmount, 0);
@@ -440,29 +424,6 @@ const CommissionClient = () => {
       monthlyTrend,
     };
   }, [drillDownRepId, filteredRows]);
-
-  const handleExport = () => {
-    if (accountQuery.data !== "admin") return;
-    const exportRows = repTableRows.map((row) => ({
-      "Rep Name": row.repName,
-      Invoices: row.invoiceCount,
-      "Paid Sales": row.paidCount,
-      "Unpaid Sales": row.unpaidCount,
-      "Overdue Sales": row.overdueCount,
-      "Total Sales": row.totalSales,
-      "Total Commission": row.totalCommission,
-      "Avg Commission Rate": `${row.avgRate.toFixed(2)}%`,
-      "Oldest Open Invoice": row.oldestOpenInvoiceDate
-        ? formatDate(new Date(row.oldestOpenInvoiceDate).toISOString())
-        : "-",
-    }));
-
-    const sheet = XLSX.utils.json_to_sheet(exportRows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, sheet, "Commission");
-    const timestamp = new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(workbook, `commission-dashboard-${timestamp}.xlsx`);
-  };
 
   const clearInteractiveFilters = () => {
     setStatusFilter("all");

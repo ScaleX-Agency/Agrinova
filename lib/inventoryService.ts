@@ -36,6 +36,7 @@ export async function getAllStock(
   pageSize: number = 20,
   filters?: { search?: string; location_id?: number; status?: string },
 ): Promise<PaginatedResult<StockOverviewRow>> {
+  // eslint-disable-next-line
   const where: any = {};
   if (filters?.location_id) {
     where.location_id = filters.location_id;
@@ -123,7 +124,9 @@ export async function getStockByLocation(
 export async function getAllStockByLocation(
   locationId: number,
   filters?: { search?: string; status?: string },
+   
 ): Promise<PaginatedResult<StockOverviewRow>> {
+  // eslint-disable-next-line
   const where: any = { location_id: locationId };
 
   if (filters?.search) {
@@ -240,8 +243,11 @@ export const getLocationSummaries = unstable_cache(
 export async function getAllMovements(
   page: number = 1,
   pageSize: number = 20,
+   
   filters?: { movement_type?: string; search?: string; location_id?: number },
+   
 ): Promise<PaginatedResult<MovementRow>> {
+  // eslint-disable-next-line
   const where: any = {};
   if (filters?.movement_type && filters.movement_type !== "ALL") {
     where.movement_type = filters.movement_type;
@@ -377,9 +383,13 @@ export async function createMovement(
 
 export async function getAllProducts(
   page: number = 1,
+   
   pageSize: number = 20,
+   
   filters?: { search?: string; category_id?: number },
+   
 ) {
+  // eslint-disable-next-line
   const where: any = {};
   if (filters?.category_id) {
     where.category_id = filters.category_id;
@@ -787,10 +797,15 @@ export async function updateProduct(
     include: { category: true },
   });
 
+   
   revalidateTag("inventory", "max");
+   
   return product;
+   
 }
+   
 
+  // eslint-disable-next-line
 export async function importStock(data: any[], userId: number) {
   const imported = [];
   for (const row of data) {

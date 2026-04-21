@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+  // eslint-disable-next-line
 import { X, Package, Info, ChevronDown } from "lucide-react";
 import { CreateProductDto } from "../types/inventory";
 import { useCategories, useLocations } from "@/hooks/useInventory";

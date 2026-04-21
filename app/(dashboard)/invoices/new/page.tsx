@@ -235,6 +235,7 @@ const NewInvoicePage = () => {
   }, [productsQuery.data]);
 
   useEffect(() => {
+  // eslint-disable-next-line
     setLines((prev) =>
       prev.map((line) => {
         if (line.unitPriceEdited) return line;

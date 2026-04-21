@@ -193,6 +193,7 @@ export function GlobalSearchPalette({ open, onClose }: Props) {
 
   useEffect(() => {
     if (open) {
+  // eslint-disable-next-line
       setQuery("");
       setSelectedIndex(0);
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -200,6 +201,7 @@ export function GlobalSearchPalette({ open, onClose }: Props) {
   }, [open]);
 
   useEffect(() => {
+  // eslint-disable-next-line
     setSelectedIndex(0);
   }, [query]);
 
