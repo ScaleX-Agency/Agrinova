@@ -3,10 +3,9 @@ name: Preview Deployment
 on:
   pull_request:
     branches:
-      - develop
+      - dev
       - main
       - deploy
-      - fix-build
 
 jobs:
   preview:

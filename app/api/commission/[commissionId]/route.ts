@@ -196,16 +196,15 @@ export async function GET(
     const totalSales = Number(
       commissions
         .filter(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (c: any, index: number, arr: any[]) =>
+          (c: CommissionRow, index: number, arr: CommissionRow[]) =>
             arr.findIndex(
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (x: any) => x.invoice.invoice_id === c.invoice.invoice_id,
+              (x: CommissionRow) =>
+                x.invoice.invoice_id === c.invoice.invoice_id,
             ) === index,
         )
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .reduce(
-          (sum: number, c: any) => sum + Number(c.invoice.total_amount),
+          (sum: number, c: CommissionRow) =>
+            sum + Number(c.invoice.total_amount),
           0,
         )
         .toFixed(2),
