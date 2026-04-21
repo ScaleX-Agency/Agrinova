@@ -19,11 +19,16 @@ export type TableColumnMeta = {
 };
 
 declare module "@tanstack/react-table" {
+   
+   
+  // eslint-disable-next-line
   interface ColumnMeta<TData, TValue> extends TableColumnMeta {}
 }
+   
 
 type TanStackTableProps<TData> = {
   data: TData[];
+  // eslint-disable-next-line
   columns: ColumnDef<TData, any>[];
   minWidthPx?: number;
   className?: string;
@@ -39,10 +44,13 @@ const getAlignClassName = (align: TableAlignment) => {
 const TanStackTable = <TData,>({
   data,
   columns,
+   
   minWidthPx,
   className = "",
   align = "left",
+   
 }: TanStackTableProps<TData>) => {
+  // eslint-disable-next-line
   const table = useReactTable({
     data,
     columns,

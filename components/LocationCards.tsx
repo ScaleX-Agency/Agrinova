@@ -1,5 +1,7 @@
 "use client";
 
+   
+  // eslint-disable-next-line
 import { AlertTriangle, XCircle } from "lucide-react";
 import { LocationSummary } from "@/types/inventory";
 

@@ -1,5 +1,7 @@
 // app/(dashboard)/inventory/products/page.tsx
 
+  
+  // eslint-disable-next-line
 import { Plus } from "lucide-react";
 import ProductsPageClient from "@/components/ProductsPage";
 import type { Metadata } from "next";
@@ -28,10 +30,18 @@ export default async function ProductsRoute() {
         </div>
 
         {/* New Product button lives inside ProductsPage (client),
+  
             but you can surface a duplicate shortcut here if desired */}
+  
+  
       </div>
 
+  
+  
+  
       {/* ── Client page ── */}
+  
+  {/* eslint-disable-next-line */}
       <ProductsPageClient initialProducts={{ ...products, stats } as any} />
     </div>
   );

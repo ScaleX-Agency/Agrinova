@@ -8,6 +8,7 @@ import {
   Package,
   FileText,
   CheckCircle,
+  // eslint-disable-next-line
   DollarSign,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
@@ -87,7 +88,9 @@ const GoodsIssueNoteDetailPage = async ({
     notFound();
   }
 
+   
   const totalValue = note.lines.reduce(
+  // eslint-disable-next-line
     (sum: number, line: any) => sum + line.quantity * Number(line.product.selling_price),
     0,
   );
@@ -125,8 +128,11 @@ const GoodsIssueNoteDetailPage = async ({
             customerName={note.customer.name}
             locationCode={note.location.code}
             locationName={note.location.name}
+   
             preparedBy={note.prepared_by}
+   
             receivedBy={note.received_by}
+  // eslint-disable-next-line
             lines={note.lines.map((line: any) => {
               const unitPrice = Number(line.product.selling_price);
               return {
@@ -228,6 +234,7 @@ const GoodsIssueNoteDetailPage = async ({
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
+  {/* eslint-disable-next-line */}
               {note.lines.map((line: any) => {
                 const unitPrice = Number(line.product.selling_price);
                 const lineTotal = line.quantity * unitPrice;

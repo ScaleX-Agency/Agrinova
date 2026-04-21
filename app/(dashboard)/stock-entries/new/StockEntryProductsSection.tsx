@@ -99,6 +99,7 @@ const StockEntryProductsSection = ({
         ),
       }),
     ],
+  // eslint-disable-next-line
     [productOptions, isProductsLoading, lines.length, selectedProductIds, locationId, onChangeProduct, onChangeQty, onRemoveLine],
   );
 

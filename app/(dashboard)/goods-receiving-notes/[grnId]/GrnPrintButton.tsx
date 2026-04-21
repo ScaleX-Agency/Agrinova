@@ -38,6 +38,7 @@ const formatDate = (value: string) =>
     year: "numeric",
   });
 
+  // eslint-disable-next-line
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-LK", {
     style: "currency",

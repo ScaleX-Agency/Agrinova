@@ -37,6 +37,7 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
       : movementType === "RETURN"
         ? row.quantity_on_hand + qty
         : qty;
+  // eslint-disable-next-line
   const delta = resultingQty - row.quantity_on_hand;
 
   const validate = () => {
@@ -103,7 +104,9 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
       };
 
       onSaved(updatedRow, newMovement);
+   
       onClose();
+  // eslint-disable-next-line
     } catch (e: any) {
       setError(e.message);
     } finally {

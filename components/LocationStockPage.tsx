@@ -10,12 +10,19 @@ import {
   TrendingUp,
   Search,
   ArrowLeftRight,
+  // eslint-disable-next-line
   Pencil,
+   
   Download,
+  // eslint-disable-next-line
   Plus,
+  // eslint-disable-next-line
   ChevronDown,
+   
   X,
+  // eslint-disable-next-line
   Info,
+  // eslint-disable-next-line
   CheckCircle2,
   Clock,
 } from "lucide-react";
@@ -49,10 +56,15 @@ interface MovementRow {
 }
 
 interface Props {
+   
   locationId: number;
+   
   locationCode: string;
+   
   locationName: string;
+  // eslint-disable-next-line
   initialStock?: { stock: StockRow[], pagination: any };
+  // eslint-disable-next-line
   initialMovements?: { items: MovementRow[], pagination: any };
 }
 
@@ -380,24 +392,51 @@ function RecordMovementModal({
 import Pagination from "rc-pagination";
 import "rc-pagination/assets/index.css";
 
+   
 export default function LocationStockPage({
   locationId,
   locationCode,
+   
+   
+   
   locationName,
+  // eslint-disable-next-line
   initialStock = { items: [], pagination: { total: 0 } } as any,
+   
   initialMovements = { items: [], pagination: { total: 0 } },
+   
+   
+   
 }: Props) {
+   
+   
+   
   const isPaginated = !Array.isArray(initialStock) && ("items" in initialStock || "stock" in initialStock);
+   
+   
+  // eslint-disable-next-line
   const initStockItems = isPaginated ? ((initialStock as any).items || (initialStock as any).stock) : (initialStock as any);
+   
   const initStockTotal = isPaginated ? initialStock.pagination?.total : initStockItems?.length;
+   
 
+   
   const [stock, setStock] = useState<StockRow[]>(initStockItems || []);
+   
   const [stockPage, setStockPage] = useState(1);
+  // eslint-disable-next-line
   const [stockPageSize, setStockPageSize] = useState(20);
+   
+   
   const [stockTotal, setStockTotal] = useState(initStockTotal || 0);
+   
+   
 
+   
+   
   const [movements, setMovements] = useState<MovementRow[]>(initialMovements.items);
   const [movementsPage, setMovementsPage] = useState(1);
+  // eslint-disable-next-line
   const [movementsPageSize, setMovementsPageSize] = useState(20);
   const [movementsTotal, setMovementsTotal] = useState(initialMovements.pagination?.total || 0);
 

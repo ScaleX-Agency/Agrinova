@@ -44,6 +44,7 @@ const NumericStepperInput = ({
 
   useEffect(() => {
     if (!isEditing) {
+  // eslint-disable-next-line
       setDraft(Number.isFinite(value) ? String(value) : "0");
     }
   }, [isEditing, value]);

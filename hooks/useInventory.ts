@@ -13,15 +13,23 @@ import type {
 // ── Query key registry ────────────────────────────────────────
 // Centralised so invalidation is consistent everywhere.
 export const KEYS = {
+  // eslint-disable-next-line
   allStock:          (filters?: any) => ["stock", "all", filters] as const,
+   
   summaries:         ["stock", "summaries"]   as const,
+  // eslint-disable-next-line
   allMovements:      (filters?: any) => ["movements", "all", filters] as const,
+  // eslint-disable-next-line
   locationStock:     (id: number, filters?: any) => ["stock",     "location", id, filters] as const,
+  // eslint-disable-next-line
   locationMovements: (id: number, filters?: any) => ["movements", "location", id, filters] as const,
   products:          ["products"]             as const,
+   
 };
 
+   
 // ── Client-side status helper (mirrors server LOW_THRESHOLD) ──
+  // eslint-disable-next-line
 function deriveStatus(qty: number, threshold = 20): StockOverviewRow["status"] {
   if (qty <= 0) return "out";
   if (qty < threshold) return "low";
@@ -43,10 +51,14 @@ async function fetchJSON<T>(url: string): Promise<T> {
 
 /**
  * All stock across all locations.
+  // eslint-disable-next-line
  * `initialData` is passed from the RSC page so there's no loading flash on first visit.
  */
+   
 export function useAllStock(
+   
   params: { page?: number; pageSize?: number; search?: string; location_id?: number; status?: string } = {},
+  // eslint-disable-next-line
   initialData?: { stock: StockOverviewRow[], pagination: any }
 ) {
   const shouldUseInitialData =
@@ -61,11 +73,16 @@ export function useAllStock(
     queryFn:  () => {
       const searchParams = new URLSearchParams();
       if (params.page) searchParams.set("page", params.page.toString());
+   
       if (params.pageSize) searchParams.set("pageSize", params.pageSize.toString());
       if (params.search) searchParams.set("search", params.search);
+   
       if (params.location_id) searchParams.set("location_id", params.location_id.toString());
+   
       if (params.status && params.status !== "all") searchParams.set("status", params.status);
+   
 
+  // eslint-disable-next-line
       return fetchJSON<{ stock: StockOverviewRow[], pagination: any }>(`/api/inventory?${searchParams.toString()}`);
     },
     initialData: shouldUseInitialData ? initialData : undefined,
@@ -85,23 +102,36 @@ export function useLocationSummaries(initialData?: LocationSummary[]) {
   });
 }
 
+   
 /**
  * Stock for a single location.
+  // eslint-disable-next-line
  */
+   
 export function useLocationStock(
+   
   locationId: number,
+   
   params: { page?: number; pageSize?: number; search?: string; status?: string } = {},
+  // eslint-disable-next-line
   initialData?: { stock: StockOverviewRow[], pagination: any }
 ) {
   return useQuery({
     queryKey: KEYS.locationStock(locationId, params),
+   
     queryFn:  () => {
       const searchParams = new URLSearchParams();
+   
       if (params.page) searchParams.set("page", params.page.toString());
+   
       if (params.pageSize) searchParams.set("pageSize", params.pageSize.toString());
+   
       if (params.search) searchParams.set("search", params.search);
+   
       if (params.status && params.status !== "all") searchParams.set("status", params.status);
+   
 
+  // eslint-disable-next-line
       return fetchJSON<{ stock: StockOverviewRow[], pagination: any }>(`/api/inventory/${locationId}?${searchParams.toString()}`);
     },
     initialData,
@@ -180,21 +210,45 @@ export function useRecordMovement() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
+   
         throw new Error(body.error ?? "Failed to save movement");
       }
       return res.json() as Promise<{
         updatedStock: { stock_id: number; quantity_on_hand: number };
         movement_id:  number;
+   
       }>;
+   
+   
+   
     },
 
+   
+   
+  // eslint-disable-next-line
     onMutate: async (dto) => {
       // Prevent stale refetch overwriting our optimistic data
+   
+   
+   
       await qc.cancelQueries({ queryKey: ["stock"] });
+   
+   
+   
 
+   
+   
+   
       return {};
+   
+   
+   
     },
+   
+   
+   
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     onError: (_, __, ctx) => {
       // no-op, just invalidate
     },

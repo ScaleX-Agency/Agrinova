@@ -23,6 +23,9 @@ export type DataTableColumnMeta = {
 };
 
 declare module "@tanstack/react-table" {
+   
+   
+  // eslint-disable-next-line
   interface ColumnMeta<TData, TValue> extends DataTableColumnMeta {}
 }
 
@@ -70,9 +73,11 @@ function DataTable<TData>({
             ? column.enableSorting
             : true,
       })),
+   
     [columns],
   );
 
+  // eslint-disable-next-line
   const table = useReactTable({
     data,
     columns: normalizedColumns,

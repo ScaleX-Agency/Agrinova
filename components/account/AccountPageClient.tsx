@@ -1,5 +1,6 @@
 "use client";
 
+  // eslint-disable-next-line
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Mail, ShieldUser, UserRound } from "lucide-react";

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { createColumnHelper } from "@tanstack/react-table";
 import SearchableSelect, { type SearchableSelectOption } from "@/components/SearchableSelect";
 import NumericStepperInput from "@/components/NumericStepperInput";
@@ -34,11 +34,11 @@ const GinProductsSection = ({
   productsError,
   onUpdateLine,
 }: GinProductsSectionProps) => {
-  const getMaxQtyForLine = (lineId: number, productId: number | null) => {
+  const getMaxQtyForLine = useCallback((lineId: number, productId: number | null) => {
     return getLineAvailableQuantity(lineId, productId, lines, productStockById, remainingInvoiceQtyByProduct);
-  };
+  }, [lines, productStockById, remainingInvoiceQtyByProduct]);
 
-  const getIssueStatusMeta = (line: GinLine, requiredQty: number, issuedQty: number, maxQty: number) => {
+  const getIssueStatusMeta = useCallback((line: GinLine, requiredQty: number, issuedQty: number, maxQty: number) => {
     const isAlreadyFullyIssued = requiredQty > 0 && issuedQty >= requiredQty;
     const isFullByRow = maxQty > 0 ? line.quantity >= maxQty : line.quantity > 0;
     const isUnavailable = !isAlreadyFullyIssued && maxQty === 0 && line.quantity === 0;
@@ -61,9 +61,9 @@ const GinProductsSection = ({
       label: "Pending",
       tone: "border-amber-100 bg-amber-50 text-amber-800",
     };
-  };
+  }, []);
 
-  const getStockMeta = (remainingQty: number) => {
+  const getStockMeta = useCallback((remainingQty: number) => {
     if (remainingQty === 0) {
       return {
         label: "Out",
@@ -82,7 +82,7 @@ const GinProductsSection = ({
       label: "Available",
       tone: "border-green-100 bg-green-50 text-green-700",
     };
-  };
+  }, []);
 
   const columns = useMemo(
     () => [
@@ -208,16 +208,16 @@ const GinProductsSection = ({
       }),
     ],
     [
-      columnHelper,
-      lines,
       invoiceQtyByProduct,
       issuedQtyByProduct,
-      remainingInvoiceQtyByProduct,
       isProductsLoading,
-      locationId,
       onUpdateLine,
       productOptions,
       productStockById,
+      remainingInvoiceQtyByProduct,
+      getMaxQtyForLine,
+      getIssueStatusMeta,
+      getStockMeta,
     ],
   );
 
@@ -227,7 +227,7 @@ const GinProductsSection = ({
       const maxQty = getMaxQtyForLine(line.id, line.productId) ?? 0;
       return maxQty > 0;
     }),
-    [lines, productStockById, remainingInvoiceQtyByProduct],
+    [lines, getMaxQtyForLine],
   );
 
   return (

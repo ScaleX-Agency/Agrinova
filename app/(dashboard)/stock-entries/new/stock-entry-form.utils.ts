@@ -1,4 +1,4 @@
-import type { StockEntryLine, ProductOption } from "./stock-entry-form.types";
+import type { StockEntryLine } from "./stock-entry-form.types";
 import type { SearchableSelectOption } from "@/components/SearchableSelect";
 import type { InventoryLocationOptionDto } from "@/types/api";
 
