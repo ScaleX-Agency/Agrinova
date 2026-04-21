@@ -4,9 +4,7 @@ on:
   push:
     branches:
       - deploy
-      - fix-build
-      - fix-build2
-
+      - skelton
 jobs:
   deploy:
     runs-on: ubuntu-latest

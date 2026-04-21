@@ -1,3 +1,5 @@
+import { Sk } from "@/components/ui/skeleton";
+
 // app/(dashboard)/dashboard/loading.tsx
 // Pixel-perfect skeleton of the dashboard page.
 // Mirrors: header → 4 stat cards → main grid (movements + quick actions) → location health
@@ -169,19 +171,6 @@ function LocationCell() {
 }
 
 // ── Shimmer primitive ─────────────────────────────────────────
-function Sk({ className = "" }: { className?: string }) {
-  return (
-    <div
-      className={`
-        bg-stone-100 overflow-hidden relative
-        before:absolute before:inset-0 before:-translate-x-full
-        before:animate-[shimmer_1.5s_infinite]
-        before:bg-gradient-to-r before:from-transparent before:via-white/60 before:to-transparent
-        ${className}
-      `}
-    />
-  );
-}
 
 // ── Config ────────────────────────────────────────────────────
 // Stat card icon tints match the real StatCard iconBg colours

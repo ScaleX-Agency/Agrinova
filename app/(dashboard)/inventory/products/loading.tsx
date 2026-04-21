@@ -1,3 +1,5 @@
+import { Sk } from "@/components/ui/skeleton";
+
 // app/(dashboard)/inventory/products/loading.tsx
 // Pixel-perfect skeleton of the Products page.
 // Mirrors: stat cards (4) + toolbar (search + pills + export) + product table.
@@ -97,13 +99,6 @@ function ProductRowSkeleton() {
   );
 }
 
-function Sk({ className = "" }: { className?: string }) {
-  return (
-    <div
-      className={`bg-stone-100 overflow-hidden relative before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmer_1.5s_infinite] before:bg-gradient-to-r before:from-transparent before:via-white/60 before:to-transparent ${className}`}
-    />
-  );
-}
 
 const STAT_ACCENTS = [
   { icon: "!bg-green-100", ring: "" },

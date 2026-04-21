@@ -1,3 +1,5 @@
+import { Sk } from "@/components/ui/skeleton";
+
 // app/(dashboard)/inventory/loading.tsx
 // Mirrors StockOverview.tsx exactly:
 //   stat cards (4) → location cards (4) → tab bar + actions → filter bar → stock table
@@ -154,19 +156,6 @@ function TableRow({ dim }: { dim?: boolean }) {
 }
 
 // ── Shared shimmer primitive ──────────────────────────────────
-function Sk({ className = "" }: { className?: string }) {
-  return (
-    <div
-      className={`
-        bg-stone-100 overflow-hidden relative
-        before:absolute before:inset-0 before:-translate-x-full
-        before:animate-[shimmer_1.5s_infinite]
-        before:bg-gradient-to-r before:from-transparent before:via-white/60 before:to-transparent
-        ${className}
-      `}
-    />
-  );
-}
 
 // ── Config ────────────────────────────────────────────────────
 // Each stat card gets its own icon background tint (matches StatCard iconBg)
