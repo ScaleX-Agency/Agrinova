@@ -85,7 +85,8 @@ export default function CustomerSegmentsChart({ data, loading }: Props) {
                     fontSize: 12,
                     fontFamily: "var(--font-dmsans)",
                   }}
-                  formatter={(value: number, name: string) => [`${value} customers`, name]}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  formatter={(value: any, name: any) => [`${value} customers`, name]}
                 />
               </PieChart>
             </ResponsiveContainer>

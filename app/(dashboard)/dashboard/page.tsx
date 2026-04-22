@@ -15,7 +15,7 @@ import {
   ArrowLeftRight, Plus, FileText, UserCheck,
   MapPin, ChevronRight, Activity, Boxes,
   ArrowUpRight, Clock, X, ChevronDown,
-  DollarSign, Users, BarChart3, Download,
+  DollarSign, Users, Download,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";

@@ -22,7 +22,7 @@ function ChartSkeleton() {
       <div className="h-[180px] bg-stone-50 rounded-xl flex items-end gap-2 px-4 pb-4">
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="flex-1 bg-stone-100 rounded-sm"
-            style={{ height: `${30 + Math.random() * 60}%` }} />
+            style={{ height: `${30 + (i * 10) % 60}%` }} />
         ))}
       </div>
     </div>
@@ -93,7 +93,8 @@ export default function SalesTrendChart({ data, loading }: Props) {
                     boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
                   }}
                   labelStyle={{ color: "#78716c", fontSize: 11 }}
-                  formatter={(value: number, name: string) => [
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                   formatter={(value: any, name: any) => [
                     formatLKR(value),
                     name === "sales" ? "Sales" : "Collections",
                   ]}
