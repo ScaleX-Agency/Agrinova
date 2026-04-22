@@ -69,6 +69,7 @@ function makeTrendBuckets(start: Date, end: Date) {
     label: string;
     currentSales: number;
     previousSales: number;
+    collections: number;
   }> = [];
 
   for (let cursor = new Date(start); cursor <= end; cursor = new Date(cursor.getTime() + DAY_MS)) {
@@ -77,7 +78,7 @@ function makeTrendBuckets(start: Date, end: Date) {
       day: "2-digit",
       month: "short",
     });
-    buckets.push({ key, label, currentSales: 0, previousSales: 0 });
+    buckets.push({ key, label, currentSales: 0, previousSales: 0, collections: 0 });
   }
 
   return buckets;
@@ -190,6 +191,19 @@ export async function GET(request: Request) {
         distinct: ["customer_id"],
         select: {
           customer_id: true,
+        },
+      });
+
+      const currentReceipts = await prisma.receipt.findMany({
+        where: {
+          receipt_date: {
+            gte: currentRange.start,
+            lte: currentRange.end,
+          },
+        },
+        select: {
+          receipt_date: true,
+          amount_received: true,
         },
       });
 
@@ -338,6 +352,14 @@ export async function GET(request: Request) {
       bucketIndex.set(buckets[i].key, i);
     }
 
+    for (const receipt of currentReceipts) {
+      const key = receipt.receipt_date.toISOString().slice(0, 10);
+      const index = bucketIndex.get(key);
+      if (index !== undefined) {
+        buckets[index].collections += toAmount(receipt.amount_received);
+      }
+    }
+
     for (const invoice of currentInvoices) {
       const key = invoice.invoice_date.toISOString().slice(0, 10);
       const index = bucketIndex.get(key);
@@ -354,9 +376,9 @@ export async function GET(request: Request) {
     }
 
     const trend = buckets.map((bucket) => ({
-      label: bucket.label,
-      currentSales: Number(bucket.currentSales.toFixed(2)),
-      previousSales: Number(bucket.previousSales.toFixed(2)),
+      date: bucket.label,
+      sales: Number(bucket.currentSales.toFixed(2)),
+      collections: Number(bucket.collections.toFixed(2)),
     }));
 
     const recentBuyerIds = new Set(recentInvoiceCustomers.map((item) => item.customer_id));
@@ -398,11 +420,7 @@ export async function GET(request: Request) {
       topCustomers,
       overdueCustomers,
       salesByRep,
-      customerSegments: [
-        { label: "Active", value: activeCount },
-        { label: "Inactive", value: inactiveCount },
-        { label: "New", value: newCount },
-      ],
+      customerSegments: { active: activeCount, inactive: inactiveCount, new: newCount },
       summary: {
         previousPeriodSales: Number(
           previousInvoices

@@ -1,4 +1,5 @@
 "use client";
+import { Sk } from "@/components/ui/skeleton";
 // components/dashboard/SalesTrendChart.tsx
 // Line chart — Sales vs Collections over time.
 // Uses recharts (already installed). Matches existing card style exactly.
@@ -18,11 +19,20 @@ interface Props {
 
 function ChartSkeleton() {
   return (
-    <div className="animate-pulse p-5">
+    <div className="p-5 animate-pulse">
+      <div className="flex justify-between mb-8">
+        <div className="space-y-2">
+          <Sk className="h-4 w-24 rounded" />
+          <Sk className="h-6 w-32 rounded" />
+        </div>
+        <div className="flex gap-4">
+          <Sk className="h-4 w-16 rounded" />
+          <Sk className="h-4 w-16 rounded" />
+        </div>
+      </div>
       <div className="h-[180px] bg-stone-50 rounded-xl flex items-end gap-2 px-4 pb-4">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="flex-1 bg-stone-100 rounded-sm"
-            style={{ height: `${30 + (i * 10) % 60}%` }} />
+          <div key={i} className="flex-1" style={{ height: `${30 + (i * 10) % 60}%` }}><Sk className="w-full h-full rounded-sm" /></div>
         ))}
       </div>
     </div>

@@ -3,6 +3,7 @@
 import { BarChart3 } from "lucide-react";
 import type { SalesByRep } from "@/hooks/useSalesDashboard";
 import { formatLKR } from "@/lib/formatters";
+import { Sk } from "@/components/ui/skeleton";
 
 interface Props { data: SalesByRep[]; loading: boolean; }
 
@@ -29,13 +30,13 @@ export default function RepPerformance({ data, loading }: Props) {
 
       <div className="p-5 space-y-4">
         {loading ? Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="animate-pulse space-y-2">
+          <div key={i} className="space-y-2">
             <div className="flex justify-between">
-              <div className="h-3 w-28 bg-stone-100 rounded" />
-              <div className="h-3 w-14 bg-stone-100 rounded" />
+              <Sk className="h-3 w-28 rounded" />
+              <Sk className="h-3 w-14 rounded" />
             </div>
-            <div className="h-1.5 w-full bg-stone-100 rounded-full" />
-            <div className="h-1.5 w-4/5 bg-stone-50 rounded-full" />
+            <Sk className="h-1.5 w-full rounded-full" />
+            <Sk className="h-1.5 w-4/5 rounded-full" />
           </div>
         )) : sorted.length === 0 ? (
           <div className="text-center py-6 text-stone-400">

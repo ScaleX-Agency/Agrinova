@@ -4,6 +4,7 @@
 
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { Users } from "lucide-react";
+import { Sk } from "@/components/ui/skeleton";
 import type { CustomerSegments } from "@/hooks/useSalesDashboard";
 
 interface Props {
@@ -40,14 +41,14 @@ export default function CustomerSegmentsChart({ data, loading }: Props) {
       </div>
 
       {loading ? (
-        <div className="animate-pulse p-5 flex gap-6 items-center">
-          <div className="w-[120px] h-[120px] rounded-full bg-stone-100 shrink-0" />
+        <div className="p-5 flex gap-6 items-center">
+          <Sk className="w-[120px] h-[120px] rounded-full shrink-0" />
           <div className="flex-1 space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-stone-100" />
-                <div className="h-3 flex-1 bg-stone-100 rounded" />
-                <div className="h-3 w-6 bg-stone-100 rounded" />
+                <Sk className="w-3 h-3 rounded-full" />
+                <Sk className="h-3 flex-1 rounded" />
+                <Sk className="h-3 w-6 rounded" />
               </div>
             ))}
           </div>

@@ -7,6 +7,7 @@ import { Package } from "lucide-react";
 import type { DateRange } from "@/hooks/useSalesDashboard";
 import { getDateRange }   from "@/hooks/useSalesDashboard";
 import { formatLKR }      from "@/lib/formatters";
+import { Sk } from "@/components/ui/skeleton";
 
 interface ProductRow {
   product_id:    number;
@@ -49,12 +50,12 @@ export default function TopProducts({ dateRange }: Props) {
 
       <div className="p-5 space-y-4">
         {isLoading ? Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="animate-pulse space-y-1.5">
+          <div key={i} className="space-y-1.5">
             <div className="flex justify-between">
-              <div className="h-3 w-36 bg-stone-100 rounded" />
-              <div className="h-3 w-14 bg-stone-100 rounded" />
+              <Sk className="h-3 w-36 rounded" />
+              <Sk className="h-3 w-14 rounded" />
             </div>
-            <div className="h-1.5 bg-stone-100 rounded-full" style={{ width: `${90 - i * 15}%` }} />
+            <div style={{ width: `${90 - i * 15}%` }}><Sk className="h-1.5 w-full rounded-full" /></div>
           </div>
         )) : isError ? (
           <div className="py-4 text-center">
