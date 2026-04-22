@@ -239,6 +239,7 @@ export async function GET(request: Request) {
         totalSales: number;
         outstanding: number;
         lastPurchaseDate: Date;
+        invoiceCount: number;
       }
     >();
 
@@ -254,11 +255,13 @@ export async function GET(request: Request) {
         totalSales: 0,
         outstanding: 0,
         lastPurchaseDate: invoice.invoice_date,
+        invoiceCount: 0,
       };
 
       entry.totalSales += total;
       entry.outstanding += outstanding;
       entry.salesRep = invoice.rep.full_name;
+      entry.invoiceCount += 1;
       if (invoice.invoice_date > entry.lastPurchaseDate) {
         entry.lastPurchaseDate = invoice.invoice_date;
       }
@@ -269,8 +272,11 @@ export async function GET(request: Request) {
       .sort((a, b) => b.totalSales - a.totalSales)
       .slice(0, 8)
       .map((item) => ({
-        ...item,
-        lastPurchaseDate: item.lastPurchaseDate.toISOString(),
+        customer_id: item.customerId,
+        name: item.customerName,
+        total_sales: item.totalSales,
+        outstanding_balance: item.outstanding,
+        invoice_count: item.invoiceCount,
       }));
 
     const overdueByCustomer = new Map<
@@ -311,7 +317,13 @@ export async function GET(request: Request) {
 
     const overdueCustomers = Array.from(overdueByCustomer.values()).sort(
       (a, b) => b.daysOverdue - a.daysOverdue || b.outstanding - a.outstanding,
-    );
+    ).map(item => ({
+      customer_id: item.customerId,
+      name: item.customerName,
+      rep_name: item.salesRep,
+      outstanding: item.outstanding,
+      days_overdue: item.daysOverdue,
+    }));
 
     const salesByRepMap = new Map<
       number,
@@ -344,7 +356,12 @@ export async function GET(request: Request) {
 
     const salesByRep = Array.from(salesByRepMap.values()).sort(
       (a, b) => b.totalSales - a.totalSales,
-    );
+    ).map(item => ({
+      rep_id: item.repId,
+      rep_name: item.repName,
+      sales: item.totalSales,
+      collected: item.collections,
+    }));
 
     const buckets = makeTrendBuckets(currentRange.start, currentRange.end);
     const bucketIndex = new Map<string, number>();
