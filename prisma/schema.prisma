@@ -236,11 +236,16 @@ model InventoryLocation {
   location_id           Int                  @id @default(autoincrement())
   code                  String               @unique
   name                  String
+  address               String?
+  status                LocationStatus       @default(ACTIVE)
+  created_at            DateTime             @default(now())
+  updated_at            DateTime             @default(now()) @updatedAt
   goods_receiving_notes GoodsReceivingNote[]
   goods_issue_notes     GoodsIssueNote[]
   invoices              Invoice[]
   stocks                Stock[]
 
+  @@index([status])
   @@map("INVENTORY_LOCATION")
 }
 
@@ -313,4 +318,9 @@ enum CommissionStatus {
   PENDING
   PAID
   OVERDUE
+}
+
+enum LocationStatus {
+  ACTIVE
+  INACTIVE
 }

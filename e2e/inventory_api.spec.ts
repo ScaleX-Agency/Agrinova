@@ -1,6 +1,15 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Inventory API Routes', () => {
+  let testLocationId = 1;
+
+  test.beforeAll(async ({ request }) => {
+    const res = await request.get('/api/locations');
+    const data = await res.json();
+    if (data && data.data && data.data.length > 0) {
+      testLocationId = data.data[0].id;
+    }
+  });
 
   test('GET /api/categories returns success and expected structure', async ({ request }) => {
     const response = await request.get('/api/categories');
@@ -30,7 +39,7 @@ test.describe('Inventory API Routes', () => {
     const response = await request.post('/api/inventory/stock', {
       data: {
         product_id: 1,
-        location_id: 1,
+        location_id: testLocationId,
         quantity: 50
       }
     });

@@ -48,12 +48,7 @@ import { formatLKR }            from "@/lib/formatters";
 // ─────────────────────────────────────────────────────────────
 // Static location metadata
 // ─────────────────────────────────────────────────────────────
-const LOCATION_META: Record<number, { code: string; name: string }> = {
-  1: { code: "IGRN1", name: "Head Office"  },
-  2: { code: "IGRN2", name: "Kuliyapitiya" },
-  3: { code: "IGRN3", name: "Nuwara Eliya" },
-  4: { code: "IGRN4", name: "Peradeniya"   },
-};
+
 
 type MovementType = "ISSUE" | "RETURN" | "PURCHASE" | "ADJUSTMENT";
 
@@ -138,10 +133,17 @@ function RecordMovementModal({
     }
   };
 
-  const grouped = Object.entries(LOCATION_META).map(([idStr, meta]) => ({
-    ...meta, locationId: Number(idStr),
-    items: stock.filter((r) => r.location_id === Number(idStr)),
-  }));
+  const uniqueLocations = Array.from(
+    new Set(stock.map((s) => s.location_id))
+  ).map((locId) => {
+    const sample = stock.find((s) => s.location_id === locId);
+    return {
+      locationId: locId,
+      code: sample?.location_code || `ID:${locId}`,
+      name: sample?.location_name || `Location ${locId}`,
+      items: stock.filter((r) => r.location_id === locId),
+    };
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-[2px] p-4"
@@ -172,7 +174,7 @@ function RecordMovementModal({
                 value={selectedStock?.stock_id ?? ""}
                 onChange={(e) => { setSelectedStock(stock.find((r) => r.stock_id === Number(e.target.value)) ?? null); setError(""); }}>
                 <option value="">Select a product…</option>
-                {grouped.map((g) => g.items.length > 0 ? (
+                {uniqueLocations.map((g) => g.items.length > 0 ? (
                   <optgroup key={g.locationId} label={`${g.code} — ${g.name}`}>
                     {g.items.map((r) => (
                       <option key={r.stock_id} value={r.stock_id}>

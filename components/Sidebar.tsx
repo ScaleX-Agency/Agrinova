@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   Boxes,
   Package,
+  MapPin,
   ArrowLeftRight,
   Users,
   UserCog,
@@ -65,6 +66,11 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/inventory/products",
         icon: <Package size={15} />,
         label: "Products",
+      },
+      {
+        href: "/locations",
+        icon: <MapPin size={15} />,
+        label: "Locations",
       },
       {
         href: "/goods-receiving-notes",
