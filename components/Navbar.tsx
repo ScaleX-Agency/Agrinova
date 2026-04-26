@@ -4,18 +4,12 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "@clerk/nextjs";
-import { Badge, Avatar, Skeleton } from "antd";
-import {
-  Bell,
-  Search,
-  PanelLeftClose,
-  X,
-  ChevronRight,
-} from "lucide-react";
+import { Avatar, Skeleton } from "antd";
+import { Bell, Search, PanelLeftClose, X, ChevronRight } from "lucide-react";
 import { GlobalSearchPalette } from "./GlobalSearch";
 
 // In a real app, these would come from an API or websocket
-  // eslint-disable-next-line
+// eslint-disable-next-line
 const notifications: any[] = [];
 
 interface NavbarProps {
@@ -121,7 +115,10 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
             onClick={() => setSearchOpen(true)}
             className="hidden md:flex items-center gap-2 h-9 px-3 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 transition-colors group"
           >
-            <Search size={14} className="text-stone-400 group-hover:text-stone-600 transition-colors" />
+            <Search
+              size={14}
+              className="text-stone-400 group-hover:text-stone-600 transition-colors"
+            />
             <span className="text-[13px] text-stone-400 group-hover:text-stone-600 transition-colors [font-family:var(--font-dmsans)] w-[148px] text-left">
               Search…
             </span>
@@ -136,16 +133,19 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
           </button>
 
           {/* Status pill */}
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-stone-200 bg-stone-50">
+          <div 
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-stone-200 bg-stone-50"
+            title={process.env.NEXT_PUBLIC_GITHUB_SHA ? `Deploy SHA: ${process.env.NEXT_PUBLIC_GITHUB_SHA}` : "Live"}
+          >
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
             <span className="text-[11.5px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">
-              Live
+              {process.env.NEXT_PUBLIC_GITHUB_SHA ? `Live (${process.env.NEXT_PUBLIC_GITHUB_SHA.substring(0, 7)})` : "Live"}
             </span>
           </div>
 
           {/* Notifications */}
           <div className="relative">
-            <button
+            {/* <button
               onClick={() => setNotifOpen((o) => !o)}
               className="relative w-9 h-9 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 flex items-center justify-center transition-colors"
               title="Notifications"
@@ -157,7 +157,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
               >
                 <Bell size={16} className="text-stone-600" />
               </Badge>
-            </button>
+            </button> */}
 
             <AnimatePresence>
               {notifOpen && (
@@ -213,7 +213,8 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
                             All caught up!
                           </p>
                           <p className="text-[11.5px] text-stone-500 mt-1 max-w-[180px]">
-                            You don&apos;t have any new notifications at the moment.
+                            You don&apos;t have any new notifications at the
+                            moment.
                           </p>
                         </div>
                       )}
