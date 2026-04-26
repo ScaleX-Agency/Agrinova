@@ -33,15 +33,16 @@ import {
   PowerOff,
   RefreshCw,
   Package,
+  Activity,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import Pagination from "rc-pagination";
+import Link from "next/link";
 import "rc-pagination/assets/index.css";
 
 import {
   useLocations,
-  useDeleteLocation,
   useUpdateLocation,
 } from "@/hooks/useLocations";
 import type { LocationData } from "@/hooks/useLocations";
@@ -247,7 +248,8 @@ export default function LocationsPage() {
   const pagination = response?.pagination;
 
   // ── Mutations ──
-  const { mutateAsync: deactivateLocation } = useDeleteLocation(); // calls PATCH status=INACTIVE
+  // The original hook likely had a fixed queryKey like ["locations"]
+  // FIX: deactivateLocation is not used. We just use updateLocation.
   const { mutateAsync: updateLocation } = useUpdateLocation();
 
   // ── Modal state ──
@@ -483,6 +485,15 @@ export default function LocationsPage() {
                     {/* Actions */}
                     <td className="px-5 py-3.5">
                       <div className="flex items-center justify-end gap-2">
+                        {/* Activity */}
+                        <Link
+                          href={`/inventory/${loc.location_id}`}
+                          title="View Activity"
+                          className="w-7 h-7 flex items-center justify-center rounded-lg border border-stone-200 text-stone-400 hover:text-blue-700 hover:bg-blue-50 hover:border-blue-200 transition-colors"
+                        >
+                          <Activity size={13} />
+                        </Link>
+
                         {/* Edit */}
                         <button
                           onClick={() => setEditingLocation(loc)}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, isAdminUser } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   try {
@@ -35,13 +36,19 @@ export async function GET(req: NextRequest) {
         orderBy: { location_id: "asc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
+        include: {
+          _count: {
+            select: { stocks: true }
+          }
+        }
       });
 
       const data = {
         items: locations.map(loc => ({
           ...loc,
           id: loc.location_id,
-          label: `${loc.code} — ${loc.name}`
+          label: `${loc.code} — ${loc.name}`,
+          stock_count: loc._count.stocks,
         })),
         pagination: {
           page,
@@ -56,13 +63,19 @@ export async function GET(req: NextRequest) {
     const locations = await prisma.inventoryLocation.findMany({
       where,
       orderBy: { location_id: "asc" },
+      include: {
+        _count: {
+          select: { stocks: true }
+        }
+      }
     });
 
     const data = {
       data: locations.map(loc => ({
         ...loc,
         id: loc.location_id,
-        label: `${loc.code} — ${loc.name}`
+        label: `${loc.code} — ${loc.name}`,
+        stock_count: loc._count.stocks,
       }))
     };
 
@@ -87,6 +100,11 @@ const createLocationSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user || !isAdminUser(user)) {
+      return NextResponse.json({ error: "Unauthorized. Admin role required." }, { status: 403 });
+    }
+
     const body = await req.json();
     const parseResult = createLocationSchema.safeParse(body);
 

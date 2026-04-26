@@ -60,7 +60,7 @@ async function fetchLocations(
     pageSize: String(pageSize),
     ...(search ? { search } : {}),
   });
-  const res = await fetch(`/api/inventory/locations?${params.toString()}`);
+  const res = await fetch(`/api/locations?${params.toString()}`);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error ?? "Failed to fetch locations");
@@ -74,7 +74,7 @@ async function createLocation(data: {
   address?: string;
   status?: "ACTIVE" | "INACTIVE";
 }): Promise<LocationData> {
-  const res = await fetch("/api/inventory/locations", {
+  const res = await fetch("/api/locations", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -90,7 +90,7 @@ async function patchLocation(
   id: number,
   data: Partial<LocationData>,
 ): Promise<LocationData> {
-  const res = await fetch(`/api/inventory/locations/${id}`, {
+  const res = await fetch(`/api/locations/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -105,7 +105,7 @@ async function patchLocation(
 // This should only be used if the backend truly supports hard-delete.
 // For deactivation, use patchLocation with { status: "INACTIVE" } instead.
 async function hardDeleteLocation(id: number): Promise<void> {
-  const res = await fetch(`/api/inventory/locations/${id}`, {
+  const res = await fetch(`/api/locations/${id}`, {
     method: "DELETE",
   });
   if (!res.ok) {
