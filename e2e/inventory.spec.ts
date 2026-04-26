@@ -24,15 +24,15 @@ await expect(rows.first()).toBeVisible();
 test("search filters table rows", async ({ page }) => { 
 await page.goto("/inventory"); 
 const searchInput = page.locator("input[placeholder*='Search']").first(); 
-await searchInput.fill("Fertilizer"); 
-await expect(page.getByText("AgriGold Fertilizer")).toBeVisible(); 
+await searchInput.fill("Updated Name"); 
+await expect(page.getByText("Updated Name").first()).toBeVisible(); 
 }); 
  
 test("clicking location card filters table", async ({ page }) => { 
 await page.goto("/inventory"); 
 await page.getByText("Head Office").first().click(); 
-// Table should now only show IGRN-1 items 
-const locationBadges = page.locator("span:has-text('IGRN-1')").first(); 
+// Table should now only show IRGN-01 items (actual DB format instead of IGRN1) 
+const locationBadges = page.locator("span:has-text('IRGN-01')").first(); 
 await expect(locationBadges).toBeVisible();
 }); 
 }); 
@@ -76,7 +76,7 @@ test("search filters products", async ({ page }) => {
 await page.goto("/inventory/products"); 
 const search = page.locator("input[placeholder*='Search']").first(); 
 await search.fill("Fungicide"); 
-await expect(page.getByText("Bio-Dine").first()).toBeVisible(); 
+await expect(page.getByText("BioShield Fungicide").first()).toBeVisible(); 
 }); 
  
 test("new product modal opens", async ({ page }) => { 

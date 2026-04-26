@@ -208,6 +208,11 @@ export async function POST(request: Request) {
         throw new Error("Selected location does not match invoice location.");
       }
 
+      const location = await tx.inventoryLocation.findUnique({ where: { location_id: locationId } });
+      if (!location || location.status !== "ACTIVE") {
+        throw new Error("Cannot issue from an inactive location.");
+      }
+
       const invoiceQtyByProduct = invoice.invoice_lines.reduce<Map<number, number>>((map, line) => {
         map.set(line.product_id, (map.get(line.product_id) ?? 0) + line.quantity);
         return map;
