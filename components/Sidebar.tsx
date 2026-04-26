@@ -6,7 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
 import {
-  // eslint-disable-next-line
+   
   LayoutDashboard,
   Boxes,
   Package,

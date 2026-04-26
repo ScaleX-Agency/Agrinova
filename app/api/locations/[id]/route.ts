@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+import { z } from "zod";
+
+const updateLocationSchema = z.object({
+  code: z.string().min(1, "Code cannot be empty").optional(),
+  name: z.string().min(1, "Name cannot be empty").optional(),
+  address: z.string().optional().nullable(),
+  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+});
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -14,7 +23,16 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const { code, name, address, status } = body;
+    const parseResult = updateLocationSchema.safeParse(body);
+
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: parseResult.error.issues[0]?.message ?? "Invalid input" },
+        { status: 400 }
+      );
+    }
+
+    const { code, name, address, status } = parseResult.data;
 
     if (code) {
       const existing = await prisma.inventoryLocation.findUnique({
@@ -61,15 +79,18 @@ export async function DELETE(
       return NextResponse.json({ error: "Invalid location ID" }, { status: 400 });
     }
 
-    // Check for dependent records
-    const [stocks, invoices, goodsIssues, goodsReceiving] = await Promise.all([
-      prisma.stock.count({ where: { location_id: locationId } }),
-      prisma.invoice.count({ where: { location_id: locationId } }),
-      prisma.goodsIssueNote.count({ where: { location_id: locationId } }),
-      prisma.goodsReceivingNote.count({ where: { location_id: locationId } }),
-    ]);
+    // Check for dependent records sequentially to prevent Prisma adapter connection collisions
+    const stocks = await prisma.stock.count({ where: { location_id: locationId } });
+    const invoices = await prisma.invoice.count({ where: { location_id: locationId } });
+    const goodsIssues = await prisma.goodsIssueNote.count({ where: { location_id: locationId } });
+    const goodsReceiving = await prisma.goodsReceivingNote.count({ where: { location_id: locationId } });
 
     if (stocks > 0 || invoices > 0 || goodsIssues > 0 || goodsReceiving > 0) {
+      const activeStock = await prisma.stock.count({ where: { location_id: locationId, quantity_on_hand: { gt: 0 } } });
+      if (activeStock > 0) {
+        return NextResponse.json({ error: "Cannot delete location with active stock." }, { status: 400 });
+      }
+
       // Soft delete
       const updated = await prisma.inventoryLocation.update({
         where: { location_id: locationId },

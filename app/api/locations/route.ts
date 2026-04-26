@@ -11,8 +11,12 @@ export async function GET(req: NextRequest) {
     
     // eslint-disable-next-line
     const where: any = {};
-    if (statusFilter && (statusFilter === "ACTIVE" || statusFilter === "INACTIVE")) {
-      where.status = statusFilter;
+    if (statusFilter && (statusFilter === "ACTIVE" || statusFilter === "INACTIVE" || statusFilter === "ALL")) {
+      if (statusFilter !== "ALL") {
+        where.status = statusFilter;
+      }
+    } else {
+      where.status = "ACTIVE";
     }
 
     if (search) {
@@ -25,15 +29,13 @@ export async function GET(req: NextRequest) {
     if (pageStr && pageSizeStr) {
       const page = parseInt(pageStr, 10);
       const pageSize = parseInt(pageSizeStr, 10);
-      const [total, locations] = await Promise.all([
-        prisma.inventoryLocation.count({ where }),
-        prisma.inventoryLocation.findMany({
-          where,
-          orderBy: { location_id: "asc" },
-          skip: (page - 1) * pageSize,
-          take: pageSize,
-        }),
-      ]);
+      const total = await prisma.inventoryLocation.count({ where });
+      const locations = await prisma.inventoryLocation.findMany({
+        where,
+        orderBy: { location_id: "asc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      });
 
       const data = {
         items: locations.map(loc => ({
@@ -74,17 +76,28 @@ export async function GET(req: NextRequest) {
   }
 }
 
+import { z } from "zod";
+
+const createLocationSchema = z.object({
+  code: z.string().min(1, "Code is required"),
+  name: z.string().min(1, "Name is required"),
+  address: z.string().optional().nullable(),
+  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+});
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { code, name, address, status } = body;
+    const parseResult = createLocationSchema.safeParse(body);
 
-    if (!code || !name) {
+    if (!parseResult.success) {
       return NextResponse.json(
-        { error: "Code and name are required" },
+        { error: parseResult.error.issues[0]?.message ?? "Invalid input" },
         { status: 400 }
       );
     }
+
+    const { code, name, address, status } = parseResult.data;
 
     const existing = await prisma.inventoryLocation.findUnique({ where: { code } });
     if (existing) {

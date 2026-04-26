@@ -63,7 +63,8 @@ def screenshot_on_failure(request, page):
  
 def login(page, username="admin", password="admin123"): 
     page.goto(f"{BASE_URL}/login") 
-    page.get_by_label("Username").fill(username) 
-    page.get_by_label("Password").fill(password) 
-    page.get_by_role("button", name="Login").click() 
-    page.wait_for_load_state("networkidle") 
+    page.locator("input[name='identifier']").fill(username)
+    page.locator("button[data-localization-key='formButtonPrimary']").click()
+    page.locator("input[name='password']").fill(password)
+    page.locator("button[data-localization-key='formButtonPrimary']").click()
+    page.wait_for_url("**/dashboard")
