@@ -21,19 +21,26 @@ model User {
   username              String               @unique
   password_hash         String?
   clerk_id              String?              @unique
+
   goods_receiving_notes GoodsReceivingNote[] @relation("GoodsReceivingNoteCreatedBy")
   invoices              Invoice[]            @relation("InvoiceCreatedBy")
-  receipts              Receipt[]            @relation("ReceiptCollectedBy")
   stock_movements       StockMovement[]      @relation("StockMovementCreatedBy")
   role                  Role                 @relation(fields: [role_id], references: [role_id])
+  goodsIssueNotes       GoodsIssueNote[]     @relation("GINCreatedBy")
+  receipts              Receipt[]            @relation("ReceiptCreatedBy")
+  goodsReturnNotes GoodsReturnNote[] @relation("GoodsReturnNoteCreatedBy")
+  salesReturnNotes SalesReturnNote[] @relation("SalesReturnNoteCreatedBy")
+  creditNotes CreditNote[] @relation("CreditNoteCreatedBy")
 
   @@map("USER")
+  
 }
 
 model SalesRep {
   rep_id      Int          @id @default(autoincrement())
   full_name   String
   phone       String
+
   commissions Commission[]
   customers   Customer[]
   invoices    Invoice[]
@@ -49,10 +56,13 @@ model Customer {
   phone             String?
   created_at        DateTime         @default(now())
   updated_at        DateTime         @default(now()) @updatedAt
+
   assigned_rep      SalesRep         @relation(fields: [assigned_rep_id], references: [rep_id])
   goods_issue_notes GoodsIssueNote[]
   invoices          Invoice[]
   reminders         Reminder[]
+  goodsReturnNotes GoodsReturnNote[]
+  salesReturnNotes SalesReturnNote[]
 
   @@index([assigned_rep_id])
   @@map("CUSTOMER")
@@ -60,15 +70,24 @@ model Customer {
 
 model Invoice {
   invoice_id        Int               @id @default(autoincrement())
+  invoice_number    String            @unique
+
   customer_id       Int
   rep_id            Int
-  created_by        Int
+  location_id       Int
+
   invoice_date      DateTime
   total_amount      Decimal           @db.Decimal(10, 2)
+
   status            InvoiceStatus     @default(UNPAID)
-  invoice_number    String            @unique
   gin_status        GINStatus         @default(PENDING)
-  location_id       Int
+  notes             String?
+
+  created_by        Int
+  created_at        DateTime          @default(now())
+  updated_at        DateTime          @default(now()) @updatedAt
+  is_active         Boolean           @default(true)
+
   goods_issue_notes GoodsIssueNote[]
   creator           User              @relation("InvoiceCreatedBy", fields: [created_by], references: [user_id])
   customer          Customer          @relation(fields: [customer_id], references: [customer_id])
@@ -76,9 +95,72 @@ model Invoice {
   rep               SalesRep          @relation(fields: [rep_id], references: [rep_id])
   invoice_lines     InvoiceLine[]
   receipts          Receipt[]
-  commissions       Commission[]
+  salesReturnNotes SalesReturnNote[]
+  creditNotes CreditNote[]
 
   @@map("INVOICE")
+  invoiceSettlements InvoiceSettlement[]
+}
+
+model InvoiceLine {
+  line_id    Int     @id @default(autoincrement())
+  invoice_id Int
+  product_id Int
+  quantity   Int
+  unit_price Decimal @db.Decimal(10, 2)
+  line_total Decimal @db.Decimal(10, 2)
+  promotion_type LinePromotionType @default(NONE)
+  discount   Decimal @default(0) @db.Decimal(10, 2)
+  free_quantity Int @default(0)
+  net_line_total Decimal @db.Decimal(10,2)
+
+  invoice    Invoice @relation(fields: [invoice_id], references: [invoice_id])
+  product    Product @relation(fields: [product_id], references: [product_id])
+
+  @@map("INVOICE_LINE")
+}
+
+model SalesReturnNote {
+  return_id     Int                  @id @default(autoincrement())
+  return_number String               @unique
+  return_date   DateTime
+  customer_id   Int
+  location_id   Int
+  invoice_id    Int
+  notes         String?
+
+  created_by    Int
+  created_at    DateTime             @default(now())
+  updated_at    DateTime             @default(now()) @updatedAt
+  is_active     Boolean              @default(true)
+
+  creator       User                 @relation("SalesReturnNoteCreatedBy", fields: [created_by], references: [user_id])
+  customer      Customer             @relation(fields: [customer_id], references: [customer_id])
+  location      InventoryLocation    @relation(fields: [location_id], references: [location_id])
+  invoice       Invoice              @relation(fields: [invoice_id], references: [invoice_id])
+  lines         SalesReturnNoteLine[]
+  goodsReturnNotes GoodsReturnNote[]
+
+  @@index([customer_id])
+  @@index([location_id])
+  @@map("SALES_RETURN_NOTE")
+  creditNotes CreditNote[]
+}
+
+model SalesReturnNoteLine {
+  return_line_id    Int              @id @default(autoincrement())
+  return_id         Int
+  product_id        Int
+  quantity          Int
+  condition         String
+  reason_for_return String
+
+  sales_return_note SalesReturnNote @relation(fields: [return_id], references: [return_id])
+  product          Product        @relation(fields: [product_id], references: [product_id])
+
+  @@index([return_id])
+  @@index([product_id])
+  @@map("SALES_RETURN_NOTE_LINE")
 }
 
 model GoodsIssueNote {
@@ -90,6 +172,14 @@ model GoodsIssueNote {
   prepared_by String
   received_by String
   invoice_id  Int
+  notes       String?
+
+  created_by  Int
+  created_at  DateTime             @default(now())
+  updated_at  DateTime             @default(now()) @updatedAt
+  is_active   Boolean              @default(true)
+
+  creator     User                 @relation("GINCreatedBy", fields: [created_by], references: [user_id])
   customer    Customer             @relation(fields: [customer_id], references: [customer_id])
   invoice     Invoice              @relation(fields: [invoice_id], references: [invoice_id])
   location    InventoryLocation    @relation(fields: [location_id], references: [location_id])
@@ -114,6 +204,46 @@ model GoodsIssueNoteLine {
   @@map("GOODS_ISSUE_NOTE_LINE")
 }
 
+// counterpart of goods issue note for returns
+model GoodsReturnNote {
+  return_id     Int                  @id @default(autoincrement())
+  return_number String              
+  return_date   DateTime
+  customer_id   Int
+  location_id   Int
+  srn_id        Int
+  notes         String?
+
+  created_by    Int
+  created_at    DateTime             @default(now())
+  updated_at    DateTime             @default(now()) @updatedAt
+  is_active     Boolean              @default(true)
+
+  creator             User                 @relation("GoodsReturnNoteCreatedBy", fields: [created_by], references: [user_id])
+  customer            Customer             @relation(fields: [customer_id], references: [customer_id])
+  location            InventoryLocation    @relation(fields: [location_id], references: [location_id])
+  sales_return_note   SalesReturnNote      @relation(fields: [srn_id], references: [return_id])
+  lines               GoodsReturnNoteLine[]
+
+  @@index([customer_id])
+  @@index([location_id])
+  @@map("GOODS_RETURN_NOTE")
+}
+
+model GoodsReturnNoteLine {
+  return_line_id   Int              @id @default(autoincrement())
+  return_id        Int
+  product_id       Int
+  quantity         Int
+
+  goods_return_note GoodsReturnNote @relation(fields: [return_id], references: [return_id])
+  product          Product        @relation(fields: [product_id], references: [product_id])
+
+  @@index([return_id])
+  @@index([product_id])
+  @@map("GOODS_RETURN_NOTE_LINE")
+}
+
 model GoodsReceivingNote {
   grn_id       Int                      @id @default(autoincrement())
   grn_number   String                   @unique
@@ -122,7 +252,12 @@ model GoodsReceivingNote {
   location_id  Int
   reference_no String?
   notes        String?
+
   created_by   Int
+  created_at   DateTime                 @default(now())
+  updated_at   DateTime                 @default(now()) @updatedAt
+  is_active    Boolean                  @default(true)
+
   creator      User                     @relation("GoodsReceivingNoteCreatedBy", fields: [created_by], references: [user_id])
   location     InventoryLocation        @relation(fields: [location_id], references: [location_id])
   lines        GoodsReceivingNoteLine[]
@@ -145,53 +280,80 @@ model GoodsReceivingNoteLine {
   @@map("GOODS_RECEIVING_NOTE_LINE")
 }
 
-model InvoiceLine {
-  line_id    Int     @id @default(autoincrement())
-  invoice_id Int
-  product_id Int
-  quantity   Int
-  unit_price Decimal @db.Decimal(10, 2)
-  discount   Decimal @default(0) @db.Decimal(10, 2)
-  line_total Decimal @db.Decimal(10, 2)
-  invoice    Invoice @relation(fields: [invoice_id], references: [invoice_id])
-  product    Product @relation(fields: [product_id], references: [product_id])
-
-  @@map("INVOICE_LINE")
-}
 
 model Receipt {
   receipt_id      Int           @id @default(autoincrement())
   invoice_id      Int
-  collected_by    Int
   receipt_date    DateTime
-  amount_received Decimal       @db.Decimal(10, 2)
+  amount          Decimal       @db.Decimal(10, 2)
   payment_method  PaymentMethod
   cheque_no       String?
   cheque_date     DateTime?
   bank_name       String?
-  commissions     Commission[]
-  collector       User          @relation("ReceiptCollectedBy", fields: [collected_by], references: [user_id])
+  notes           String?
+
+  created_by      Int
+  created_at      DateTime                 @default(now())
+  updated_at      DateTime                 @default(now()) @updatedAt
+  is_active       Boolean                  @default(true)
+
+  creator         User          @relation("ReceiptCreatedBy", fields: [created_by], references: [user_id])
   invoice         Invoice       @relation(fields: [invoice_id], references: [invoice_id])
+  invoiceSettlements InvoiceSettlement[]
 
   @@map("RECEIPT")
 }
 
+model CreditNote {
+  credit_note_id    Int @id @default(autoincrement())
+  srn_id            Int
+  invoice_id        Int
+  amount            Decimal @db.Decimal(10,2)
+  notes             String?
+
+  created_by      Int
+  created_at      DateTime                 @default(now())
+  updated_at      DateTime                 @default(now()) @updatedAt
+  is_active       Boolean                  @default(true)
+
+  sales_return_note     SalesReturnNote         @relation(fields: [srn_id], references: [return_id])
+  invoice               Invoice                 @relation(fields: [invoice_id], references: [invoice_id])
+  creator               User                    @relation("CreditNoteCreatedBy", fields: [created_by], references: [user_id]) 
+  @@map("CREDIT_NOTE")
+}
+
+model InvoiceSettlement {
+  settlement_id Int @id @default(autoincrement())
+  invoice_id    Int
+  receipt_id    Int?
+  amount        Decimal @db.Decimal(10,2)
+  settled_date  DateTime
+
+  invoice Invoice @relation(fields: [invoice_id], references: [invoice_id])
+  receipt Receipt? @relation(fields: [receipt_id], references: [receipt_id])
+
+  commissions Commission[]
+
+  @@index([invoice_id])
+  @@map("INVOICE_SETTLEMENT")
+}
+
 model Commission {
   commission_id     Int              @id @default(autoincrement())
+  settlement_id     Int
   rep_id            Int
-  receipt_id        Int?
-  invoice_id        Int
   commission_rate   Decimal          @db.Decimal(5, 4)
   commission_amount Decimal          @db.Decimal(10, 2)
   days_to_pay       Int
-  due_date          DateTime
-  paid_date         DateTime?
+
+  created_at        DateTime         @default(now())
+  updated_at        DateTime         @default(now()) @updatedAt
+
   status            CommissionStatus @default(PENDING)
-  receipt           Receipt?         @relation(fields: [receipt_id], references: [receipt_id])
   rep               SalesRep         @relation(fields: [rep_id], references: [rep_id])
-  invoice           Invoice          @relation(fields: [invoice_id], references: [invoice_id])
 
   @@map("COMMISSION")
+  invoiceSettlements InvoiceSettlement[]
 }
 
 model Reminder {
@@ -222,26 +384,35 @@ model Product {
   product_name               String
   pack_size                  String
   selling_price              Decimal                  @db.Decimal(10, 2)
-  goods_receiving_note_lines GoodsReceivingNoteLine[]
   goods_issue_note_lines     GoodsIssueNoteLine[]
+  goods_receiving_note_lines GoodsReceivingNoteLine[]
   invoice_lines              InvoiceLine[]
   category                   Category                 @relation(fields: [category_id], references: [category_id])
   stocks                     Stock[]
   stock_movements            StockMovement[]          @relation("StockMovementProduct")
 
   @@map("PRODUCT")
+  goodsReturnNoteLines GoodsReturnNoteLine[]
+  salesReturnNoteLines SalesReturnNoteLine[]
 }
 
 model InventoryLocation {
   location_id           Int                  @id @default(autoincrement())
   code                  String               @unique
   name                  String
-  goods_receiving_notes GoodsReceivingNote[]
+  address               String?
+  status                LocationStatus       @default(ACTIVE)
+  created_at            DateTime             @default(now())
+  updated_at            DateTime             @default(now())
   goods_issue_notes     GoodsIssueNote[]
+  goods_receiving_notes GoodsReceivingNote[]
   invoices              Invoice[]
   stocks                Stock[]
 
+  @@index([status])
   @@map("INVENTORY_LOCATION")
+  goodsReturnNotes GoodsReturnNote[]
+  salesReturnNotes SalesReturnNote[]
 }
 
 model Stock {
@@ -254,6 +425,8 @@ model Stock {
   stock_movements  StockMovement[]
 
   @@unique([product_id, location_id])
+  @@index([location_id])
+  @@index([product_id])
   @@map("STOCK")
 }
 
@@ -270,6 +443,7 @@ model StockMovement {
   product       Product      @relation("StockMovementProduct", fields: [product_id], references: [product_id])
   stock         Stock        @relation(fields: [stock_id], references: [stock_id])
 
+  @@index([stock_id, movement_type])
   @@map("STOCK_MOVEMENT")
 }
 
@@ -291,6 +465,7 @@ enum MovementType {
   RETURN
   PURCHASE
   ADJUSTMENT
+  NON_SALEABLE
 }
 
 enum StockEntryType {
@@ -312,5 +487,16 @@ enum GINStatus {
 enum CommissionStatus {
   PENDING
   PAID
-  OVERDUE
+  CANCELLED
+}
+
+enum LocationStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum LinePromotionType {
+  NONE
+  DISCOUNT
+  FREE_QTY
 }
