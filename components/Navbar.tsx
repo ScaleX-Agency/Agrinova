@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "@clerk/nextjs";
-import { Badge, Avatar, Skeleton } from "antd";
+import { Avatar, Skeleton } from "antd";
 import { Bell, Search, PanelLeftClose, X, ChevronRight } from "lucide-react";
 import { GlobalSearchPalette } from "./GlobalSearch";
 
@@ -133,10 +133,13 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
           </button>
 
           {/* Status pill */}
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-stone-200 bg-stone-50">
+          <div 
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-stone-200 bg-stone-50"
+            title={process.env.NEXT_PUBLIC_GITHUB_SHA ? `Deploy SHA: ${process.env.NEXT_PUBLIC_GITHUB_SHA}` : "Live"}
+          >
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
             <span className="text-[11.5px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">
-              Live
+              {process.env.NEXT_PUBLIC_GITHUB_SHA ? `Live (${process.env.NEXT_PUBLIC_GITHUB_SHA.substring(0, 7)})` : "Live"}
             </span>
           </div>
 
