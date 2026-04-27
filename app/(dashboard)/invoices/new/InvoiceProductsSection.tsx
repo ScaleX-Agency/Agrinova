@@ -6,7 +6,7 @@ import { createColumnHelper } from "@tanstack/react-table";
 import SearchableSelect, { type SearchableSelectOption } from "@/components/SearchableSelect";
 import NumericStepperInput from "@/components/NumericStepperInput";
 import type { AvailableProduct, InvoiceLine, LinePromotionType } from "./invoice-form.types";
-import { clamp, formatCurrency } from "./invoice-form.utils";
+import { clamp, formatCurrency, canAddInvoiceLines } from "./invoice-form.utils";
 import TanStackTable, { type TableColumnMeta } from "../../../../components/TanStackTable";
 
 const columnHelper = createColumnHelper<InvoiceLine>();
@@ -329,7 +329,8 @@ const InvoiceProductsSection = ({
         <button
           type="button"
           onClick={onAddLine}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] transition hover:bg-[#eeeffe] [font-family:var(--font-dmsans)]"
+          disabled={!canAddInvoiceLines(locationId, availableProducts, isLoadingRelevantProducts)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] transition hover:bg-[#eeeffe] disabled:opacity-50 disabled:cursor-not-allowed [font-family:var(--font-dmsans)]"
         >
           <Plus size={13} />
           Add Row
