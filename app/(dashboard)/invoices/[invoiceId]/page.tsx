@@ -149,8 +149,11 @@ const InvoiceDetailPage = async ({
           line_id: true,
           quantity: true,
           unit_price: true,
+          promotion_type: true,
           discount: true,
+          free_quantity: true,
           line_total: true,
+          net_line_total: true,
           product: {
             select: {
               product_name: true,
@@ -167,17 +170,12 @@ const InvoiceDetailPage = async ({
   }
 
   type InvoiceLine = {
-   
-    quantity: number;
-  // eslint-disable-next-line
-    unit_price: any;
+    line_total: any;
   };
 
   const subtotal = invoice.invoice_lines.reduce(
-    (sum: number, line: InvoiceLine) => sum + line.quantity * Number(line.unit_price),
-   
+    (sum: number, line: InvoiceLine) => sum + Number(line.line_total),
     0,
-   
   );
   // eslint-disable-next-line
   const latestGin = invoice.goods_issue_notes[0] ?? null;
@@ -374,8 +372,9 @@ const InvoiceDetailPage = async ({
                 <th className="border-b border-r border-stone-200 px-5 py-3.5 text-left">Pack Size</th>
                 <th className="border-b border-r border-stone-200 px-5 py-3.5 text-center">Qty</th>
                 <th className="border-b border-r border-stone-200 px-5 py-3.5 text-right">Unit Price</th>
-                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-center">Discount (%)</th>
-                <th className="border-b border-stone-200 px-5 py-3.5 text-right">Line Total</th>
+                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-center">Promotion</th>
+                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-right">Line Total</th>
+                <th className="border-b border-stone-200 px-5 py-3.5 text-right">Net Total</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
@@ -386,17 +385,33 @@ const InvoiceDetailPage = async ({
                     {line.product.product_name}
                   </td>
                   <td className="border-r border-stone-200 px-5 py-3.5 text-left text-stone-700">{line.product.pack_size}</td>
-                  <td className="border-r border-stone-200 px-5 py-3.5 text-center text-stone-700 font-medium">
+                  <td className="border-r border-stone-200 px-5 py-3.5 text-center text-stone-700 font-medium whitespace-nowrap">
                     {line.quantity}
+                    {line.free_quantity > 0 && (
+                      <div className="text-[11px] text-green-600 mt-0.5">+{line.free_quantity} Free</div>
+                    )}
                   </td>
                   <td className="border-r border-stone-200 px-5 py-3.5 text-right text-stone-700">
                     {formatCurrency(Number(line.unit_price))}
                   </td>
                   <td className="border-r border-stone-200 px-5 py-3.5 text-center text-stone-700">
-                    {Number(line.discount) > 0 ? `${Number(line.discount)}%` : "-"}
+                    {line.promotion_type === "DISCOUNT" && Number(line.discount) > 0 ? (
+                      <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                        {Number(line.discount)}% OFF
+                      </span>
+                    ) : line.promotion_type === "FREE_QTY" && Number(line.free_quantity) > 0 ? (
+                      <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-[11px] font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                        FREE QTY
+                      </span>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+                  <td className="border-r border-stone-200 px-5 py-3.5 text-right text-stone-500">
+                    {formatCurrency(Number(line.line_total))}
                   </td>
                   <td className="px-5 py-3.5 text-right font-semibold text-stone-900">
-                    {formatCurrency(Number(line.line_total))}
+                    {formatCurrency(Number(line.net_line_total))}
                   </td>
                 </tr>
               ))}

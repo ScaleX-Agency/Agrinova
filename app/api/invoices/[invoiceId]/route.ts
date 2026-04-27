@@ -40,7 +40,11 @@ export async function GET(
             product_id: true,
             quantity: true,
             unit_price: true,
+            promotion_type: true,
+            discount: true,
+            free_quantity: true,
             line_total: true,
+            net_line_total: true,
             product: {
               select: {
                 product_name: true,
@@ -51,7 +55,7 @@ export async function GET(
         },
         receipts: {
           select: {
-            amount_received: true,
+            amount: true,
           },
         },
       },
@@ -62,7 +66,7 @@ export async function GET(
     }
 
     const totalAmount = Number(invoice.total_amount);
-    const totalPaid = invoice.receipts.reduce((sum, receipt) => sum + Number(receipt.amount_received), 0);
+    const totalPaid = invoice.receipts.reduce((sum: number, receipt: any) => sum + Number(receipt.amount), 0);
     const outstandingAmount = Math.max(0, totalAmount - totalPaid);
 
     const responseBody: InvoiceDetailResponse = {
@@ -79,13 +83,17 @@ export async function GET(
         totalAmount,
         totalPaid,
         outstandingAmount,
-        lines: invoice.invoice_lines.map((line) => ({
+        lines: invoice.invoice_lines.map((line: any) => ({
           productId: line.product_id,
           productName: line.product.product_name,
           packSize: line.product.pack_size,
           quantity: line.quantity,
           unitPrice: Number(line.unit_price),
+          promotionType: line.promotion_type,
+          discount: Number(line.discount),
+          freeQuantity: line.free_quantity,
           lineTotal: Number(line.line_total),
+          netLineTotal: Number(line.net_line_total),
         })),
       },
     };

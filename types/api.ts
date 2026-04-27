@@ -66,7 +66,11 @@ export type InvoiceLineDto = {
   packSize: string;
   quantity: number;
   unitPrice: number;
+  promotionType: "NONE" | "DISCOUNT" | "FREE_QTY";
+  discount: number;
+  freeQuantity: number;
   lineTotal: number;
+  netLineTotal: number;
 };
 
 export type InvoiceDetailDto = {
