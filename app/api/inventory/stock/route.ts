@@ -27,6 +27,7 @@ const normalizePayload = (
     location_id: legacy.location_id,
     reference_no: legacy.reference_no ?? null,
     notes: legacy.notes ?? null,
+    grn_number: null,
     items: [
       {
         product_id: legacy.product_id,

@@ -50,30 +50,30 @@ type DashboardResponse = {
     collected: number;
   };
   topCustomers: Array<{
-    customerId: number;
-    customerName: string;
-    salesRep: string;
-    totalSales: number;
-    outstanding: number;
-    lastPurchaseDate: string;
+    customer_id: number;
+    name: string;
+    total_sales: number;
+    outstanding_balance: number;
+    invoice_count: number;
   }>;
   overdueCustomers: Array<{
-    customerId: number;
-    customerName: string;
-    salesRep: string;
+    customer_id: number;
+    name: string;
+    rep_name: string;
     outstanding: number;
-    daysOverdue: number;
+    days_overdue: number;
   }>;
   salesByRep: Array<{
-    repId: number;
-    repName: string;
-    totalSales: number;
-    collections: number;
+    rep_id: number;
+    rep_name: string;
+    sales: number;
+    collected: number;
   }>;
-  customerSegments: Array<{
-    label: string;
-    value: number;
-  }>;
+  customerSegments: {
+    active: number;
+    inactive: number;
+    new: number;
+  };
   summary: {
     previousPeriodSales: number;
   };
@@ -114,35 +114,35 @@ export default function CustomerSalesDashboardPage() {
 
   const customerBarData = (dashboardQuery.data?.topCustomers ?? []).map((customer) => ({
     ...customer,
-    collected: Math.max(0, customer.totalSales - customer.outstanding),
+    collected: Math.max(0, customer.total_sales - customer.outstanding_balance),
   }));
 
   const customerSummaryColumns: ColumnDef<DashboardResponse["topCustomers"][number]>[] = [
     {
-      accessorKey: "customerName",
+      accessorKey: "name",
       header: "Customer",
-      cell: ({ row }) => <span className="font-medium text-stone-800">{row.original.customerName}</span>,
+      cell: ({ row }) => <span className="font-medium text-stone-800">{row.original.name}</span>,
     },
     {
-      accessorKey: "totalSales",
+      accessorKey: "total_sales",
       header: "Total Sales",
-      cell: ({ row }) => <span className="text-stone-700">{formatCurrency(row.original.totalSales)}</span>,
+      cell: ({ row }) => <span className="text-stone-700">{formatCurrency(row.original.total_sales)}</span>,
       meta: { align: "right" },
     },
     {
-      accessorKey: "outstanding",
+      accessorKey: "outstanding_balance",
       header: "Outstanding",
       cell: ({ row }) => (
-        <span className={row.original.outstanding > 0 ? "text-red-700 font-medium" : "text-emerald-700"}>
-          {formatCurrency(row.original.outstanding)}
+        <span className={row.original.outstanding_balance > 0 ? "text-red-700 font-medium" : "text-emerald-700"}>
+          {formatCurrency(row.original.outstanding_balance)}
         </span>
       ),
       meta: { align: "right" },
     },
     {
-      accessorKey: "salesRep",
-      header: "Sales Rep",
-      cell: ({ row }) => <span className="text-stone-600">{row.original.salesRep}</span>,
+      accessorKey: "invoice_count",
+      header: "Invoices",
+      cell: ({ row }) => <span className="text-stone-600">{row.original.invoice_count}</span>,
       meta: { align: "right" },
     },
     {
@@ -150,7 +150,7 @@ export default function CustomerSalesDashboardPage() {
       header: "",
       cell: ({ row }) => (
         <Link
-          href={`/customer-sales/${row.original.customerId}`}
+          href={`/customer-sales/${row.original.customer_id}`}
           className="inline-flex items-center rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-stone-700 hover:bg-stone-50"
         >
           View
@@ -262,12 +262,12 @@ export default function CustomerSalesDashboardPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={customerBarData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#edeae1" />
-                  <XAxis dataKey="customerName" tick={{ fontSize: 11, fill: "#6b7280" }} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6b7280" }} />
                   <YAxis tickFormatter={(value) => `${Math.round(value / 1000)}k`} tick={{ fontSize: 11, fill: "#6b7280" }} />
                   <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
                   <Legend />
                   <Bar dataKey="collected" stackId="customerTotal" name="Collected" fill="#2b2d7e" />
-                  <Bar dataKey="outstanding" stackId="customerTotal" name="Outstanding" fill="#b91c1c" />
+                  <Bar dataKey="outstanding_balance" stackId="customerTotal" name="Outstanding" fill="#b91c1c" />
                 </BarChart>
               </ResponsiveContainer>
             </div>

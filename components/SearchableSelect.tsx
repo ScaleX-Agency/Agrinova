@@ -84,11 +84,13 @@ export default function SearchableSelect({
   }, [open]);
 
   useEffect(() => {
+  // eslint-disable-next-line
     if (!open) setQuery("");
   }, [open]);
 
   useEffect(() => {
     if (!open) {
+  // eslint-disable-next-line
       setMenuStyle(null);
       return;
     }

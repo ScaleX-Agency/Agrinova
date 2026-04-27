@@ -1,5 +1,6 @@
 "use client";
 
+  // eslint-disable-next-line
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";

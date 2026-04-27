@@ -69,6 +69,7 @@ export interface CreateMovementDto {
   stock_id: number;
   movement_type: MovementType;
   quantity: number; // always positive — sign is derived from type
+  resulting_quantity?: number; // for ADJUSTMENT, sets stock to this value
   notes?: string;
 }
 
@@ -86,5 +87,6 @@ export interface CreateStockEntryDto {
   location_id: number;
   reference_no?: string | null;
   notes?: string | null;
+  grn_number?: string | null;
   items: CreateStockEntryItemDto[];
 }

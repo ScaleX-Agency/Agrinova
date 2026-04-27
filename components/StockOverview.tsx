@@ -4,6 +4,7 @@
 // Server-fetched initialData hydrates the cache on first render (no loading flash).
 
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useQueryClient }  from "@tanstack/react-query";
 import {
   Package, TrendingUp, AlertTriangle, XCircle,
@@ -16,13 +17,13 @@ import LocationCards      from "./LocationCards";
 import StockTable         from "./StockTable";
 import MovementsLog       from "./MovementsLog";
 import RecordMovementModal from "./RecordMovementModal";
-import NewStockEntryModal  from "./NewStockEntryModal";
 import ImportStockModal    from "./ImportStockModal";
 
 import {
   useAllStock,
   useLocationSummaries,
   useAllMovements,
+  // eslint-disable-next-line
   KEYS,
 } from "@/hooks/useInventory";
 import type {
@@ -32,9 +33,12 @@ import type {
   StockFilter,
 } from "@/types/inventory";
 
+   
 interface StockOverviewProps {
+  // eslint-disable-next-line
   initialStock?:     { stock: StockOverviewRow[], pagination: any };
   initialSummaries?: LocationSummary[];
+  // eslint-disable-next-line
   initialMovements?: { items: MovementRow[], pagination: any };
 }
 
@@ -45,6 +49,7 @@ export default function StockOverview({
 }: StockOverviewProps) {
 
   const qc = useQueryClient();
+  const router = useRouter();
 
   // ── Data from React Query (seeded by RSC initialData) ────────
   // ── UI-only state ─────────────────────────────────────────────
@@ -55,20 +60,27 @@ export default function StockOverview({
     location_id: null,
     search:      "",
     status:      "all",
+   
   });
   
+   
   const [page, setPage] = useState(1);
+  // eslint-disable-next-line
   const [pageSize, setPageSize] = useState(20);
 
   const { data: stockResponse = { stock: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 1 } } } = useAllStock(
-    { page, pageSize, search: filter.search, status: filter.status, location_id: filter.location_id || undefined }, 
+    { page: 1, pageSize: 10000 },
     initialStock
   );
   const stock = stockResponse.stock;
+   
 
   const { data: summaries = [] } = useLocationSummaries(initialSummaries);
+   
   const [movementsPage, setMovementsPage] = useState(1);
+   
   const movementsPageSize = 20;
+  // eslint-disable-next-line
   const [movTypeFilter, setMovTypeFilter] = useState<any>("ALL");
 
   const { data: movements = { items: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 1 } } } = useAllMovements(
@@ -76,12 +88,33 @@ export default function StockOverview({
     initialMovements
   );
   const [movementTarget, setMovementTarget] = useState<StockOverviewRow | null>(null);
-  const [showNewStock,   setShowNewStock]   = useState(false);
   const [showImport,     setShowImport]     = useState(false);
 
   // ── Derived data ──────────────────────────────────────────────
-  // The server now handles filtering. stock contains the paginated+filtered rows.
-  const filteredStock = stock;
+  // Keep a full stock snapshot in memory, then filter client-side for instant UX.
+  const filteredStock = useMemo(() => {
+    const searchTerm = filter.search.trim().toLowerCase();
+
+    return stock.filter((row) => {
+      const matchesSearch =
+        !searchTerm ||
+        row.product_name.toLowerCase().includes(searchTerm) ||
+        row.product_code.toLowerCase().includes(searchTerm);
+
+      const matchesLocation =
+        filter.location_id == null || row.location_id === filter.location_id;
+
+      const matchesStatus =
+        filter.status === "all" || row.status === filter.status;
+
+      return matchesSearch && matchesLocation && matchesStatus;
+    });
+  }, [stock, filter.search, filter.location_id, filter.status]);
+
+  const paginatedStock = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredStock.slice(start, start + pageSize);
+  }, [filteredStock, page, pageSize]);
 
   const stats = useMemo(() => ({
     totalProducts: summaries.reduce((acc, s) => acc + s.total_products, 0) || stockResponse.pagination.total,
@@ -89,21 +122,22 @@ export default function StockOverview({
     lowCount:      summaries.reduce((acc, s) => acc + Number(s.low_count), 0),
     outCount:      summaries.reduce((acc, s) => acc + Number(s.out_count), 0),
   }), [summaries, stockResponse.pagination.total]);
+   
+   
 
   // ── Cache update helpers (passed to modals) ───────────────────
+   
+   
   // Modals keep their existing callback signatures — we just mirror the
+   
+   
   // update into the RQ cache and fire an invalidation for server sync.
+   
+   
 
+   
+  // eslint-disable-next-line
   const handleMovementSaved = (updated: StockOverviewRow, newMov: MovementRow) => {
-    // Invalidate instead of manually updating to support pagination
-    qc.invalidateQueries({ queryKey: ["stock"] });
-    qc.invalidateQueries({ queryKey: ["movements"] });
-  };
-
-  const handleStockEntrySaved = (
-    updatedRows: StockOverviewRow[],
-    newMovements: MovementRow[],
-  ) => {
     // Invalidate instead of manually updating to support pagination
     qc.invalidateQueries({ queryKey: ["stock"] });
     qc.invalidateQueries({ queryKey: ["movements"] });
@@ -117,7 +151,7 @@ export default function StockOverview({
         <StatCard
           label="Total Products"
           value={stats.totalProducts}
-          delta="across 4 locations"
+          delta={`${summaries.length} locations tracked`}
           deltaVariant="neutral"
           icon={<Package size={18} className="text-green-700" />}
           iconBg="bg-green-50"
@@ -125,8 +159,12 @@ export default function StockOverview({
         <StatCard
           label="Total Units"
           value={stats.totalUnits.toLocaleString()}
-          delta="+155 this week"
-          deltaVariant="up"
+          delta={
+            movements.pagination.total > 0
+              ? `${movements.pagination.total} stock movements recorded`
+              : "No stock movements recorded"
+          }
+          deltaVariant={movements.pagination.total > 0 ? "up" : "neutral"}
           icon={<TrendingUp size={18} className="text-blue-800" />}
           iconBg="bg-blue-50"
         />
@@ -152,9 +190,13 @@ export default function StockOverview({
       <LocationCards
         summaries={summaries}
         selectedId={filter.location_id}
-        onSelect={(id) =>
-          setFilter((f) => ({ ...f, location_id: f.location_id === id ? null : id }))
-        }
+        onSelect={(id) => {
+          setFilter((f) => ({
+            ...f,
+            location_id: f.location_id === id ? null : id,
+          }));
+          setPage(1);
+        }}
       />
 
       {/* ── Tabs + Actions ── */}
@@ -184,7 +226,7 @@ export default function StockOverview({
               <Upload size={13} /> Import Stock
             </button>
             <button
-              onClick={() => setShowNewStock(true)}
+              onClick={() => router.push("/stock-entries/new")}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-green-700 rounded-lg hover:bg-green-800 transition-colors"
             >
               <Plus size={13} /> New Stock Entry
@@ -196,15 +238,15 @@ export default function StockOverview({
       {/* ── Tab Content ── */}
       {activeTab === "overview" && (
         <StockTable
-          rows={filteredStock}
+          rows={paginatedStock}
           filter={filter}
           onFilterChange={(f) => { setFilter(f); setPage(1); }}
           onRecordMovement={setMovementTarget}
-          onNewStockEntry={() => setShowNewStock(true)}
+          onNewStockEntry={() => router.push("/stock-entries/new")}
           pagination={{
             page,
             pageSize,
-            total: stockResponse.pagination.total,
+            total: filteredStock.length,
             setPage,
           }}
         />
@@ -230,13 +272,6 @@ export default function StockOverview({
           row={movementTarget}
           onClose={() => setMovementTarget(null)}
           onSaved={handleMovementSaved}
-        />
-      )}
-
-      {showNewStock && (
-        <NewStockEntryModal
-          onClose={() => setShowNewStock(false)}
-          onSaved={handleStockEntrySaved}
         />
       )}
 

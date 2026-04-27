@@ -24,9 +24,49 @@ export async function GET(req: Request) {
   }
 }
 
+import { z } from "zod";
+
+const createMovementSchema = z.object({
+  stock_id: z.number().int().positive(),
+  movement_type: z.enum(["ISSUE", "RETURN", "PURCHASE", "ADJUSTMENT"]),
+  quantity: z.number().int().optional(),
+  resulting_quantity: z.number().int().nonnegative().optional(),
+  movement_date: z.string().datetime().optional(),
+  notes: z.string().optional()
+}).superRefine((data, ctx) => {
+  if (data.movement_type !== "ADJUSTMENT") {
+    if (data.quantity === undefined || data.quantity <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "quantity must be a positive integer for this movement type",
+        path: ["quantity"]
+      });
+    }
+  } else {
+    // For ADJUSTMENT
+    if (data.resulting_quantity === undefined && data.quantity === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "For ADJUSTMENT, resulting_quantity or a relative quantity must be provided",
+        path: ["resulting_quantity"]
+      });
+    }
+  }
+});
+
 export async function POST(req: Request) {
   try {
-    const dto = (await req.json()) as CreateMovementDto;
+    const body = await req.json();
+    const parseResult = createMovementSchema.safeParse(body);
+
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: parseResult.error.issues[0]?.message ?? "Invalid input" },
+        { status: 400 }
+      );
+    }
+    
+    const dto = parseResult.data as CreateMovementDto;
 
     const user = await getCurrentUser();
     if (!user) {

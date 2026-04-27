@@ -128,11 +128,11 @@ const ReceiptDetailPage = async ({
               </h1>
               <div
                 className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${
-                  METHOD_BADGE_STYLE[receipt.payment_method].bg
-                } ${METHOD_BADGE_STYLE[receipt.payment_method].text}`}
+                  METHOD_BADGE_STYLE[receipt.payment_method as "CASH" | "CHEQUE" | "BANK_TRANSFER"].bg
+                } ${METHOD_BADGE_STYLE[receipt.payment_method as "CASH" | "CHEQUE" | "BANK_TRANSFER"].text}`}
               >
-                {METHOD_BADGE_STYLE[receipt.payment_method].icon}
-                {METHOD_LABEL[receipt.payment_method]}
+                {METHOD_BADGE_STYLE[receipt.payment_method as "CASH" | "CHEQUE" | "BANK_TRANSFER"].icon}
+                {METHOD_LABEL[receipt.payment_method as "CASH" | "CHEQUE" | "BANK_TRANSFER"]}
               </div>
             </div>
           </div>
@@ -143,7 +143,7 @@ const ReceiptDetailPage = async ({
             receiptNo={receiptNo}
             receiptDate={receipt.receipt_date.toISOString()}
             amountReceived={Number(receipt.amount_received)}
-            paymentMethodLabel={METHOD_LABEL[receipt.payment_method]}
+            paymentMethodLabel={METHOD_LABEL[receipt.payment_method as "CASH" | "CHEQUE" | "BANK_TRANSFER"]}
             collectedBy={receipt.collector.full_name}
             invoiceNo={receipt.invoice.invoice_number}
             invoiceDate={receipt.invoice.invoice_date.toISOString()}
@@ -176,7 +176,7 @@ const ReceiptDetailPage = async ({
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Payment Method</p>
-              <p className="mt-1 text-[14px] font-semibold text-stone-900">{METHOD_LABEL[receipt.payment_method]}</p>
+              <p className="mt-1 text-[14px] font-semibold text-stone-900">{METHOD_LABEL[receipt.payment_method as "CASH" | "CHEQUE" | "BANK_TRANSFER"]}</p>
             </div>
           </div>
         </div>

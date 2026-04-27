@@ -137,8 +137,6 @@ model GoodsReceivingNoteLine {
   grn_id               Int
   product_id           Int
   quantity             Int
-  unit_price           Decimal            @db.Decimal(10, 2)
-  line_total           Decimal            @db.Decimal(10, 2)
   goods_receiving_note GoodsReceivingNote @relation(fields: [grn_id], references: [grn_id])
   product              Product            @relation(fields: [product_id], references: [product_id])
 
@@ -238,11 +236,16 @@ model InventoryLocation {
   location_id           Int                  @id @default(autoincrement())
   code                  String               @unique
   name                  String
+  address               String?
+  status                LocationStatus       @default(ACTIVE)
+  created_at            DateTime             @default(now())
+  updated_at            DateTime             @default(now()) @updatedAt
   goods_receiving_notes GoodsReceivingNote[]
   goods_issue_notes     GoodsIssueNote[]
   invoices              Invoice[]
   stocks                Stock[]
 
+  @@index([status])
   @@map("INVENTORY_LOCATION")
 }
 
@@ -256,6 +259,8 @@ model Stock {
   stock_movements  StockMovement[]
 
   @@unique([product_id, location_id])
+  @@index([location_id])
+  @@index([product_id])
   @@map("STOCK")
 }
 
@@ -272,6 +277,8 @@ model StockMovement {
   product       Product      @relation("StockMovementProduct", fields: [product_id], references: [product_id])
   stock         Stock        @relation(fields: [stock_id], references: [stock_id])
 
+  @@index([movement_type])
+  @@index([stock_id])
   @@map("STOCK_MOVEMENT")
 }
 
@@ -315,4 +322,9 @@ enum CommissionStatus {
   PENDING
   PAID
   OVERDUE
+}
+
+enum LocationStatus {
+  ACTIVE
+  INACTIVE
 }

@@ -311,8 +311,6 @@ export type GoodsReceivingNoteLineDto = {
   productName: string;
   packSize: string;
   quantity: number;
-  unitPrice: number;
-  lineTotal: number;
 };
 
 export type GoodsReceivingNoteDetailDto = {

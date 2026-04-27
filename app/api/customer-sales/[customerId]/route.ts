@@ -117,7 +117,7 @@ export async function GET(
       url.searchParams.get("customEnd"),
     );
 
-    const [customer, invoices, goodsIssueNotes] = await Promise.all([
+    const customer = await 
       prisma.customer.findUnique({
         where: { customer_id: customerId },
         select: {
@@ -131,8 +131,9 @@ export async function GET(
             },
           },
         },
-      }),
-      prisma.invoice.findMany({
+      });
+
+      const invoices = await prisma.invoice.findMany({
         where: { customer_id: customerId },
         orderBy: [{ invoice_date: "desc" }, { invoice_id: "desc" }],
         select: {
@@ -163,8 +164,9 @@ export async function GET(
             },
           },
         },
-      }),
-      prisma.goodsIssueNote.findMany({
+      });
+
+      const goodsIssueNotes = await prisma.goodsIssueNote.findMany({
         where: { customer_id: customerId },
         orderBy: [{ gin_date: "desc" }, { gin_id: "desc" }],
         select: {
@@ -177,8 +179,8 @@ export async function GET(
             },
           },
         },
-      }),
-    ]);
+      });
+
 
     if (!customer) {
       return NextResponse.json({ error: "Customer not found." }, { status: 404 });

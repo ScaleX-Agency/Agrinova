@@ -2,12 +2,15 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
 import {
+   
   LayoutDashboard,
   Boxes,
   Package,
+  MapPin,
   ArrowLeftRight,
   Users,
   UserCog,
@@ -17,7 +20,6 @@ import {
   UserCheck,
   BarChart3,
   Settings,
-  Leaf,
   LogOut,
   ChevronRight,
 } from "lucide-react";
@@ -62,6 +64,11 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/inventory/products",
         icon: <Package size={15} />,
         label: "Products",
+      },
+      {
+        href: "/locations",
+        icon: <MapPin size={15} />,
+        label: "Locations",
       },
       {
         href: "/goods-receiving-notes",
@@ -116,16 +123,28 @@ const NAV_GROUPS: NavGroup[] = [
 ];
 
 const isPathActive = (pathname: string, href: string) => {
-  if (href.includes("?")) {
-    const [basePath] = href.split("?");
-    return pathname === basePath;
+  const currentPath =
+    pathname.endsWith("/") && pathname !== "/"
+      ? pathname.slice(0, -1)
+      : pathname;
+
+  // Treat Stock Overview as a specific route, not a broad parent matcher.
+  if (href === "/inventory") {
+    return (
+      currentPath === "/inventory" || /^\/inventory\/\d+$/.test(currentPath)
+    );
   }
 
-  if (pathname === href) {
+  if (href.includes("?")) {
+    const [basePath] = href.split("?");
+    return currentPath === basePath;
+  }
+
+  if (currentPath === href) {
     return true;
   }
 
-  return pathname.startsWith(`${href}/`);
+  return currentPath.startsWith(`${href}/`);
 };
 
 const SidebarContent = ({
@@ -134,7 +153,10 @@ const SidebarContent = ({
   signOut,
 }: {
   collapsed: boolean;
+
   pathname: string;
+
+  // eslint-disable-next-line
   signOut: any;
 }) => (
   <motion.aside
@@ -149,11 +171,12 @@ const SidebarContent = ({
     <div
       className={`h-[64px] border-b border-stone-200 flex items-center shrink-0 ${collapsed ? "justify-center px-3" : "gap-3 px-4"}`}
     >
-      <div className="w-9 h-9 rounded-xl border border-stone-200 flex items-center justify-center shrink-0 overflow-hidden bg-white">
-        <img
+      <div className="w-9 h-9 rounded-xl border border-stone-200 flex items-center justify-center shrink-0 overflow-hidden bg-white relative">
+        <Image
           src="/agrinova-logo.jpeg"
           alt="Agrinova Logo"
-          className="w-full h-full object-cover"
+          fill
+          className="object-cover"
         />
       </div>
       {!collapsed && (
@@ -224,14 +247,14 @@ const SidebarContent = ({
 
     {/* Bottom */}
     <div className="border-t border-stone-200 p-3 space-y-1 shrink-0">
-      <Link
+      {/* <Link
         href="/settings"
         className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[13px] font-medium text-stone-500 hover:bg-stone-50 hover:text-stone-800 transition-all [font-family:var(--font-dmsans)] ${collapsed ? "justify-center" : ""}`}
         title={collapsed ? "Settings" : undefined}
       >
         <Settings size={15} className="text-stone-400" />
         {!collapsed && <span>Settings</span>}
-      </Link>
+      </Link> */}
       <button
         onClick={() => signOut({ redirectUrl: "/login" })}
         className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[13px] font-medium text-stone-500 hover:bg-red-50 hover:text-red-700 transition-all [font-family:var(--font-dmsans)] ${collapsed ? "justify-center" : ""}`}

@@ -18,6 +18,7 @@ async function runBenchmark(
   // warm-up run 
   try {
     await fn(); 
+  // eslint-disable-next-line
   } catch (e) {
   }
  
@@ -25,7 +26,9 @@ async function runBenchmark(
   for (let i = 0; i < iterations; i++) { 
     const start = performance.now(); 
     try {
+   
       await fn(); 
+  // eslint-disable-next-line
     } catch (e) {}
     times.push(performance.now() - start); 
   } 

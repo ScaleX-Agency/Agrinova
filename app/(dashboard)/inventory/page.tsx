@@ -14,9 +14,12 @@ export const metadata: Metadata = { title: "Stock Overview" };
 
 export default async function InventoryPage() {
   // Runs server-side — hits unstable_cache (not Supabase directly on repeat loads)
-  const stock = await getAllStock();
-  const summaries = await getLocationSummaries(); // fetch via SQL aggregation directly
-  const movementsResult = await getAllMovements();
+  // Use Promise.all() to properly handle concurrent queries and avoid pg deprecation warning
+  const [stock, summaries, movementsResult] = await Promise.all([
+    getAllStock(1, 10000),
+    getLocationSummaries(), // fetch via SQL aggregation directly
+    getAllMovements(),
+  ]);
 
   return (
     <div className="space-y-6">

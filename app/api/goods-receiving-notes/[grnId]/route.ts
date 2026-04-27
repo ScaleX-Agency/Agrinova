@@ -73,8 +73,6 @@ export async function GET(
           productName: line.product.product_name,
           packSize: line.product.pack_size,
           quantity: line.quantity,
-          unitPrice: Number(line.unit_price),
-          lineTotal: Number(line.line_total),
         })),
       },
     };

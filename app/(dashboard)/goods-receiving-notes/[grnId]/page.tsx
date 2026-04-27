@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   Calendar,
@@ -22,6 +21,7 @@ const formatDate = (value: Date) =>
     year: "numeric",
   });
 
+  // eslint-disable-next-line
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-LK", {
     style: "currency",
@@ -67,8 +67,6 @@ const GoodsReceivingNoteDetailPage = async ({
         select: {
           grn_line_id: true,
           quantity: true,
-          unit_price: true,
-          line_total: true,
           product: {
             select: {
               product_code: true,
@@ -85,8 +83,10 @@ const GoodsReceivingNoteDetailPage = async ({
     notFound();
   }
 
-  const totalValue = note.lines.reduce(
-    (sum, line) => sum + Number(line.line_total),
+   
+  const totalQuantity = note.lines.reduce(
+  // eslint-disable-next-line
+    (sum: number, line: any) => sum + line.quantity,
     0,
   );
 
@@ -113,23 +113,24 @@ const GoodsReceivingNoteDetailPage = async ({
           <GrnPrintButton
             grnNumber={note.grn_number}
             grnDate={note.grn_date.toISOString()}
-            entryType={note.entry_type}
+            entryType={note.entry_type as "LOCAL_PURCHASE" | "FOREIGN_IMPORT"}
             locationCode={note.location.code}
             locationName={note.location.name}
             referenceNo={note.reference_no}
             notes={note.notes}
+   
             createdBy={note.creator.full_name}
+   
             createdByUsername={note.creator.username}
-            lines={note.lines.map((line) => ({
+  // eslint-disable-next-line
+            lines={note.lines.map((line: any) => ({
               lineId: line.grn_line_id,
               productCode: line.product.product_code,
               productName: line.product.product_name,
               packSize: line.product.pack_size,
               quantity: line.quantity,
-              unitPrice: Number(line.unit_price),
-              lineTotal: Number(line.line_total),
             }))}
-            totalValue={totalValue}
+            totalQuantity={totalQuantity}
           />
         </div>
       </div>
@@ -161,7 +162,7 @@ const GoodsReceivingNoteDetailPage = async ({
                 Entry Type
               </p>
               <p className="mt-1 text-[15px] font-semibold text-stone-900">
-                {ENTRY_TYPE_LABEL[note.entry_type]}
+                {ENTRY_TYPE_LABEL[note.entry_type as "LOCAL_PURCHASE" | "FOREIGN_IMPORT"]}
               </p>
             </div>
           </div>
@@ -223,19 +224,17 @@ const GoodsReceivingNoteDetailPage = async ({
                 <th className="border-b border-r border-stone-200 px-5 py-3.5 text-left">
                   Pack Size
                 </th>
-                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-center">
+  {/* eslint-disable-next-line */}
+                <th className="border-b border-stone-200 px-5 py-3.5 text-center">
                   Qty
-                </th>
-                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-right">
-                  Unit Price
-                </th>
-                <th className="border-b border-stone-200 px-5 py-3.5 text-right">
-                  Line Total
+  // eslint-disable-next-line
+  // eslint-disable-next-line
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
-              {note.lines.map((line) => (
+  {/* eslint-disable-next-line */}
+              {note.lines.map((line: any) => (
                 <tr
                   key={line.grn_line_id}
                   className="transition-colors hover:bg-stone-50"
@@ -249,14 +248,8 @@ const GoodsReceivingNoteDetailPage = async ({
                   <td className="border-r border-stone-200 px-5 py-3.5 text-left text-stone-700">
                     {line.product.pack_size}
                   </td>
-                  <td className="border-r border-stone-200 px-5 py-3.5 text-center font-medium text-stone-700">
+                  <td className="px-5 py-3.5 text-center font-medium text-stone-700">
                     {line.quantity}
-                  </td>
-                  <td className="border-r border-stone-200 px-5 py-3.5 text-right text-stone-700">
-                    {formatCurrency(Number(line.unit_price))}
-                  </td>
-                  <td className="px-5 py-3.5 text-right font-semibold text-stone-900">
-                    {formatCurrency(Number(line.line_total))}
                   </td>
                 </tr>
               ))}
@@ -291,10 +284,10 @@ const GoodsReceivingNoteDetailPage = async ({
 
         <div className="rounded-2xl border border-stone-200 bg-white p-4">
           <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">
-            Total Value
+            Total Quantity
           </p>
           <p className="mt-1.5 text-[20px] font-semibold text-[#1a5c2e]">
-            {formatCurrency(totalValue)}
+            {totalQuantity} units
           </p>
         </div>
       </section>

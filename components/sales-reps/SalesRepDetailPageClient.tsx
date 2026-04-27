@@ -8,6 +8,7 @@ import {
   ShieldUser,
   Trash2,
   UserRound,
+  Users,
   X,
 } from "lucide-react";
 import BackNavigationLink from "@/components/ui/BackNavigationLink";
@@ -20,6 +21,19 @@ interface SalesRep {
 
 interface SalesRepDetailApiResponse {
   salesRep: SalesRep;
+}
+
+interface SalesRepCustomerOption {
+  id: number;
+  label: string;
+}
+
+interface SalesRepCustomersResponse {
+  data?: SalesRepCustomerOption[];
+  customers?: Array<{
+    customer_id: number;
+    name: string;
+  }>;
 }
 
 interface EditSalesRepForm {
@@ -47,6 +61,7 @@ export default function SalesRepDetailPageClient({
 }: SalesRepDetailPageClientProps) {
   const router = useRouter();
   const [salesRep, setSalesRep] = useState<SalesRep | null>(null);
+  const [customers, setCustomers] = useState<SalesRepCustomerOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [editing, setEditing] = useState(false);
@@ -81,24 +96,50 @@ export default function SalesRepDetailPageClient({
     setLoadError("");
 
     try {
-      const response = await fetch(`/api/sales-reps/${resolvedRepId}`, {
-        cache: "no-store",
-      });
+      const [salesRepResponse, customersResponse] = await Promise.all([
+        fetch(`/api/sales-reps/${resolvedRepId}`, {
+          cache: "no-store",
+        }),
+        fetch(`/api/sales-reps/${resolvedRepId}/customers`, {
+          cache: "no-store",
+        }),
+      ]);
 
-      if (!response.ok) {
+      if (!salesRepResponse.ok) {
         const error = await getApiError(
-          response,
+          salesRepResponse,
           "Failed to load sales rep details.",
         );
         throw new Error(error);
       }
 
-      const data = (await response.json()) as SalesRepDetailApiResponse;
+      if (!customersResponse.ok) {
+        const error = await getApiError(
+          customersResponse,
+          "Failed to load assigned customers.",
+        );
+        throw new Error(error);
+      }
+
+      const data = (await salesRepResponse.json()) as SalesRepDetailApiResponse;
+      const customersData =
+        (await customersResponse.json()) as SalesRepCustomersResponse;
+
       setSalesRep(data.salesRep);
       setForm({
         fullName: data.salesRep.full_name,
         phone: data.salesRep.phone,
       });
+      setCustomers(
+        Array.isArray(customersData.data)
+          ? customersData.data
+          : Array.isArray(customersData.customers)
+            ? customersData.customers.map((customer) => ({
+                id: customer.customer_id,
+                label: customer.name,
+              }))
+            : [],
+      );
     } catch (error: unknown) {
       setLoadError(
         error instanceof Error
@@ -384,6 +425,40 @@ export default function SalesRepDetailPageClient({
               </p>
             </div>
           </div>
+        )}
+      </div>
+
+      <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-stone-100 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Users size={15} className="text-stone-400" />
+            <span className="text-[13px] font-semibold text-stone-800 [font-family:var(--font-dmsans)]">
+              Assigned Customers
+            </span>
+          </div>
+          <span className="inline-flex items-center rounded-full border border-stone-200 bg-stone-50 px-2 py-0.5 text-[11px] text-stone-600 [font-family:var(--font-jetbrains)]">
+            {customers.length}
+          </span>
+        </div>
+
+        {customers.length === 0 ? (
+          <div className="px-5 py-4 text-[13px] text-stone-500 [font-family:var(--font-dmsans)]">
+            No customers are assigned to this sales rep yet.
+          </div>
+        ) : (
+          <ul className="divide-y divide-stone-100">
+            {customers.map((customer) => (
+              <li key={customer.id} className="px-5 py-3">
+                <Link
+                  href={`/customers/${customer.id}`}
+                  className="inline-flex items-center gap-2 text-[13px] font-medium text-stone-700 hover:text-blue-700 [font-family:var(--font-dmsans)]"
+                >
+                  <UserRound size={13} />
+                  {customer.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 
