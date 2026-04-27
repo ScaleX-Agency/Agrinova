@@ -32,8 +32,15 @@ export type CreateInvoiceLineDto = {
   productId: number;
   quantity: number;
   unitPrice: number;
-  discount: number;
+  /** line_total = qty × unitPrice, before any promotion */
   lineTotal: number;
+  promotionType: "NONE" | "DISCOUNT" | "FREE_QTY";
+  /** Percentage discount. Relevant only when promotionType === "DISCOUNT" */
+  discount: number;
+  /** Free units given. Relevant only when promotionType === "FREE_QTY" */
+  freeQuantity: number;
+  /** Amount the customer actually pays after promotion */
+  netLineTotal: number;
 };
 
 export type CreateInvoiceRequestDto = {

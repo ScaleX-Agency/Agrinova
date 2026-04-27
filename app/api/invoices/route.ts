@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { GINStatus, InvoiceStatus, Prisma } from "@prisma/client";
+import { GINStatus, InvoiceStatus, LinePromotionType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCommissionDueDate } from "@/lib/commission";
 import type {
@@ -13,6 +13,8 @@ const toPositiveInt = (value: unknown, fallback = 0) => {
   if (!Number.isFinite(numberValue)) return fallback;
   return Math.max(0, Math.trunc(numberValue));
 };
+
+const VALID_PROMO_TYPES = new Set<LinePromotionType>(["NONE", "DISCOUNT", "FREE_QTY"]);
 
 export async function GET(request: Request) {
   try {
@@ -168,8 +170,11 @@ export async function POST(request: Request) {
       product_id: number;
       quantity: number;
       unit_price: number;
-      discount: number;
       line_total: number;
+      promotion_type: LinePromotionType;
+      discount: number;
+      free_quantity: number;
+      net_line_total: number;
     }[] = [];
 
     for (let index = 0; index < lines.length; index += 1) {
@@ -177,7 +182,12 @@ export async function POST(request: Request) {
       const productId = toPositiveInt(line?.productId);
       const quantity = toPositiveInt(line?.quantity);
       const unitPrice = Number(line?.unitPrice);
-      const discount = Number(line?.discount);
+      const discount = Number(line?.discount ?? 0);
+      const freeQuantity = toPositiveInt(line?.freeQuantity ?? 0);
+      const promoTypeRaw = line?.promotionType ?? "NONE";
+      const promotionType: LinePromotionType = VALID_PROMO_TYPES.has(promoTypeRaw as LinePromotionType)
+        ? (promoTypeRaw as LinePromotionType)
+        : "NONE";
 
       if (!productId) {
         return NextResponse.json(
@@ -200,22 +210,41 @@ export async function POST(request: Request) {
         );
       }
 
-      if (!Number.isFinite(discount) || discount < 0 || discount > 100) {
+      if (promotionType === "DISCOUNT" && (!Number.isFinite(discount) || discount < 0 || discount > 100)) {
         return NextResponse.json(
           { error: `Line ${index + 1}: discount must be between 0 and 100.` },
           { status: 400 },
         );
       }
 
-      const lineSubtotal = quantity * unitPrice;
-      const lineTotal = Math.max(0, lineSubtotal - (lineSubtotal * discount) / 100);
+      if (promotionType === "FREE_QTY" && freeQuantity < 0) {
+        return NextResponse.json(
+          { error: `Line ${index + 1}: free quantity must be 0 or greater.` },
+          { status: 400 },
+        );
+      }
+
+      // line_total = qty × unit_price (before any promotion)
+      const lineTotal = quantity * unitPrice;
+
+      // net_line_total = what the customer pays
+      let netLineTotal: number;
+      if (promotionType === "DISCOUNT") {
+        netLineTotal = Math.max(0, lineTotal * (1 - discount / 100));
+      } else {
+        // NONE or FREE_QTY — customer pays for sold quantity only
+        netLineTotal = lineTotal;
+      }
 
       normalizedLines.push({
         product_id: productId,
         quantity,
         unit_price: unitPrice,
-        discount,
         line_total: lineTotal,
+        promotion_type: promotionType,
+        discount: promotionType === "DISCOUNT" ? discount : 0,
+        free_quantity: promotionType === "FREE_QTY" ? freeQuantity : 0,
+        net_line_total: netLineTotal,
       });
     }
 
@@ -257,7 +286,35 @@ export async function POST(request: Request) {
         throw new Error("Selected inventory location was not found.");
       }
 
-      const totalAmount = normalizedLines.reduce((sum, line) => sum + line.line_total, 0);
+      // Validate stock: quantity + free_quantity must not exceed quantity_on_hand
+      for (let i = 0; i < normalizedLines.length; i++) {
+        const line = normalizedLines[i];
+        const totalRequiredQty = line.quantity + line.free_quantity;
+
+        const stock = await tx.stock.findUnique({
+          where: {
+            product_id_location_id: {
+              product_id: line.product_id,
+              location_id: locationId,
+            },
+          },
+          select: { quantity_on_hand: true, stock_id: true },
+        });
+
+        if (!stock) {
+          throw new Error(`Stock record not found for product on line ${i + 1}.`);
+        }
+
+        if (totalRequiredQty > stock.quantity_on_hand) {
+          throw new Error(
+            `Line ${i + 1}: Insufficient stock. Required ${totalRequiredQty} ` +
+            `(${line.quantity} sold + ${line.free_quantity} free), available ${stock.quantity_on_hand}.`,
+          );
+        }
+      }
+
+      // Total amount is the sum of net line totals (what the customer actually pays)
+      const totalAmount = normalizedLines.reduce((sum, line) => sum + line.net_line_total, 0);
 
       const createdInvoice = await tx.invoice.create({
         data: {
@@ -275,28 +332,17 @@ export async function POST(request: Request) {
         },
       });
 
-      await tx.commission.create({
-        data: {
-          rep_id: repId,
-          invoice_id: createdInvoice.invoice_id,
-          receipt_id: null,
-          commission_rate: 0,
-          commission_amount: 0,
-          days_to_pay: 0,
-          due_date: getCommissionDueDate(invoiceDate),
-          paid_date: null,
-          status: "PENDING",
-        },
-      });
-
       await tx.invoiceLine.createMany({
         data: normalizedLines.map((line) => ({
           invoice_id: createdInvoice.invoice_id,
           product_id: line.product_id,
           quantity: line.quantity,
           unit_price: line.unit_price,
-          discount: line.discount,
           line_total: line.line_total,
+          promotion_type: line.promotion_type,
+          discount: line.discount,
+          free_quantity: line.free_quantity,
+          net_line_total: line.net_line_total,
         })),
       });
 

@@ -140,7 +140,7 @@ const InvoiceDetailPage = async ({
         select: {
           receipt_id: true,
           receipt_date: true,
-          amount_received: true,
+          amount: true,
         },
       },
       invoice_lines: {
@@ -462,7 +462,7 @@ const InvoiceDetailPage = async ({
               >
                 <Receipt size={13} className="text-emerald-700" />
                 <span>{receipt.receipt_number}</span>
-                <span className="text-[11px] text-emerald-700">{formatCurrency(Number(receipt.amount_received))}</span>
+                <span className="text-[11px] text-emerald-700">{formatCurrency(Number(receipt.amount))}</span>
               </Link>
             ))}
           </div>
