@@ -23,7 +23,10 @@ export async function GET(request: Request) {
     const issuableOnly = searchParams.get("issuableOnly") === "true";
     const paymentStatus = searchParams.get("paymentStatus");
     const ginStatus = searchParams.get("ginStatus");
-    const month = searchParams.get("month");
+    const month = searchParams.get("month"); // legacy
+    const range = searchParams.get("range"); // day, week, month, year, all, custom
+    const startDateParam = searchParams.get("startDate");
+    const endDateParam = searchParams.get("endDate");
 
     const invoiceStatusValues = new Set(Object.values(InvoiceStatus));
     const ginStatusValues = new Set(Object.values(GINStatus));
@@ -45,8 +48,48 @@ export async function GET(request: Request) {
       parsedGinStatus = ginStatus as GINStatus;
     }
 
-    let monthDateFilter: Prisma.DateTimeFilter | undefined;
-    if (month) {
+    let dateFilter: Prisma.DateTimeFilter | undefined;
+
+    if (range && range !== "all") {
+      const now = new Date();
+      let start: Date | null = null;
+      let end: Date | null = null;
+
+      if (range === "day") {
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      } else if (range === "week") {
+        const day = now.getDay();
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+        start = new Date(now.getFullYear(), now.getMonth(), diff);
+        end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7);
+      } else if (range === "month") {
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      } else if (range === "year") {
+        start = new Date(now.getFullYear(), 0, 1);
+        end = new Date(now.getFullYear() + 1, 0, 1);
+      } else if (range === "custom") {
+        start = startDateParam ? new Date(startDateParam) : null;
+        if (endDateParam) {
+          const endDate = new Date(endDateParam);
+          end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() + 1);
+        }
+      }
+
+      if (start || end) {
+        dateFilter = {};
+        if (start) dateFilter.gte = start;
+        if (end) dateFilter.lt = end;
+      }
+    } else if (startDateParam || endDateParam) {
+      dateFilter = {};
+      if (startDateParam) dateFilter.gte = new Date(startDateParam);
+      if (endDateParam) {
+        const end = new Date(endDateParam);
+        dateFilter.lt = new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1);
+      }
+    } else if (month) {
       const monthMatch = /^(\d{4})-(\d{2})$/.exec(month);
       if (!monthMatch) {
         return NextResponse.json({ error: "Invalid month filter format." }, { status: 400 });
@@ -64,7 +107,7 @@ export async function GET(request: Request) {
           ? new Date(Date.UTC(year + 1, 0, 1))
           : new Date(Date.UTC(year, monthNumber, 1));
 
-      monthDateFilter = { gte: rangeStart, lt: rangeEnd };
+      dateFilter = { gte: rangeStart, lt: rangeEnd };
     }
 
     const where: Prisma.InvoiceWhereInput = {
@@ -72,7 +115,7 @@ export async function GET(request: Request) {
       ...(issuableOnly ? { gin_status: { not: "ISSUED" } } : {}),
       ...(parsedPaymentStatus ? { status: parsedPaymentStatus } : {}),
       ...(parsedGinStatus ? { gin_status: parsedGinStatus } : {}),
-      ...(monthDateFilter ? { invoice_date: monthDateFilter } : {}),
+      ...(dateFilter ? { invoice_date: dateFilter } : {}),
     };
 
     const invoices = await prisma.invoice.findMany({
