@@ -29,6 +29,7 @@ import {
   calculateInvoiceSubtotal,
 } from "./invoice-form.utils";
 import ConfirmationModal from "@/components/ConfirmationModal";
+import ErrorModal from "@/components/ErrorModal";
 
 import { getInvoiceFieldErrors } from "./invoice-form.validation";
 
@@ -62,6 +63,7 @@ const NewInvoicePage = () => {
   const [submitError, setSubmitError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const [submitPayload, setSubmitPayload] = useState<CreateInvoiceRequestDto | null>(null);
 
   const clearFieldErrors = useCallback((keys: (keyof FieldErrors)[]) => {
@@ -511,6 +513,7 @@ const NewInvoicePage = () => {
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Unable to save invoice.");
       setIsConfirmModalOpen(false);
+      setIsErrorModalOpen(true);
     }
   };
 
@@ -594,6 +597,13 @@ const NewInvoicePage = () => {
         }
         confirmLabel="Create Invoice"
         isLoading={createInvoiceMutation.isPending}
+      />
+
+      <ErrorModal
+        isOpen={isErrorModalOpen}
+        onClose={() => setIsErrorModalOpen(false)}
+        title="Oops, something went wrong"
+        message={submitError}
       />
     </section>
   );

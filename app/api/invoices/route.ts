@@ -358,16 +358,26 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ data: responseBody }, { status: 201 });
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2002") {
+        return NextResponse.json(
+          { error: "An invoice with this number already exists. Please use a unique invoice number." },
+          { status: 409 }
+        );
+      }
+    }
+
     if (error instanceof Error) {
+      // Avoid matching Prisma's auto-generated message blocks which include comments from code
+      const msg = error.message;
       const isValidationError =
-        error.message.includes("customer") ||
-        error.message.includes("Selected sales rep") ||
-        error.message.includes("inventory location") ||
-        error.message.includes("Insufficient stock") ||
-        error.message.includes("Stock record not found");
+        msg.startsWith("Line ") ||
+        msg.startsWith("Stock record not found") ||
+        msg.includes("Missing required invoice fields.") ||
+        msg.includes("product is required");
 
       if (isValidationError) {
-        return NextResponse.json({ error: error.message }, { status: 422 });
+        return NextResponse.json({ error: msg }, { status: 422 });
       }
     }
 
