@@ -28,6 +28,8 @@ import {
   toProductSelectOptions,
   calculateInvoiceSubtotal,
 } from "./invoice-form.utils";
+import ConfirmationModal from "@/components/ConfirmationModal";
+
 import { getInvoiceFieldErrors } from "./invoice-form.validation";
 
 type SalesRepListResponse = {
@@ -59,6 +61,8 @@ const NewInvoicePage = () => {
   const [productsActionError, setProductsActionError] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [submitPayload, setSubmitPayload] = useState<CreateInvoiceRequestDto | null>(null);
 
   const clearFieldErrors = useCallback((keys: (keyof FieldErrors)[]) => {
     setFieldErrors((prev) => {
@@ -434,7 +438,7 @@ const NewInvoicePage = () => {
     setLines([]);
   }, [clearFieldErrors]);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleValidationAndPrepare = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitError("");
     setSuccessMessage("");
@@ -487,20 +491,26 @@ const NewInvoicePage = () => {
       return;
     }
 
-    try {
-      const result = await createInvoiceMutation.mutateAsync({
-        invoiceNo: invoiceNo.trim(),
-        invoiceDate,
-        customerId: activeCustomerId,
-        repId: activeRepId,
-        locationId: activeLocationId,
-        lines: payloadLines,
-        createdBy: 1,
-      });
+    setSubmitPayload({
+      invoiceNo: invoiceNo.trim(),
+      invoiceDate,
+      customerId: activeCustomerId,
+      repId: activeRepId,
+      locationId: activeLocationId,
+      lines: payloadLines,
+      createdBy: 1,
+    });
+    setIsConfirmModalOpen(true);
+  };
 
+  const confirmSave = async () => {
+    if (!submitPayload) return;
+    try {
+      const result = await createInvoiceMutation.mutateAsync(submitPayload);
       router.push(`/invoices/${result.invoiceId}`);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Unable to save invoice.");
+      setIsConfirmModalOpen(false);
     }
   };
 
@@ -508,7 +518,7 @@ const NewInvoicePage = () => {
     <section className="space-y-5">
       <InvoicePageHeader />
 
-      <form className="space-y-4" onSubmit={handleSubmit}>
+      <form className="space-y-4" onSubmit={handleValidationAndPrepare}>
         <InvoiceDetailsSection
           invoiceNo={invoiceNo}
           invoiceDate={invoiceDate}
@@ -569,6 +579,22 @@ const NewInvoicePage = () => {
           isSaving={createInvoiceMutation.isPending}
         />
       </form>
+
+      <ConfirmationModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={confirmSave}
+        title="Confirm New Invoice"
+        description={
+          <>
+            Are you sure you want to create invoice <strong>{invoiceNo}</strong>? 
+            <br />
+            double check before confirm
+          </>
+        }
+        confirmLabel="Create Invoice"
+        isLoading={createInvoiceMutation.isPending}
+      />
     </section>
   );
 };
