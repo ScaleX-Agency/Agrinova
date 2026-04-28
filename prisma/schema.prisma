@@ -117,6 +117,7 @@ model SalesReturnNote {
   customer_id      Int
   location_id      Int
   invoice_id       Int
+  total_amount     Decimal               @db.Decimal(10, 2)
   notes            String?
   created_by       Int
   created_at       DateTime              @default(now())
@@ -142,6 +143,7 @@ model SalesReturnNoteLine {
   quantity          Int
   condition         String
   reason_for_return String
+  line_total        Decimal         @db.Decimal(10, 2)
   product           Product         @relation(fields: [product_id], references: [product_id])
   sales_return_note SalesReturnNote @relation(fields: [return_id], references: [return_id])
 
@@ -355,6 +357,7 @@ model Product {
   product_name               String
   pack_size                  String
   selling_price              Decimal                  @db.Decimal(10, 2)
+  reorder_threshold          Int                      @default(0)
   goods_issue_note_lines     GoodsIssueNoteLine[]
   goods_receiving_note_lines GoodsReceivingNoteLine[]
   goodsReturnNoteLines       GoodsReturnNoteLine[]
