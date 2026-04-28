@@ -4,6 +4,7 @@ import type {
   CommissionRepDetailResponse,
   CommissionReceiptDetailDto,
 } from "@/types/api";
+import type { CommissionStatus, InvoiceStatus } from "@prisma/client";
 
 const getMonthRange = (monthParam: string | null) => {
   if (!monthParam || !/^\d{4}-\d{2}$/.test(monthParam)) {
@@ -47,16 +48,6 @@ export async function GET(
     const commissions = await prisma.commission.findMany({
       where: {
         rep_id: repId,
-        ...(start && end
-          ? {
-              invoice: {
-                invoice_date: {
-                  gte: start,
-                  lt: end,
-                },
-              },
-            }
-          : {}),
       },
       select: {
         commission_id: true,
@@ -64,152 +55,144 @@ export async function GET(
         days_to_pay: true,
         commission_rate: true,
         commission_amount: true,
-        due_date: true,
-        paid_date: true,
         status: true,
-        invoice: {
+        created_at: true,
+        invoiceSettlements: {
           select: {
-            invoice_id: true,
-            invoice_number: true,
-            invoice_date: true,
-            status: true,
-            total_amount: true,
-            location: {
+            settlement_id: true,
+            settled_date: true,
+            amount: true,
+            invoice: {
               select: {
-                location_id: true,
-                code: true,
-              },
-            },
-            invoice_lines: {
-              select: {
-                product: {
+                invoice_id: true,
+                invoice_number: true,
+                invoice_date: true,
+                status: true,
+                total_amount: true,
+                location: {
                   select: {
-                    category: {
+                    location_id: true,
+                    code: true,
+                  },
+                },
+                invoice_lines: {
+                  select: {
+                    product: {
                       select: {
-                        name: true,
+                        category: {
+                          select: {
+                            name: true,
+                          },
+                        },
                       },
                     },
                   },
                 },
+                customer: {
+                  select: {
+                    name: true,
+                  },
+                },
               },
             },
-            customer: {
+            receipt: {
               select: {
-                name: true,
+                receipt_id: true,
+                receipt_date: true,
+                amount: true,
               },
             },
-          },
-        },
-        receipt: {
-          select: {
-            receipt_id: true,
-            receipt_date: true,
-            amount_received: true,
           },
         },
       },
-      orderBy: { due_date: "desc" },
+      orderBy: { created_at: "desc" },
     });
 
     type CommissionRow = {
-      commission_id: number | string;
-      amount_earned?: number | string | null | { toString(): string };
-      commission_amount?: number | string | null | { toString(): string };
+      commission_id: number;
+      commission_amount: unknown;
+      commission_rate: unknown;
       days_to_pay: number;
-      commission_rate: number | string | null | { toString(): string };
-      due_date: Date | string | null;
-      paid_date: Date | string | null;
-      status?: "PENDING" | "PAID" | "OVERDUE" | null;
-      invoice: {
-        invoice_id?: number | string;
-        invoice_number?: string | null;
-        invoice_date: Date | string | null;
-        total_amount: number | string | { toString(): string };
-        status: "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE";
-        customer: { name: string };
-        location: { location_id: number; code: string } | null;
-        invoice_lines: { product: { category: { name: string } } }[];
-      };
-      receipt: {
-        receipt_id: number | string;
-        amount_received: number | string | { toString(): string };
-        receipt_date?: Date | string | null;
-        receipt_number?: string | null;
-      } | null;
+      status: CommissionStatus;
+      created_at: Date;
+      invoiceSettlements: {
+        settlement_id: number;
+        settled_date: Date;
+        amount: unknown;
+        invoice: {
+          invoice_id: number;
+          invoice_number: string | null;
+          invoice_date: Date;
+          status: InvoiceStatus;
+          total_amount: unknown;
+          location: { location_id: number; code: string } | null;
+          invoice_lines: { product: { category: { name: string } } }[];
+          customer: { name: string } | null;
+        };
+        receipt: {
+          receipt_id: number;
+          receipt_date: Date;
+          amount: unknown;
+        } | null;
+      }[];
     };
 
-    const rows: CommissionReceiptDetailDto[] = commissions.map(
-      (commission: CommissionRow) => {
-        const invoiceAmount = Number(commission.invoice.total_amount);
-        const cashCollected = commission.receipt
-          ? Number(commission.receipt.amount_received)
-          : 0;
-        const receiptId =
-          commission.receipt?.receipt_id != null
-            ? Number(commission.receipt.receipt_id)
-            : null;
+    const allRows: CommissionReceiptDetailDto[] = [];
+    
+    for (const commission of commissions) {
+      for (const settlement of commission.invoiceSettlements) {
+        if (start && end) {
+          const invoiceDate = new Date(settlement.invoice.invoice_date);
+          if (invoiceDate < start || invoiceDate >= end) {
+            continue;
+          }
+        }
 
-        return {
-          commissionId: Number(commission.commission_id),
+        const invoice = settlement.invoice;
+        const receipt = settlement.receipt;
+        
+        const invoiceAmount = Number(invoice.total_amount);
+        const cashCollected = receipt ? Number(receipt.amount) : 0;
+        const receiptId = receipt?.receipt_id != null ? Number(receipt.receipt_id) : null;
+
+        allRows.push({
+          commissionId: commission.commission_id,
           receiptId,
-          receiptNo: commission.receipt?.receipt_number ?? null,
-          receiptDate: commission.receipt?.receipt_date
-            ? new Date(commission.receipt.receipt_date).toISOString()
-            : null,
-          invoiceId: Number(commission.invoice.invoice_id),
-          invoiceNo: commission.invoice.invoice_number ?? "",
-          invoiceDate: commission.invoice.invoice_date
-            ? new Date(commission.invoice.invoice_date).toISOString()
-            : "",
-          salesStatus: commission.invoice.status,
-          customerName: commission.invoice.customer?.name ?? "",
-          locationId: commission.invoice.location?.location_id ?? null,
-          locationCode: commission.invoice.location?.code ?? null,
+          receiptNo: null,
+          receiptDate: receipt?.receipt_date ? new Date(receipt.receipt_date).toISOString() : null,
+          invoiceId: invoice.invoice_id,
+          invoiceNo: invoice.invoice_number ?? "",
+          invoiceDate: invoice.invoice_date ? new Date(invoice.invoice_date).toISOString() : "",
+          salesStatus: invoice.status,
+          customerName: invoice.customer?.name ?? "",
+          locationId: invoice.location?.location_id ?? null,
+          locationCode: invoice.location?.code ?? null,
           categories: Array.from(
             new Set(
-              commission.invoice.invoice_lines.map(
-                (line) => line.product?.category?.name ?? "",
-              ),
+              invoice.invoice_lines.map((line) => line.product?.category?.name ?? ""),
             ),
           ).filter(Boolean),
           invoiceAmount,
           cashCollected,
           daysToPay: commission.days_to_pay ?? 0,
-          commissionRate: commission.commission_rate
-            ? Number(commission.commission_rate)
-            : 0,
-          commissionAmount: commission.commission_amount
-            ? Number(commission.commission_amount)
-            : 0,
-          dueDate: commission.due_date
-            ? new Date(commission.due_date).toISOString()
-            : "",
-          paidDate: commission.paid_date
-            ? new Date(commission.paid_date).toISOString()
-            : null,
-          status: commission.status ?? "PENDING",
-        };
-      },
-    );
-    const uniqueReceiptIds = new Set(rows.map((row) => row.receiptId));
+          commissionRate: commission.commission_rate ? Number(commission.commission_rate) : 0,
+          commissionAmount: commission.commission_amount ? Number(commission.commission_amount) : 0,
+          dueDate: settlement.settled_date ? new Date(settlement.settled_date).toISOString() : "",
+          paidDate: null,
+          status: (commission.status ?? "PENDING") as "PENDING" | "PAID" | "OVERDUE",
+        });
+      }
+    }
+
+    const rows = allRows;
+    const uniqueReceiptIds = new Set(rows.map((row) => row.receiptId).filter(Boolean) as number[]);
     const uniqueInvoiceIds = new Set(rows.map((row) => row.invoiceId));
     const totalSales = Number(
-      commissions
-        .filter(
-          (c: CommissionRow, index: number, arr: CommissionRow[]) =>
-            arr.findIndex(
-              (x: CommissionRow) =>
-                x.invoice.invoice_id === c.invoice.invoice_id,
-            ) === index,
-        )
-        .reduce(
-          (sum: number, c: CommissionRow) =>
-            sum + Number(c.invoice.total_amount),
-          0,
-        )
+      rows
+        .reduce((sum, row) => sum + row.invoiceAmount, 0)
         .toFixed(2),
     );
-    const cashCollected = Number(
+    const cashCollectedTotal = Number(
       rows.reduce((sum, row) => sum + row.cashCollected, 0).toFixed(2),
     );
     const avgDays = Number(
@@ -231,7 +214,7 @@ export async function GET(
         receiptCount: uniqueReceiptIds.size,
         invoiceCount: uniqueInvoiceIds.size,
         totalSales,
-        cashCollected,
+        cashCollected: cashCollectedTotal,
         avgDays,
         commissionAmount,
       },

@@ -138,7 +138,7 @@ export async function GET(request: Request) {
           receipts: {
             select: {
               receipt_date: true,
-              amount_received: true,
+              amount: true,
             },
           },
         },
@@ -167,7 +167,7 @@ export async function GET(request: Request) {
           },
           receipts: {
             select: {
-              amount_received: true,
+              amount: true,
             },
           },
         },
@@ -201,7 +201,7 @@ export async function GET(request: Request) {
           },
         },
         _sum: {
-          amount_received: true,
+          amount: true,
         },
       });
 
@@ -214,7 +214,7 @@ export async function GET(request: Request) {
       0,
     );
 
-    const collectionsThisPeriod = toAmount(receiptsThisPeriod._sum.amount_received ?? 0);
+    const collectionsThisPeriod = toAmount(receiptsThisPeriod._sum.amount ?? 0);
 
     const topCustomerMap = new Map<
       number,
@@ -230,7 +230,7 @@ export async function GET(request: Request) {
 
     for (const invoice of currentInvoices) {
       const total = toAmount(invoice.total_amount);
-      const paid = invoice.receipts.reduce((sum, receipt) => sum + toAmount(receipt.amount_received), 0);
+      const paid = invoice.receipts.reduce((sum, receipt) => sum + toAmount(receipt.amount), 0);
       const outstanding = Math.max(0, total - paid);
 
       const entry = topCustomerMap.get(invoice.customer_id) ?? {
@@ -273,7 +273,7 @@ export async function GET(request: Request) {
     let totalOutstanding = 0;
     for (const invoice of openInvoices) {
       const total = toAmount(invoice.total_amount);
-      const paid = invoice.receipts.reduce((sum, receipt) => sum + toAmount(receipt.amount_received), 0);
+      const paid = invoice.receipts.reduce((sum, receipt) => sum + toAmount(receipt.amount), 0);
       const outstanding = Math.max(0, total - paid);
       if (outstanding <= 0) continue;
 
@@ -323,7 +323,7 @@ export async function GET(request: Request) {
           (receipt) =>
             receipt.receipt_date >= currentRange.start && receipt.receipt_date <= currentRange.end,
         )
-        .reduce((sum, receipt) => sum + toAmount(receipt.amount_received), 0);
+        .reduce((sum, receipt) => sum + toAmount(receipt.amount), 0);
 
       salesByRepMap.set(invoice.rep_id, repEntry);
     }

@@ -37,20 +37,23 @@ export async function GET(
 						},
 					},
 				},
-				commissions: {
+				invoiceSettlements: {
 					select: {
-						commission_id: true,
-						commission_rate: true,
-						commission_amount: true,
-						days_to_pay: true,
-						due_date: true,
-						paid_date: true,
-						status: true,
+						commissions: {
+							select: {
+								commission_id: true,
+								commission_rate: true,
+								commission_amount: true,
+								days_to_pay: true,
+								status: true,
+								created_at: true,
+							},
+							orderBy: {
+								commission_id: "desc",
+							},
+							take: 1,
+						},
 					},
-					orderBy: {
-						commission_id: "desc",
-					},
-					take: 1,
 				},
 			},
 		});
@@ -59,7 +62,9 @@ export async function GET(
 			return NextResponse.json({ error: "Receipt not found." }, { status: 404 });
 		}
 
-		const commission = receipt.commissions[0];
+		const settlement = receipt.invoiceSettlements[0];
+		const commission = settlement?.commissions[0];
+		
 		if (!commission) {
 			return NextResponse.json({ error: "Commission not found for this receipt." }, { status: 404 });
 		}
@@ -71,17 +76,17 @@ export async function GET(
 				receiptNo: getReceiptNumber(receipt.receipt_id, receipt.receipt_date),
 				receiptDate: receipt.receipt_date.toISOString(),
 				invoiceId: receipt.invoice.invoice_id,
-				invoiceNo: receipt.invoice.invoice_number,
+				invoiceNo: receipt.invoice.invoice_number ?? "",
 				invoiceDate: receipt.invoice.invoice_date.toISOString(),
-				customerName: receipt.invoice.customer.name,
-				salesRepName: receipt.invoice.rep.full_name,
+				customerName: receipt.invoice.customer?.name ?? "",
+				salesRepName: receipt.invoice.rep?.full_name ?? "",
 				invoiceAmount: Number(Number(receipt.invoice.total_amount).toFixed(2)),
 				daysToPay: commission.days_to_pay,
 				commissionRate: Number((Number(commission.commission_rate) * 100).toFixed(2)),
 				commissionAmount: Number(Number(commission.commission_amount).toFixed(2)),
-				dueDate: commission.due_date.toISOString(),
-				paidDate: commission.paid_date?.toISOString() ?? null,
-				status: commission.status,
+				dueDate: commission.created_at.toISOString(),
+				paidDate: null,
+				status: commission.status as "PENDING" | "PAID" | "OVERDUE",
 			},
 		};
 

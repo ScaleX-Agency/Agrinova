@@ -159,7 +159,7 @@ export async function GET(
             select: {
               receipt_id: true,
               receipt_date: true,
-              amount_received: true,
+              amount: true,
               payment_method: true,
             },
           },
@@ -238,7 +238,7 @@ export async function GET(
       }
 
       const paid = invoice.receipts.reduce(
-        (sum, receipt) => sum + toAmount(receipt.amount_received),
+        (sum, receipt) => sum + toAmount(receipt.amount),
         0,
       );
       const outstanding = Math.max(0, invoiceTotal - paid);
@@ -285,7 +285,7 @@ export async function GET(
           id: receipt.receipt_id,
           reference: `RCP-${String(receipt.receipt_id).padStart(4, "0")}`,
           date: receipt.receipt_date.toISOString(),
-          amount: toAmount(receipt.amount_received),
+          amount: toAmount(receipt.amount),
           status: receipt.payment_method,
         });
       }
@@ -320,7 +320,7 @@ export async function GET(
         const receiptKey = monthKey(receipt.receipt_date);
         const receiptSummary = monthSummary.get(receiptKey);
         if (!receiptSummary) continue;
-        receiptSummary.payments += toAmount(receipt.amount_received);
+        receiptSummary.payments += toAmount(receipt.amount);
       }
     }
 
@@ -366,7 +366,7 @@ export async function GET(
       }
       const invoiceTotal = toAmount(invoice.total_amount);
       const paid = invoice.receipts.reduce(
-        (sum, receipt) => sum + toAmount(receipt.amount_received),
+        (sum, receipt) => sum + toAmount(receipt.amount),
         0,
       );
       const outstanding = Math.max(0, invoiceTotal - paid);
@@ -398,7 +398,7 @@ export async function GET(
       }
       const invoiceTotal = toAmount(invoice.total_amount);
       const paidTotal = invoice.receipts.reduce(
-        (sum, receipt) => sum + toAmount(receipt.amount_received),
+        (sum, receipt) => sum + toAmount(receipt.amount),
         0,
       );
       const outstanding = Math.max(0, invoiceTotal - paidTotal);
@@ -410,7 +410,7 @@ export async function GET(
             receipt.receipt_date >= currentRange.start &&
             receipt.receipt_date <= currentRange.end,
         )
-        .reduce((sum, receipt) => sum + toAmount(receipt.amount_received), 0);
+        .reduce((sum, receipt) => sum + toAmount(receipt.amount), 0);
     }
 
     return NextResponse.json({

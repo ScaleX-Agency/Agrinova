@@ -18,28 +18,13 @@ export async function GET(request: Request) {
 		const { searchParams } = new URL(request.url);
 		const { month, start, end } = getMonthRange(searchParams.get("month"));
 
-		const dateFilter =
-			start && end
-				? {
-					invoice: {
-						invoice_date: {
-							gte: start,
-							lt: end,
-						},
-					},
-				}
-				: {};
-
 		const commissions = await prisma.commission.findMany({
-			where: dateFilter,
 			select: {
 				commission_id: true,
 				rep_id: true,
 				days_to_pay: true,
 				commission_rate: true,
 				commission_amount: true,
-				due_date: true,
-				paid_date: true,
 				status: true,
 				rep: {
 					select: {
@@ -47,18 +32,24 @@ export async function GET(request: Request) {
 						full_name: true,
 					},
 				},
-				invoice: {
+				invoiceSettlements: {
 					select: {
-						invoice_id: true,
-						invoice_date: true,
-						total_amount: true,
-					},
-				},
-				receipt: {
-					select: {
-						receipt_id: true,
-						receipt_date: true,
-						amount_received: true,
+						amount: true,
+						settled_date: true,
+						invoice: {
+							select: {
+								invoice_id: true,
+								invoice_date: true,
+								total_amount: true,
+							},
+						},
+						receipt: {
+							select: {
+								receipt_id: true,
+								receipt_date: true,
+								amount: true,
+							},
+						},
 					},
 				},
 			},
@@ -81,36 +72,46 @@ export async function GET(request: Request) {
 		for (const commission of commissions) {
 			const repId = commission.rep_id;
 			const repName = commission.rep.full_name;
-			const receiptId = commission.receipt?.receipt_id ?? null;
-			const invoiceId = commission.invoice.invoice_id;
-			const invoiceAmount = Number(commission.invoice.total_amount);
-			const cashCollected = commission.receipt ? Number(commission.receipt.amount_received) : 0;
 			const days = Number(commission.days_to_pay);
 			const commissionAmount = Number(commission.commission_amount);
 
-			const existing = byRep.get(repId) ?? {
-				repId,
-				repName,
-				receiptIds: new Set<number>(),
-				invoiceIds: new Set<number>(),
-				totalSales: 0,
-				cashCollected: 0,
-				daysSum: 0,
-				daysCount: 0,
-				commissionAmount: 0,
-			};
+			for (const settlement of commission.invoiceSettlements) {
+				if (start && end) {
+					const invoiceDate = new Date(settlement.invoice.invoice_date);
+					if (invoiceDate < start || invoiceDate >= end) {
+						continue;
+					}
+				}
 
-			if (receiptId) {
-				existing.receiptIds.add(receiptId);
+				const invoiceId = settlement.invoice.invoice_id;
+				const invoiceAmount = Number(settlement.invoice.total_amount);
+				const receiptId = settlement.receipt?.receipt_id ?? null;
+				const cashCollected = settlement.receipt ? Number(settlement.receipt.amount) : 0;
+
+				const existing = byRep.get(repId) ?? {
+					repId,
+					repName,
+					receiptIds: new Set<number>(),
+					invoiceIds: new Set<number>(),
+					totalSales: 0,
+					cashCollected: 0,
+					daysSum: 0,
+					daysCount: 0,
+					commissionAmount: 0,
+				};
+
+				if (receiptId) {
+					existing.receiptIds.add(receiptId);
+				}
+				existing.invoiceIds.add(invoiceId);
+				existing.totalSales += invoiceAmount;
+				existing.cashCollected += cashCollected;
+				existing.daysSum += days;
+				existing.daysCount += 1;
+				existing.commissionAmount += commissionAmount;
+
+				byRep.set(repId, existing);
 			}
-			existing.invoiceIds.add(invoiceId);
-			existing.totalSales += invoiceAmount;
-			existing.cashCollected += cashCollected;
-			existing.daysSum += days;
-			existing.daysCount += 1;
-			existing.commissionAmount += commissionAmount;
-
-			byRep.set(repId, existing);
 		}
 
 		const rows: RepCommissionSummaryDto[] = Array.from(byRep.values())
