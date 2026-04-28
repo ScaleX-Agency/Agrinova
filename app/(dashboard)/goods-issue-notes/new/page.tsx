@@ -30,6 +30,8 @@ import GinDetailsSection from "./GinDetailsSection";
 import GinProductsSection from "./GinProductsSection";
 import GinSubmitSection from "./GinSubmitSection";
 import BackNavigationLink from "@/components/ui/BackNavigationLink";
+import ConfirmationModal from "@/components/ConfirmationModal";
+import ErrorModal from "@/components/ErrorModal";
 
 const parsePositiveInt = (value: string | null) => {
   if (!value) return null;
@@ -66,6 +68,10 @@ const NewGoodsIssueNotePage = () => {
   const [fieldErrors, setFieldErrors] = useState<GinFieldErrors>({});
   const [submitError, setSubmitError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
+  const [submitPayload, setSubmitPayload] =
+    useState<CreateGoodsIssueNoteRequestDto | null>(null);
   const initializedInvoiceIdRef = useRef<number | null>(null);
   const maxDefaultAppliedInvoiceIdRef = useRef<number | null>(null);
 
@@ -416,7 +422,9 @@ const NewGoodsIssueNotePage = () => {
     [clearFieldErrors, productStockById, remainingInvoiceQtyByProduct],
   );
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleValidationAndPrepare = (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
     event.preventDefault();
     setSubmitError("");
     setSuccessMessage("");
@@ -460,18 +468,26 @@ const NewGoodsIssueNotePage = () => {
       lines: payloadLines,
     };
 
+    setSubmitPayload(payload);
+    setIsConfirmModalOpen(true);
+  };
+
+  const confirmSave = async () => {
+    if (!submitPayload) return;
     try {
-      const result = await saveMutation.mutateAsync(payload);
+      const result = await saveMutation.mutateAsync(submitPayload);
       setSuccessMessage(
         `Goods Issue Note saved successfully (ID: ${result.ginId}).`,
       );
-      router.push(`/invoices/${invoiceId}`);
+      router.push(`/invoices/${submitPayload.invoiceId}`);
     } catch (error) {
       setSubmitError(
         error instanceof Error
           ? error.message
           : "Unable to save goods issue note.",
       );
+      setIsConfirmModalOpen(false);
+      setIsErrorModalOpen(true);
     }
   };
 
@@ -504,7 +520,7 @@ const NewGoodsIssueNotePage = () => {
         </div>
       </header>
 
-      <form className="space-y-4" onSubmit={handleSubmit}>
+      <form className="space-y-4" onSubmit={handleValidationAndPrepare}>
         <GinDetailsSection
           ginNumber={ginNumber}
           ginDate={ginDate}
@@ -555,6 +571,29 @@ const NewGoodsIssueNotePage = () => {
           isSaving={saveMutation.isPending}
         />
       </form>
+
+      <ConfirmationModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={confirmSave}
+        title="Confirm New Goods Issue Note"
+        description={
+          <>
+            Are you sure you want to create GIN <strong>{ginNumber}</strong>?
+            <br />
+            double check before confirm
+          </>
+        }
+        confirmLabel="Create GIN"
+        isLoading={saveMutation.isPending}
+      />
+
+      <ErrorModal
+        isOpen={isErrorModalOpen}
+        onClose={() => setIsErrorModalOpen(false)}
+        title="Oops, something went wrong"
+        message={submitError}
+      />
     </section>
   );
 };
