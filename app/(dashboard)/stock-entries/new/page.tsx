@@ -27,21 +27,15 @@ const ENTRY_TYPE_LABEL: Record<"LOCAL_PURCHASE" | "FOREIGN_IMPORT", string> = {
 };
 
 
-const getNextGrnNumber = (dateValue: string) => {
-  const current = new Date(dateValue);
-  if (Number.isNaN(current.getTime())) return "";
 
-  const year = current.getFullYear();
-  const month = String(current.getMonth() + 1).padStart(2, "0");
-  return `GRN-${year}${month}`;
-};
 
 const NewStockEntryPage = () => {
   const router = useRouter();
 
   const [entryType, setEntryType] = useState<"LOCAL_PURCHASE" | "FOREIGN_IMPORT">("LOCAL_PURCHASE");
   const [date, setDate] = useState(getTodayDateInputValue);
-  const [grnNumber, setGrnNumber] = useState(getNextGrnNumber(getTodayDateInputValue));
+  const [grnNumber, setGrnNumber] = useState("");
+
   const [reference, setReference] = useState("");
   const [locationId, setLocationId] = useState<number | null>(null);
   const [notes, setNotes] = useState("");
@@ -100,10 +94,7 @@ const NewStockEntryPage = () => {
     }
   }, [locationsQuery.data, locationId]);
 
-  // Update GRN number when date changes
-  useEffect(() => {
-    setGrnNumber(getNextGrnNumber(date));
-  }, [date]);
+
 
   const locationOptions = useMemo(() => toLocationSelectOptions(locationsQuery.data ?? []), [locationsQuery.data]);
 
@@ -157,9 +148,11 @@ const NewStockEntryPage = () => {
     const normalizedLines = normalizeStockEntryLines(lines);
     const errors = getStockEntryFieldErrors({
       date,
+      grnNumber,
       locationId,
       lines: normalizedLines,
     });
+
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -234,7 +227,9 @@ const NewStockEntryPage = () => {
         onGrnNumberChange={setGrnNumber}
         onReferenceChange={setReference}
         onLocationChange={setLocationId}
+        grnNumberError={fieldErrors.grnNumber}
       />
+
 
       <StockEntryProductsSection
         lines={lines}
@@ -265,14 +260,6 @@ const NewStockEntryPage = () => {
         description={
           <div className="space-y-2">
             <p>Are you sure you want to save this stock entry?</p>
-            <div className="rounded-lg bg-stone-50 p-3 text-[12px] text-stone-500 border border-stone-100">
-              <ul className="space-y-1">
-                <li>• <strong>Type:</strong> {ENTRY_TYPE_LABEL[entryType]}</li>
-                <li>• <strong>Location:</strong> {locationOptions.find(o => o.id === locationId)?.label}</li>
-                <li>• <strong>Date:</strong> {date}</li>
-                <li>• <strong>Products:</strong> {lines.length} items</li>
-              </ul>
-            </div>
             <p className="text-amber-600 font-medium">This action will update inventory stock levels immediately.</p>
           </div>
         }
