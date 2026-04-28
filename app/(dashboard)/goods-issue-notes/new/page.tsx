@@ -22,7 +22,10 @@ import {
   normalizeGinLines,
   toLocationSelectOptions,
 } from "./gin-form.utils";
-import { getFirstGoodsIssueNoteFieldError, getGoodsIssueNoteFieldErrors } from "./gin-form.validation";
+import {
+  getFirstGoodsIssueNoteFieldError,
+  getGoodsIssueNoteFieldErrors,
+} from "./gin-form.validation";
 import GinDetailsSection from "./GinDetailsSection";
 import GinProductsSection from "./GinProductsSection";
 import GinSubmitSection from "./GinSubmitSection";
@@ -34,7 +37,10 @@ const parsePositiveInt = (value: string | null) => {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 };
 
-const getNextGinNumber = (notes: GoodsIssueNotesResponse["data"], dateValue: string) => {
+const getNextGinNumber = (
+  notes: GoodsIssueNotesResponse["data"],
+  dateValue: string,
+) => {
   const current = new Date(dateValue);
   if (Number.isNaN(current.getTime())) return "";
 
@@ -52,10 +58,13 @@ const getNextGinNumber = (notes: GoodsIssueNotesResponse["data"], dateValue: str
   return `${prefix}${String(latestSequence + 1).padStart(3, "0")}`;
 };
 
-const getQuantityByProduct = (lines: { productId: number; quantity: number }[]) => {
+const getQuantityByProduct = (
+  lines: { productId: number; quantity: number; freeQuantity?: number }[],
+) => {
   const next: Record<number, number> = {};
   for (const line of lines) {
-    next[line.productId] = (next[line.productId] ?? 0) + line.quantity;
+    next[line.productId] =
+      (next[line.productId] ?? 0) + line.quantity + (line.freeQuantity ?? 0);
   }
   return next;
 };
@@ -63,7 +72,10 @@ const getQuantityByProduct = (lines: { productId: number; quantity: number }[]) 
 const NewGoodsIssueNotePage = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialInvoiceId = useMemo(() => parsePositiveInt(searchParams.get("invoiceId")), [searchParams]);
+  const initialInvoiceId = useMemo(
+    () => parsePositiveInt(searchParams.get("invoiceId")),
+    [searchParams],
+  );
 
   const [ginNumber, setGinNumber] = useState("");
   const [ginDate, setGinDate] = useState(getTodayDateInputValue);
@@ -87,7 +99,8 @@ const NewGoodsIssueNotePage = () => {
     queryFn: async () => {
       const response = await fetch("/api/goods-issue-notes");
       const result = (await response.json()) as GoodsIssueNotesResponse;
-      if (!response.ok) throw new Error(result.error ?? "Failed to load goods issue notes.");
+      if (!response.ok)
+        throw new Error(result.error ?? "Failed to load goods issue notes.");
       return Array.isArray(result.data) ? result.data : [];
     },
   });
@@ -96,8 +109,17 @@ const NewGoodsIssueNotePage = () => {
     queryKey: ["invoice-options"],
     queryFn: async () => {
       const response = await fetch("/api/invoices?issuableOnly=true");
-      const result = (await response.json()) as { data?: { id: number; invoiceNo: string; customerName: string; repName: string }[]; error?: string };
-      if (!response.ok) throw new Error(result.error ?? "Failed to load invoices.");
+      const result = (await response.json()) as {
+        data?: {
+          id: number;
+          invoiceNo: string;
+          customerName: string;
+          repName: string;
+        }[];
+        error?: string;
+      };
+      if (!response.ok)
+        throw new Error(result.error ?? "Failed to load invoices.");
       return Array.isArray(result.data) ? result.data : [];
     },
   });
@@ -108,18 +130,27 @@ const NewGoodsIssueNotePage = () => {
     queryFn: async () => {
       const response = await fetch(`/api/invoices/${invoiceId}`);
       const result = (await response.json()) as InvoiceDetailResponse;
-      if (!response.ok) throw new Error(result.error ?? "Failed to load invoice details.");
+      if (!response.ok)
+        throw new Error(result.error ?? "Failed to load invoice details.");
       return result.data;
     },
   });
 
-  const relatedInvoiceGinsQuery = useQuery<GoodsIssueNotesResponse["data"], Error>({
+  const relatedInvoiceGinsQuery = useQuery<
+    GoodsIssueNotesResponse["data"],
+    Error
+  >({
     queryKey: ["invoice-gins", invoiceId],
     enabled: invoiceId !== null,
     queryFn: async () => {
-      const response = await fetch(`/api/goods-issue-notes?invoiceId=${invoiceId}&includeLines=true`);
+      const response = await fetch(
+        `/api/goods-issue-notes?invoiceId=${invoiceId}&includeLines=true`,
+      );
       const result = (await response.json()) as GoodsIssueNotesResponse;
-      if (!response.ok) throw new Error(result.error ?? "Failed to load related goods issue notes.");
+      if (!response.ok)
+        throw new Error(
+          result.error ?? "Failed to load related goods issue notes.",
+        );
       return Array.isArray(result.data) ? result.data : [];
     },
   });
@@ -129,18 +160,28 @@ const NewGoodsIssueNotePage = () => {
     queryFn: async () => {
       const response = await fetch("/api/inventory/locations");
       const result = (await response.json()) as InventoryLocationsResponse;
-      if (!response.ok) throw new Error(result.error ?? "Failed to load inventory locations.");
+      if (!response.ok)
+        throw new Error(result.error ?? "Failed to load inventory locations.");
       return Array.isArray(result.data) ? result.data : [];
     },
   });
 
-  const locationProductsQuery = useQuery<StockByLocationResponse["data"], Error>({
+  const locationProductsQuery = useQuery<
+    StockByLocationResponse["data"],
+    Error
+  >({
     queryKey: ["gin-products", locationId],
     enabled: locationId !== null,
     queryFn: async () => {
       const response = await fetch(`/api/inventory/${locationId}?all=true`);
-      const result = (await response.json()) as { stock?: StockByLocationResponse["data"]; error?: string };
-      if (!response.ok) throw new Error(result.error ?? "Failed to load products for selected location.");
+      const result = (await response.json()) as {
+        stock?: StockByLocationResponse["data"];
+        error?: string;
+      };
+      if (!response.ok)
+        throw new Error(
+          result.error ?? "Failed to load products for selected location.",
+        );
       return Array.isArray(result.stock) ? result.stock : [];
     },
   });
@@ -154,14 +195,20 @@ const NewGoodsIssueNotePage = () => {
       });
 
       const result = (await response.json()) as CreateGoodsIssueNoteResponse;
-      if (!response.ok) throw new Error(result.error ?? "Failed to save goods issue note.");
-      if (!result.data) throw new Error("Goods issue note response payload is missing.");
+      if (!response.ok)
+        throw new Error(result.error ?? "Failed to save goods issue note.");
+      if (!result.data)
+        throw new Error("Goods issue note response payload is missing.");
       return result.data;
     },
   });
 
   const invoiceOptions = useMemo(
-    () => (invoicesQuery.data ?? []).map((invoice) => ({ id: invoice.id, label: `${invoice.invoiceNo} • ${invoice.customerName} • ${invoice.repName}` })),
+    () =>
+      (invoicesQuery.data ?? []).map((invoice) => ({
+        id: invoice.id,
+        label: `${invoice.invoiceNo} • ${invoice.customerName} • ${invoice.repName}`,
+      })),
     [invoicesQuery.data],
   );
 
@@ -176,13 +223,17 @@ const NewGoodsIssueNotePage = () => {
   );
 
   const savedIssuedQtyByProduct = useMemo(() => {
-    const savedLines = (relatedInvoiceGinsQuery.data ?? []).flatMap((note) => note.lines ?? []);
+    const savedLines = (relatedInvoiceGinsQuery.data ?? []).flatMap(
+      (note) => note.lines ?? [],
+    );
     return getQuantityByProduct(savedLines);
   }, [relatedInvoiceGinsQuery.data]);
 
   const remainingInvoiceQtyByProduct = useMemo(() => {
     const next: Record<number, number> = {};
-    for (const [productIdText, invoiceQty] of Object.entries(invoiceQtyByProduct)) {
+    for (const [productIdText, invoiceQty] of Object.entries(
+      invoiceQtyByProduct,
+    )) {
       const productId = Number(productIdText);
       const alreadyIssued = savedIssuedQtyByProduct[productId] ?? 0;
       next[productId] = Math.max(0, invoiceQty - alreadyIssued);
@@ -201,8 +252,12 @@ const NewGoodsIssueNotePage = () => {
   const productOptions = useMemo<ProductOption[]>(
     () =>
       (locationProductsQuery.data ?? []).map((row) => {
-        const remainingInvoiceQty = remainingInvoiceQtyByProduct[row.product_id] ?? 0;
-        const availableQty = Math.min(row.quantity_on_hand, remainingInvoiceQty);
+        const remainingInvoiceQty =
+          remainingInvoiceQtyByProduct[row.product_id] ?? 0;
+        const availableQty = Math.min(
+          row.quantity_on_hand,
+          remainingInvoiceQty,
+        );
 
         return {
           id: row.product_id,
@@ -216,18 +271,23 @@ const NewGoodsIssueNotePage = () => {
     [locationProductsQuery.data, remainingInvoiceQtyByProduct],
   );
 
-  const getCalculatedMaxQtyForProduct = useCallback((productId: number) => {
-    const stockQty = productStockById[productId] ?? 0;
-    const remainingInvoiceQty = remainingInvoiceQtyByProduct[productId] ?? 0;
-    return Math.max(0, Math.min(stockQty, remainingInvoiceQty));
-  }, [productStockById, remainingInvoiceQtyByProduct]);
+  const getCalculatedMaxQtyForProduct = useCallback(
+    (productId: number) => {
+      const stockQty = productStockById[productId] ?? 0;
+      const remainingInvoiceQty = remainingInvoiceQtyByProduct[productId] ?? 0;
+      return Math.max(0, Math.min(stockQty, remainingInvoiceQty));
+    },
+    [productStockById, remainingInvoiceQtyByProduct],
+  );
 
   const invoiceCustomerName = invoiceDetailQuery.data?.customerName ?? "";
   const invoiceRepName = invoiceDetailQuery.data?.repName ?? "";
 
   useEffect(() => {
     if (notesQuery.data) {
-      setGinNumber((current) => current || getNextGinNumber(notesQuery.data, ginDate));
+      setGinNumber(
+        (current) => current || getNextGinNumber(notesQuery.data, ginDate),
+      );
     }
   }, [ginDate, notesQuery.data]);
 
@@ -250,33 +310,57 @@ const NewGoodsIssueNotePage = () => {
     );
     setLines(initialLines);
     initializedInvoiceIdRef.current = invoiceId;
-  }, [invoiceDetailQuery.data, invoiceId, productStockById, remainingInvoiceQtyByProduct, getCalculatedMaxQtyForProduct]);
+  }, [
+    invoiceDetailQuery.data,
+    invoiceId,
+    productStockById,
+    remainingInvoiceQtyByProduct,
+    getCalculatedMaxQtyForProduct,
+  ]);
 
   useEffect(() => {
     if (!invoiceDetailQuery.data || invoiceId === null) return;
     if (initializedInvoiceIdRef.current !== invoiceId) return;
 
-    setLines((prev) => normalizeGinLines(prev, productStockById, remainingInvoiceQtyByProduct));
-  }, [invoiceDetailQuery.data, invoiceId, productStockById, remainingInvoiceQtyByProduct]);
+    setLines((prev) =>
+      normalizeGinLines(prev, productStockById, remainingInvoiceQtyByProduct),
+    );
+  }, [
+    invoiceDetailQuery.data,
+    invoiceId,
+    productStockById,
+    remainingInvoiceQtyByProduct,
+  ]);
 
   useEffect(() => {
     if (invoiceId === null) return;
     if (!invoiceDetailQuery.data) return;
     if (initializedInvoiceIdRef.current !== invoiceId) return;
-    if (!locationProductsQuery.data || locationProductsQuery.data.length === 0) return;
+    if (!locationProductsQuery.data || locationProductsQuery.data.length === 0)
+      return;
     if (maxDefaultAppliedInvoiceIdRef.current === invoiceId) return;
 
     setLines((prev) => {
       const withMaxDefaults = prev.map((line) => {
         if (typeof line.productId !== "number") return line;
-        const maxQty = getLineAvailableQuantity(line.id, line.productId, prev, productStockById, remainingInvoiceQtyByProduct);
+        const maxQty = getLineAvailableQuantity(
+          line.id,
+          line.productId,
+          prev,
+          productStockById,
+          remainingInvoiceQtyByProduct,
+        );
         return {
           ...line,
           quantity: maxQty ?? 0,
         };
       });
 
-      return normalizeGinLines(withMaxDefaults, productStockById, remainingInvoiceQtyByProduct);
+      return normalizeGinLines(
+        withMaxDefaults,
+        productStockById,
+        remainingInvoiceQtyByProduct,
+      );
     });
 
     maxDefaultAppliedInvoiceIdRef.current = invoiceId;
@@ -304,44 +388,73 @@ const NewGoodsIssueNotePage = () => {
     });
   }, []);
 
-  const handleInvoiceChange = useCallback((value: number | null) => {
-    initializedInvoiceIdRef.current = null;
-    maxDefaultAppliedInvoiceIdRef.current = null;
-    setInvoiceId(value);
-    clearFieldErrors(["invoice", "lines"]);
-    setSubmitError("");
-  }, [clearFieldErrors]);
+  const handleInvoiceChange = useCallback(
+    (value: number | null) => {
+      initializedInvoiceIdRef.current = null;
+      maxDefaultAppliedInvoiceIdRef.current = null;
+      setInvoiceId(value);
+      clearFieldErrors(["invoice", "lines"]);
+      setSubmitError("");
+    },
+    [clearFieldErrors],
+  );
 
-  const handleLocationChange = useCallback((value: number | null) => {
-    setLocationId(value);
-    clearFieldErrors(["location", "lines"]);
-    setSubmitError("");
-  }, [clearFieldErrors]);
+  const handleLocationChange = useCallback(
+    (value: number | null) => {
+      setLocationId(value);
+      clearFieldErrors(["location", "lines"]);
+      setSubmitError("");
+    },
+    [clearFieldErrors],
+  );
 
-  const handleUpdateLine = useCallback((lineId: number, key: "productId" | "quantity", value: number | null) => {
-    setLines((prev) => {
-      const updated = prev.map((line) => {
-        if (line.id !== lineId) return line;
+  const handleUpdateLine = useCallback(
+    (lineId: number, key: "productId" | "quantity", value: number | null) => {
+      setLines((prev) => {
+        const updated = prev.map((line) => {
+          if (line.id !== lineId) return line;
 
-        if (key === "productId") {
-          const nextMax = getLineAvailableQuantity(lineId, value, prev, productStockById, remainingInvoiceQtyByProduct);
-          return {
-            ...line,
-            productId: value,
-            quantity: typeof value === "number" ? (nextMax ?? 0) : 0,
-          };
-        }
+          if (key === "productId") {
+            const nextMax = getLineAvailableQuantity(
+              lineId,
+              value,
+              prev,
+              productStockById,
+              remainingInvoiceQtyByProduct,
+            );
+            return {
+              ...line,
+              productId: value,
+              quantity: typeof value === "number" ? (nextMax ?? 0) : 0,
+            };
+          }
 
-        const max = getLineAvailableQuantity(lineId, line.productId, prev, productStockById, remainingInvoiceQtyByProduct);
-        const nextQuantity = clamp(typeof value === "number" ? value : line.quantity, 0, max);
-        return { ...line, quantity: nextQuantity };
+          const max = getLineAvailableQuantity(
+            lineId,
+            line.productId,
+            prev,
+            productStockById,
+            remainingInvoiceQtyByProduct,
+          );
+          const nextQuantity = clamp(
+            typeof value === "number" ? value : line.quantity,
+            0,
+            max,
+          );
+          return { ...line, quantity: nextQuantity };
+        });
+
+        return normalizeGinLines(
+          updated,
+          productStockById,
+          remainingInvoiceQtyByProduct,
+        );
       });
-
-      return normalizeGinLines(updated, productStockById, remainingInvoiceQtyByProduct);
-    });
-    clearFieldErrors(["lines"]);
-    setSubmitError("");
-  }, [clearFieldErrors, productStockById, remainingInvoiceQtyByProduct]);
+      clearFieldErrors(["lines"]);
+      setSubmitError("");
+    },
+    [clearFieldErrors, productStockById, remainingInvoiceQtyByProduct],
+  );
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -389,10 +502,16 @@ const NewGoodsIssueNotePage = () => {
 
     try {
       const result = await saveMutation.mutateAsync(payload);
-      setSuccessMessage(`Goods Issue Note saved successfully (ID: ${result.ginId}).`);
+      setSuccessMessage(
+        `Goods Issue Note saved successfully (ID: ${result.ginId}).`,
+      );
       router.push(`/invoices/${invoiceId}`);
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Unable to save goods issue note.");
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Unable to save goods issue note.",
+      );
     }
   };
 
@@ -406,7 +525,9 @@ const NewGoodsIssueNotePage = () => {
               label="Back to Goods Issue Notes"
             />
           </div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">Operations</p>
+          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">
+            Operations
+          </p>
           <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)] font-semibold">
             Goods Issue Note
           </h1>
@@ -460,7 +581,11 @@ const NewGoodsIssueNotePage = () => {
           issuedQtyByProduct={savedIssuedQtyByProduct}
           remainingInvoiceQtyByProduct={remainingInvoiceQtyByProduct}
           isProductsLoading={locationProductsQuery.isLoading}
-          productsError={locationProductsQuery.error instanceof Error ? locationProductsQuery.error.message : ""}
+          productsError={
+            locationProductsQuery.error instanceof Error
+              ? locationProductsQuery.error.message
+              : ""
+          }
           onUpdateLine={handleUpdateLine}
         />
 

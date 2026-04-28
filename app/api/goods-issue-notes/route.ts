@@ -13,7 +13,10 @@ const toPositiveInt = (value: unknown, fallback = 0) => {
   return Math.max(0, Math.trunc(numberValue));
 };
 
-const getNextGinNumber = async (tx: Prisma.TransactionClient, ginDate: Date) => {
+const getNextGinNumber = async (
+  tx: Prisma.TransactionClient,
+  ginDate: Date,
+) => {
   const year = ginDate.getFullYear();
   const month = String(ginDate.getMonth() + 1).padStart(2, "0");
   const prefix = `GIN-${year}${month}-`;
@@ -45,15 +48,23 @@ export async function GET(request: Request) {
     const includeLines = url.searchParams.get("includeLines") === "true";
 
     const invoiceId = invoiceIdParam ? Number(invoiceIdParam) : null;
-    if (invoiceIdParam && (!Number.isInteger(invoiceId) || (invoiceId ?? 0) <= 0)) {
-      return NextResponse.json({ error: "Invalid invoiceId filter." }, { status: 400 });
+    if (
+      invoiceIdParam &&
+      (!Number.isInteger(invoiceId) || (invoiceId ?? 0) <= 0)
+    ) {
+      return NextResponse.json(
+        { error: "Invalid invoiceId filter." },
+        { status: 400 },
+      );
     }
 
     const notes = await prisma.goodsIssueNote.findMany({
       where: invoiceId ? { invoice_id: invoiceId } : undefined,
       orderBy: [{ gin_date: "desc" }, { gin_id: "desc" }],
       include: {
-        invoice: { select: { invoice_id: true, invoice_number: true, gin_status: true } },
+        invoice: {
+          select: { invoice_id: true, invoice_number: true, gin_status: true },
+        },
         customer: { select: { customer_id: true, name: true } },
         location: { select: { location_id: true, code: true } },
         lines: includeLines
@@ -148,7 +159,9 @@ export async function POST(request: Request) {
 
       if (!productId) {
         return NextResponse.json(
-          { error: `Line ${lineNumber}: productId must be a positive integer.` },
+          {
+            error: `Line ${lineNumber}: productId must be a positive integer.`,
+          },
           { status: 400 },
         );
       }
@@ -163,10 +176,16 @@ export async function POST(request: Request) {
       normalizedLines.push({ product_id: productId, quantity });
     }
 
-    const aggregatedQuantities = normalizedLines.reduce<Map<number, number>>((map, line) => {
-      map.set(line.product_id, (map.get(line.product_id) ?? 0) + line.quantity);
-      return map;
-    }, new Map());
+    const aggregatedQuantities = normalizedLines.reduce<Map<number, number>>(
+      (map, line) => {
+        map.set(
+          line.product_id,
+          (map.get(line.product_id) ?? 0) + line.quantity,
+        );
+        return map;
+      },
+      new Map(),
+    );
 
     const ginDate = new Date(body.ginDate);
 
@@ -184,6 +203,7 @@ export async function POST(request: Request) {
             select: {
               product_id: true,
               quantity: true,
+              free_quantity: true,
             },
           },
           goods_issue_notes: {
@@ -208,8 +228,15 @@ export async function POST(request: Request) {
         throw new Error("Selected location does not match invoice location.");
       }
 
-      const invoiceQtyByProduct = invoice.invoice_lines.reduce<Map<number, number>>((map, line) => {
-        map.set(line.product_id, (map.get(line.product_id) ?? 0) + line.quantity);
+      const invoiceQtyByProduct = invoice.invoice_lines.reduce<
+        Map<number, number>
+      >((map, line) => {
+        map.set(
+          line.product_id,
+          (map.get(line.product_id) ?? 0) +
+            line.quantity +
+            (line.free_quantity ?? 0),
+        );
         return map;
       }, new Map());
 
@@ -218,7 +245,8 @@ export async function POST(request: Request) {
         for (const line of note.lines) {
           alreadyIssuedQtyByProduct.set(
             line.product_id,
-            (alreadyIssuedQtyByProduct.get(line.product_id) ?? 0) + line.quantity,
+            (alreadyIssuedQtyByProduct.get(line.product_id) ?? 0) +
+              line.quantity,
           );
         }
       }
@@ -228,7 +256,9 @@ export async function POST(request: Request) {
         const alreadyIssuedQty = alreadyIssuedQtyByProduct.get(productId) ?? 0;
 
         if (typeof invoiceQty !== "number") {
-          throw new Error(`Product ${productId} does not exist in selected invoice lines.`);
+          throw new Error(
+            `Product ${productId} does not exist in selected invoice lines.`,
+          );
         }
 
         const leftToIssue = Math.max(0, invoiceQty - alreadyIssuedQty);
@@ -254,7 +284,9 @@ export async function POST(request: Request) {
         },
       });
 
-      const stockByProductId = new Map(stockRows.map((row) => [row.product_id, row]));
+      const stockByProductId = new Map(
+        stockRows.map((row) => [row.product_id, row]),
+      );
 
       for (const [productId, requestedQty] of aggregatedQuantities.entries()) {
         const stock = stockByProductId.get(productId);
@@ -286,6 +318,7 @@ export async function POST(request: Request) {
               location_id: locationId,
               prepared_by: body.preparedBy.trim(),
               received_by: body.receivedBy.trim(),
+              created_by: createdBy,
               lines: {
                 create: normalizedLines,
               },
@@ -311,14 +344,19 @@ export async function POST(request: Request) {
       }
 
       if (!gin) {
-        throw new Error("Unable to generate a unique GIN number. Please retry.");
+        throw new Error(
+          "Unable to generate a unique GIN number. Please retry.",
+        );
       }
 
-      const isFullIssuance = Array.from(invoiceQtyByProduct.entries()).every(([productId, invoiceQty]) => {
-        const alreadyIssuedQty = alreadyIssuedQtyByProduct.get(productId) ?? 0;
-        const newlyIssuedQty = aggregatedQuantities.get(productId) ?? 0;
-        return alreadyIssuedQty + newlyIssuedQty >= invoiceQty;
-      });
+      const isFullIssuance = Array.from(invoiceQtyByProduct.entries()).every(
+        ([productId, invoiceQty]) => {
+          const alreadyIssuedQty =
+            alreadyIssuedQtyByProduct.get(productId) ?? 0;
+          const newlyIssuedQty = aggregatedQuantities.get(productId) ?? 0;
+          return alreadyIssuedQty + newlyIssuedQty >= invoiceQty;
+        },
+      );
 
       await tx.invoice.update({
         where: { invoice_id: invoice.invoice_id },
@@ -338,7 +376,6 @@ export async function POST(request: Request) {
           where: { stock_id: stock.stock_id },
           data: { quantity_on_hand: { decrement: issuedQty } },
         });
-        
       }
 
       return gin;
@@ -378,7 +415,10 @@ export async function POST(request: Request) {
       (error.meta?.target as string[]).includes("gin_number")
     ) {
       return NextResponse.json(
-        { error: "GIN number already exists. Please retry to generate the next number." },
+        {
+          error:
+            "GIN number already exists. Please retry to generate the next number.",
+        },
         { status: 409 },
       );
     }
