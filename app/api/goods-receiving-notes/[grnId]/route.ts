@@ -66,6 +66,8 @@ export async function GET(
         createdByUserId: note.creator.user_id,
         createdByName: note.creator.full_name,
         createdByUsername: note.creator.username,
+        createdAt: note.created_at.toISOString(),
+        updatedAt: note.updated_at.toISOString(),
         lines: note.lines.map((line) => ({
           lineId: line.grn_line_id,
           productId: line.product.product_id,

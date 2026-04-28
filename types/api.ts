@@ -316,6 +316,8 @@ export type GoodsReceivingNoteOptionDto = {
   lineCount: number;
   createdByUserId: number;
   createdByName: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type GoodsReceivingNoteLineDto = {
@@ -340,6 +342,8 @@ export type GoodsReceivingNoteDetailDto = {
   createdByUserId: number;
   createdByName: string;
   createdByUsername: string;
+  createdAt: string;
+  updatedAt: string;
   lines: GoodsReceivingNoteLineDto[];
 };
 

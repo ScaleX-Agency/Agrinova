@@ -42,6 +42,8 @@ export async function GET() {
         lineCount: note._count.lines,
         createdByUserId: note.creator.user_id,
         createdByName: note.creator.full_name,
+        createdAt: note.created_at.toISOString(),
+        updatedAt: note.updated_at.toISOString(),
       })),
     };
 
