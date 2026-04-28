@@ -12,11 +12,20 @@ import StockEntryDetailsSection from "./StockEntryDetailsSection";
 import StockEntryProductsSection from "./StockEntryProductsSection";
    
 import StockEntrySubmitSection from "./StockEntrySubmitSection";
+import ConfirmationModal from "@/components/ConfirmationModal";
+import ErrorModal from "@/components/ErrorModal";
+
   // eslint-disable-next-line
 import { getTodayDateInputValue, hasValidLineItems, normalizeStockEntryLines, toLocationSelectOptions } from "./stock-entry-form.utils";
 import { getStockEntryFieldErrors, getFirstStockEntryFieldError } from "./stock-entry-form.validation";
 import type { StockEntryFieldErrors, StockEntryLine, ProductOption } from "./stock-entry-form.types";
 import type { InventoryLocationsResponse } from "@/types/api";
+
+const ENTRY_TYPE_LABEL: Record<"LOCAL_PURCHASE" | "FOREIGN_IMPORT", string> = {
+  LOCAL_PURCHASE: "Local Purchase",
+  FOREIGN_IMPORT: "Foreign Import",
+};
+
 
 const getNextGrnNumber = (dateValue: string) => {
   const current = new Date(dateValue);
@@ -39,6 +48,9 @@ const NewStockEntryPage = () => {
   const [lines, setLines] = useState<StockEntryLine[]>([]);
   const [fieldErrors, setFieldErrors] = useState<StockEntryFieldErrors>({});
   const [submitError, setSubmitError] = useState("");
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
+
 
   const locationsQuery = useQuery({
     queryKey: ["inventory-locations"],
@@ -138,7 +150,7 @@ const NewStockEntryPage = () => {
     );
   }, []);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     setFieldErrors({});
     setSubmitError("");
 
@@ -155,6 +167,11 @@ const NewStockEntryPage = () => {
       return;
     }
 
+    setIsConfirmModalOpen(true);
+  };
+
+  const handleConfirmSave = async () => {
+    const normalizedLines = normalizeStockEntryLines(lines);
     const payload: CreateStockEntryDto = {
       entry_type: entryType,
       date,
@@ -171,11 +188,15 @@ const NewStockEntryPage = () => {
 
     try {
       await saveMutation.mutateAsync(payload);
+      setIsConfirmModalOpen(false);
       router.push("/goods-receiving-notes");
     } catch (error) {
+      setIsConfirmModalOpen(false);
       setSubmitError(error instanceof Error ? error.message : "Failed to save stock entry.");
+      setIsErrorModalOpen(true);
     }
   };
+
 
   return (
     <section className="space-y-5">
@@ -235,7 +256,38 @@ const NewStockEntryPage = () => {
         onSave={handleSave}
         onCancel={() => router.push("/goods-receiving-notes")}
       />
+
+      <ConfirmationModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => !saveMutation.isPending && setIsConfirmModalOpen(false)}
+        onConfirm={handleConfirmSave}
+        title="Confirm Stock Entry"
+        description={
+          <div className="space-y-2">
+            <p>Are you sure you want to save this stock entry?</p>
+            <div className="rounded-lg bg-stone-50 p-3 text-[12px] text-stone-500 border border-stone-100">
+              <ul className="space-y-1">
+                <li>• <strong>Type:</strong> {ENTRY_TYPE_LABEL[entryType]}</li>
+                <li>• <strong>Location:</strong> {locationOptions.find(o => o.id === locationId)?.label}</li>
+                <li>• <strong>Date:</strong> {date}</li>
+                <li>• <strong>Products:</strong> {lines.length} items</li>
+              </ul>
+            </div>
+            <p className="text-amber-600 font-medium">This action will update inventory stock levels immediately.</p>
+          </div>
+        }
+        confirmLabel="Save Entry"
+        isLoading={saveMutation.isPending}
+      />
+
+      <ErrorModal
+        isOpen={isErrorModalOpen}
+        onClose={() => setIsErrorModalOpen(false)}
+        title="Submission Failed"
+        message={submitError}
+      />
     </section>
+
   );
 };
 
