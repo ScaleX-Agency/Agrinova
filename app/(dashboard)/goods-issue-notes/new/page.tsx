@@ -37,27 +37,6 @@ const parsePositiveInt = (value: string | null) => {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 };
 
-const getNextGinNumber = (
-  notes: GoodsIssueNotesResponse["data"],
-  dateValue: string,
-) => {
-  const current = new Date(dateValue);
-  if (Number.isNaN(current.getTime())) return "";
-
-  const year = current.getFullYear();
-  const month = String(current.getMonth() + 1).padStart(2, "0");
-  const prefix = `GIN-${year}${month}-`;
-
-  const latestSequence = (notes ?? [])
-    .map((note) => note.ginNumber)
-    .filter((ginNumber) => ginNumber.startsWith(prefix))
-    .map((ginNumber) => Number(ginNumber.split("-").at(-1)))
-    .filter((sequence) => Number.isFinite(sequence))
-    .reduce((max, sequence) => Math.max(max, sequence), 0);
-
-  return `${prefix}${String(latestSequence + 1).padStart(3, "0")}`;
-};
-
 const getQuantityByProduct = (
   lines: { productId: number; quantity: number; freeQuantity?: number }[],
 ) => {
@@ -93,17 +72,6 @@ const NewGoodsIssueNotePage = () => {
   useEffect(() => {
     setInvoiceId(initialInvoiceId);
   }, [initialInvoiceId]);
-
-  const notesQuery = useQuery<GoodsIssueNotesResponse["data"], Error>({
-    queryKey: ["goods-issue-notes"],
-    queryFn: async () => {
-      const response = await fetch("/api/goods-issue-notes");
-      const result = (await response.json()) as GoodsIssueNotesResponse;
-      if (!response.ok)
-        throw new Error(result.error ?? "Failed to load goods issue notes.");
-      return Array.isArray(result.data) ? result.data : [];
-    },
-  });
 
   const invoicesQuery = useQuery({
     queryKey: ["invoice-options"],
@@ -282,14 +250,6 @@ const NewGoodsIssueNotePage = () => {
 
   const invoiceCustomerName = invoiceDetailQuery.data?.customerName ?? "";
   const invoiceRepName = invoiceDetailQuery.data?.repName ?? "";
-
-  useEffect(() => {
-    if (notesQuery.data) {
-      setGinNumber(
-        (current) => current || getNextGinNumber(notesQuery.data, ginDate),
-      );
-    }
-  }, [ginDate, notesQuery.data]);
 
   useEffect(() => {
     if (!invoiceDetailQuery.data || invoiceId === null) return;
