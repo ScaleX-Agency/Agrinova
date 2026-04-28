@@ -367,3 +367,218 @@ export type InvoiceOptionDto = {
 };
 
 export type InvoicesResponse = ApiResult<InvoiceOptionDto[]>;
+
+export type InvoiceAggregatedCustomerDto = {
+  id: number;
+  name: string;
+  phone: string | null;
+};
+
+export type InvoiceAggregatedSalesRepDto = {
+  id: number;
+  name: string;
+};
+
+export type InvoiceAggregatedLocationDto = {
+  id: number;
+  code: string;
+  name: string;
+};
+
+export type InvoiceAggregatedLineDto = {
+  lineId: number;
+  productId: number;
+  productCode: string;
+  productName: string;
+  packSize: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+  netLineTotal: number;
+};
+
+export type InvoiceAggregatedSalesReturnLineDto = {
+  lineId: number;
+  productId: number;
+  productCode: string;
+  productName: string;
+  packSize: string;
+  quantity: number;
+  condition: string;
+  reasonForReturn: string;
+  lineTotal: number;
+};
+
+export type InvoiceAggregatedSalesReturnDto = {
+  returnId: number;
+  returnNumber: string;
+  returnDate: string;
+  totalAmount: number;
+  notes: string | null;
+  lines: InvoiceAggregatedSalesReturnLineDto[];
+};
+
+export type InvoiceAggregatedDetailsDto = {
+  invoice: {
+    id: number;
+    number: string;
+    date: string;
+    totalAmount: number;
+    status: "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE";
+    notes: string | null;
+    customer: InvoiceAggregatedCustomerDto;
+    salesRep: InvoiceAggregatedSalesRepDto;
+    location: InvoiceAggregatedLocationDto;
+  };
+  lines: InvoiceAggregatedLineDto[];
+  salesReturns: InvoiceAggregatedSalesReturnDto[];
+};
+
+export type InvoiceAggregatedDetailsResponse = ApiResult<InvoiceAggregatedDetailsDto>;
+
+export type InvoiceAggregatedSummaryProductInitialDto = {
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+  netLineTotal: number;
+};
+
+export type InvoiceAggregatedSummaryProductReturnedDto = {
+  quantity: number;
+  lineTotal: number;
+  returnCount: number;
+  returnNumbers: string[];
+};
+
+export type InvoiceAggregatedSummaryProductNetDto = {
+  quantity: number;
+  lineTotal: number;
+};
+
+export type InvoiceAggregatedSummaryProductDto = {
+  productId: number;
+  productCode: string;
+  productName: string;
+  packSize: string;
+  initial: InvoiceAggregatedSummaryProductInitialDto;
+  returned: InvoiceAggregatedSummaryProductReturnedDto;
+  net: InvoiceAggregatedSummaryProductNetDto;
+};
+
+export type InvoiceAggregatedSummaryDto = {
+  invoice: {
+    id: number;
+    number: string;
+    date: string;
+    status: "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE";
+  };
+  summary: {
+    totalProducts: number;
+    totalInitialAmount: number;
+    totalReturnedAmount: number;
+    totalNetAmount: number;
+  };
+  products: InvoiceAggregatedSummaryProductDto[];
+};
+
+export type InvoiceAggregatedSummaryResponse = ApiResult<InvoiceAggregatedSummaryDto>;
+
+export type InvoiceAggregatedFinalFormHeaderDto = {
+  invoice: {
+    id: number;
+    number: string;
+    date: string;
+    status: "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE";
+    notes: string | null;
+  };
+  customer: {
+    id: number;
+    name: string;
+    phone: string | null;
+    address: string | null;
+  };
+  salesRep: {
+    id: number;
+    name: string;
+    phone: string | null;
+  };
+  location: {
+    id: number;
+    code: string;
+    name: string;
+    address: string | null;
+  };
+};
+
+export type InvoiceAggregatedFinalFormLineInitialDto = {
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+  discount: number;
+  netLineTotal: number;
+};
+
+export type InvoiceAggregatedFinalFormLineReturnedDto = {
+  quantity: number;
+  lineTotal: number;
+  returnCount: number;
+};
+
+export type InvoiceAggregatedFinalFormLineNetDto = {
+  quantity: number;
+  lineTotal: number;
+};
+
+export type InvoiceAggregatedReturnDetailDto = {
+  returnNumber: string;
+  returnDate: string;
+  quantity: number;
+  lineTotal: number;
+  reason: string;
+};
+
+export type InvoiceAggregatedFinalFormLineDto = {
+  productId: number;
+  productCode: string;
+  productName: string;
+  packSize: string;
+  initial: InvoiceAggregatedFinalFormLineInitialDto;
+  returned: InvoiceAggregatedFinalFormLineReturnedDto;
+  net: InvoiceAggregatedFinalFormLineNetDto;
+  returnDetails: InvoiceAggregatedReturnDetailDto[];
+};
+
+export type InvoiceAggregatedFinalFormReturnDto = {
+  returnId: number;
+  returnNumber: string;
+  returnDate: string;
+  totalAmount: number;
+  notes: string | null;
+  createdBy: string;
+};
+
+export type InvoiceAggregatedFinalFormSummaryDto = {
+  initial: {
+    subtotal: number;
+    discount: number;
+    netTotal: number;
+  };
+  returns: {
+    totalAmount: number;
+    totalProducts: number;
+  };
+  final: {
+    netTotal: number;
+    productsWithReturns: number;
+    totalProducts: number;
+  };
+};
+
+export type InvoiceAggregatedFinalFormDto = {
+  header: InvoiceAggregatedFinalFormHeaderDto;
+  lines: InvoiceAggregatedFinalFormLineDto[];
+  returns: InvoiceAggregatedFinalFormReturnDto[];
+  summary: InvoiceAggregatedFinalFormSummaryDto;
+};
+
+export type InvoiceAggregatedFinalFormResponse = ApiResult<InvoiceAggregatedFinalFormDto>;
