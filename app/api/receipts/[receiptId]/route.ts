@@ -18,12 +18,15 @@ export async function GET(
       select: {
         receipt_id: true,
         receipt_date: true,
-        amount_received: true,
+        amount: true,
         payment_method: true,
         cheque_no: true,
         cheque_date: true,
         bank_name: true,
-        collector: {
+        created_at: true,
+        updated_at: true,
+        notes: true,
+        creator: {
           select: {
             full_name: true,
           },
@@ -66,12 +69,15 @@ export async function GET(
         invoiceDate: receipt.invoice.invoice_date.toISOString(),
         customerName: receipt.invoice.customer.name,
         salesRepName: receipt.invoice.rep.full_name,
-        amountReceived: Number(receipt.amount_received),
+        amountReceived: Number(receipt.amount),
         paymentMethod: receipt.payment_method,
-        collectedBy: receipt.collector.full_name,
-        chequeNo: receipt.cheque_no,
+        collectedBy: receipt.creator.full_name,
+        chequeNo: receipt.cheque_no ?? null,
         chequeDate: receipt.cheque_date ? receipt.cheque_date.toISOString() : null,
-        bankName: receipt.bank_name,
+        bankName: receipt.bank_name ?? null,
+        createdAt: receipt.created_at.toISOString(),
+        updatedAt: receipt.updated_at.toISOString(),
+        notes: receipt.notes ?? null,
       },
     };
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { calculateReceiptCommission, getReceiptNumber } from "@/lib/commission";
+import { getCurrentUser } from "@/lib/auth";
 import type {
   CreateReceiptRequestDto,
   CreateReceiptResponse,
@@ -29,7 +30,7 @@ export async function GET() {
       select: {
         receipt_id: true,
         receipt_date: true,
-        amount_received: true,
+          amount: true,
         payment_method: true,
         invoice: {
           select: {
@@ -58,7 +59,7 @@ export async function GET() {
           invoiceId: receipt.invoice.invoice_id,
           invoiceNo: receipt.invoice.invoice_number,
           customerName: receipt.invoice.customer.name,
-          amountReceived: Number(receipt.amount_received),
+          amountReceived: Number(receipt.amount),
           paymentMethod: receipt.payment_method,
         };
       }),
@@ -75,13 +76,19 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as CreateReceiptRequestDto;
 
+    // Get user from session
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = currentUser.user_id;
+
     const invoiceId = toPositiveInt(body.invoiceId);
-    const collectedBy = toPositiveInt(body.collectedBy, 1);
     const amountReceived = toPositiveNumber(body.amountReceived);
     const paymentMethod = body.paymentMethod;
     const receiptDateRaw = body.receiptDate;
 
-    if (!invoiceId || !collectedBy || !amountReceived || !isValidPaymentMethod(paymentMethod)) {
+    if (!invoiceId || !amountReceived || !isValidPaymentMethod(paymentMethod)) {
       return NextResponse.json(
         { error: "Missing or invalid receipt fields." },
         { status: 400 },
@@ -120,11 +127,6 @@ export async function POST(request: Request) {
           total_amount: true,
           status: true,
           rep_id: true,
-          receipts: {
-            select: {
-              amount_received: true,
-            },
-          },
         },
       });
 
@@ -133,7 +135,8 @@ export async function POST(request: Request) {
       }
 
       const totalAmount = Number(invoice.total_amount);
-      const paidAmount = invoice.receipts.reduce((sum, receipt) => sum + Number(receipt.amount_received), 0);
+      // No receipts on invoice object, so paidAmount is 0 for new receipt
+      const paidAmount = 0;
       const outstandingAmount = Math.max(0, totalAmount - paidAmount);
 
       if (outstandingAmount <= 0) {
@@ -152,12 +155,13 @@ export async function POST(request: Request) {
             ? "PARTIAL"
             : "UNPAID";
 
+      // 1. Create Receipt
       const receipt = await tx.receipt.create({
         data: {
           invoice_id: invoice.invoice_id,
-          collected_by: collectedBy,
+          created_by: userId,
           receipt_date: receiptDate,
-          amount_received: amountReceived,
+          amount: amountReceived,
           payment_method: paymentMethod,
           cheque_no: paymentMethod === "CHEQUE" ? body.chequeNo?.trim() ?? null : null,
           cheque_date: paymentMethod === "CHEQUE" ? chequeDate : null,
@@ -168,70 +172,46 @@ export async function POST(request: Request) {
         select: {
           receipt_id: true,
           receipt_date: true,
+          amount: true,
         },
       });
 
-      const commission = calculateReceiptCommission(
-        invoice.invoice_date,
-        receiptDate,
-        totalAmount,
-      );
-
-      const existingCommission = await tx.commission.findFirst({
-        where: { invoice_id: invoice.invoice_id },
-        select: { commission_id: true },
+      // 2. Create InvoiceSettlement
+      const settlement = await tx.invoiceSettlement.create({
+        data: {
+          invoice_id: invoice.invoice_id,
+          receipt_id: receipt.receipt_id,
+          amount: receipt.amount,
+          settled_date: receipt.receipt_date,
+        },
+        select: {
+          settlement_id: true,
+          settled_date: true,
+        },
       });
 
-      const commissionRecord = existingCommission
-        ? await tx.commission.update({
-            where: { commission_id: existingCommission.commission_id },
-            data: nextStatus === "PAID"
-              ? {
-                  receipt_id: receipt.receipt_id,
-                  commission_rate: commission.commissionRate,
-                  commission_amount: commission.commissionAmount,
-                  days_to_pay: commission.daysToPay,
-                  due_date: commission.dueDate,
-                  paid_date: receiptDate,
-                  status: "PAID",
-                }
-              : {
-                  status: "PENDING",
-                },
-            select: {
-              commission_id: true,
-            },
-          })
-        : await tx.commission.create({
-            data:
-              nextStatus === "PAID"
-                ? {
-                    rep_id: invoice.rep_id,
-                    invoice_id: invoice.invoice_id,
-                    receipt_id: receipt.receipt_id,
-                    commission_rate: commission.commissionRate,
-                    commission_amount: commission.commissionAmount,
-                    days_to_pay: commission.daysToPay,
-                    due_date: commission.dueDate,
-                    paid_date: receiptDate,
-                    status: "PAID",
-                  }
-                : {
-                    rep_id: invoice.rep_id,
-                    invoice_id: invoice.invoice_id,
-                    receipt_id: null,
-                    commission_rate: 0,
-                    commission_amount: 0,
-                    days_to_pay: 0,
-                    due_date: commission.dueDate,
-                    paid_date: null,
-                    status: "PENDING",
-                  },
-            select: {
-              commission_id: true,
-            },
-          });
+      // 3. Calculate days_to_pay
+      const daysToPay = Math.max(0, Math.floor((settlement.settled_date.getTime() - invoice.invoice_date.getTime()) / (1000 * 60 * 60 * 24)));
 
+      // 4. Calculate commission
+      const commission = calculateReceiptCommission(invoice.invoice_date, settlement.settled_date, totalAmount);
+
+      // 5. Create Commission
+      const commissionRecord = await tx.commission.create({
+        data: {
+          rep_id: invoice.rep_id,
+          commission_rate: commission.commissionRate,
+          commission_amount: commission.commissionAmount,
+          days_to_pay: daysToPay,
+          status: nextStatus === "PAID" ? "PAID" : "PENDING",
+          settlement_id: settlement.settlement_id,
+        },
+        select: {
+          commission_id: true,
+        },
+      });
+
+      // 6. Update Invoice status
       await tx.invoice.update({
         where: { invoice_id: invoice.invoice_id },
         data: { status: nextStatus },
@@ -243,7 +223,9 @@ export async function POST(request: Request) {
         receiptId: receipt.receipt_id,
         receiptNo,
         commissionId: commissionRecord.commission_id,
-        ...commission,
+        daysToPay,
+        commissionRate: commission.commissionRate,
+        commissionAmount: commission.commissionAmount,
       };
     });
 

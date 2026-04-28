@@ -142,6 +142,9 @@ export type ReceiptDetailDto = {
   chequeNo: string | null;
   chequeDate: string | null;
   bankName: string | null;
+  createdAt: string;
+  updatedAt: string;
+  notes: string | null;
 };
 
 export type ReceiptsResponse = ApiResult<ReceiptOptionDto[]>;

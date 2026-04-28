@@ -71,12 +71,15 @@ const ReceiptDetailPage = async ({
     select: {
       receipt_id: true,
       receipt_date: true,
-      amount_received: true,
+      amount: true,
       payment_method: true,
       cheque_no: true,
       cheque_date: true,
       bank_name: true,
-      collector: {
+      created_at: true,
+      updated_at: true,
+      notes: true,
+      creator: {
         select: {
           full_name: true,
         },
@@ -142,9 +145,9 @@ const ReceiptDetailPage = async ({
           <ReceiptPrintButton
             receiptNo={receiptNo}
             receiptDate={receipt.receipt_date.toISOString()}
-            amountReceived={Number(receipt.amount_received)}
+            amountReceived={Number(receipt.amount)}
             paymentMethodLabel={METHOD_LABEL[receipt.payment_method as "CASH" | "CHEQUE" | "BANK_TRANSFER"]}
-            collectedBy={receipt.collector.full_name}
+            collectedBy={receipt.creator.full_name}
             invoiceNo={receipt.invoice.invoice_number}
             invoiceDate={receipt.invoice.invoice_date.toISOString()}
             customerName={receipt.invoice.customer.name}
@@ -155,6 +158,33 @@ const ReceiptDetailPage = async ({
           />
         </div>
       </div>
+
+      {/* Meta Data Section */}
+      <section className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+        <h2 className="mb-3 text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
+          Record Metadata
+        </h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 text-sm">
+          <div>
+            <p className="text-[11px] text-stone-500">Created By</p>
+            <p className="mt-0.5 text-[13px] font-medium text-stone-900">{receipt.creator.full_name}</p>
+          </div>
+          <div>
+            <p className="text-[11px] text-stone-500">Created At</p>
+            <p className="mt-0.5 text-[13px] font-medium text-stone-900">{formatDate(receipt.created_at)}</p>
+          </div>
+          <div>
+            <p className="text-[11px] text-stone-500">Last Updated</p>
+            <p className="mt-0.5 text-[13px] font-medium text-stone-900">{formatDate(receipt.updated_at)}</p>
+          </div>
+        </div>
+        {receipt.notes && (
+          <div className="mt-3">
+            <p className="text-[11px] text-stone-500">Notes</p>
+            <p className="mt-0.5 text-[13px] text-stone-800">{receipt.notes}</p>
+          </div>
+        )}
+      </section>
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-stone-200 bg-white p-3.5 transition-shadow hover:shadow-sm">
@@ -188,7 +218,7 @@ const ReceiptDetailPage = async ({
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Collected By</p>
-              <p className="mt-1 text-[14px] font-semibold text-stone-900">{receipt.collector.full_name}</p>
+              <p className="mt-1 text-[14px] font-semibold text-stone-900">{receipt.creator.full_name}</p>
             </div>
           </div>
         </div>
@@ -259,7 +289,7 @@ const ReceiptDetailPage = async ({
           <div>
             <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-green-700">Amount Received</p>
             <p className="mt-1.5 text-[30px] leading-none font-bold text-[#1a5c2e] [font-family:var(--font-dmsans)]">
-              {formatCurrency(Number(receipt.amount_received))}
+              {formatCurrency(Number(receipt.amount))}
             </p>
           </div>
           <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-green-200 bg-white text-green-700">
