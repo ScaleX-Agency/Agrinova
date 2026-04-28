@@ -22,6 +22,15 @@ const formatDate = (value: Date) =>
     year: "numeric",
   });
 
+const formatDateTime = (value: Date) =>
+  value.toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-LK", {
     style: "currency",
@@ -49,6 +58,13 @@ const GoodsIssueNoteDetailPage = async ({
       gin_date: true,
       prepared_by: true,
       received_by: true,
+      created_at: true,
+      updated_at: true,
+      creator: {
+        select: {
+          full_name: true,
+        },
+      },
       invoice: {
         select: {
           invoice_id: true,
@@ -290,6 +306,27 @@ const GoodsIssueNoteDetailPage = async ({
           </Link>
         </section>
       )}
+
+      {/* ── Record Metadata ── */}
+      <section className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+        <h2 className="mb-3 text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
+          Record Metadata
+        </h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 text-sm">
+          <div>
+            <p className="text-[11px] text-stone-500">Created By</p>
+            <p className="mt-0.5 text-[13px] font-medium text-stone-900">{note.creator.full_name}</p>
+          </div>
+          <div>
+            <p className="text-[11px] text-stone-500">Created At</p>
+            <p className="mt-0.5 text-[13px] font-medium text-stone-900">{formatDateTime(note.created_at)}</p>
+          </div>
+          <div>
+            <p className="text-[11px] text-stone-500">Last Updated</p>
+            <p className="mt-0.5 text-[13px] font-medium text-stone-900">{formatDateTime(note.updated_at)}</p>
+          </div>
+        </div>
+      </section>
     </section>
   );
 };

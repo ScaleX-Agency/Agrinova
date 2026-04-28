@@ -7,6 +7,7 @@ import type {
   CreateInvoiceSuccessResponse,
   InvoicesResponse,
 } from "@/types/api";
+import { getCurrentUser } from "@/lib/auth";
 
 const toPositiveInt = (value: unknown, fallback = 0) => {
   const numberValue = Number(value);
@@ -182,7 +183,12 @@ export async function POST(request: Request) {
     const repId = toPositiveInt(body.repId);
     const locationId = toPositiveInt(body.locationId);
     const lines = Array.isArray(body.lines) ? body.lines : [];
-    const createdBy = toPositiveInt(body.createdBy, 1);
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const createdBy = currentUser.user_id;
+
     const invoiceNumber = body.invoiceNo.trim();
 
     console.log("Received invoice creation request", {

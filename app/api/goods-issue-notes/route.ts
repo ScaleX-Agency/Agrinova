@@ -6,6 +6,7 @@ import type {
   CreateGoodsIssueNoteResponse,
   GoodsIssueNotesResponse,
 } from "@/types/api";
+import { getCurrentUser } from "@/lib/auth";
 
 const toPositiveInt = (value: unknown, fallback = 0) => {
   const numberValue = Number(value);
@@ -118,7 +119,11 @@ export async function POST(request: Request) {
     const ginNumber = body.ginNumber.trim();
     const invoiceId = toPositiveInt(body.invoiceId);
     const locationId = toPositiveInt(body.locationId);
-    const createdBy = toPositiveInt(body.createdBy, 1);
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const createdBy = currentUser.user_id;
     const lines = Array.isArray(body.lines) ? body.lines : [];
 
     if (!ginNumber || !invoiceId || !locationId || !createdBy) {

@@ -24,6 +24,15 @@ const formatDate = (value: Date) =>
     year: "numeric",
   });
 
+const formatDateTime = (value: Date) =>
+  value.toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-LK", {
     style: "currency",
@@ -109,6 +118,13 @@ const InvoiceDetailPage = async ({
       gin_status: true,
       status: true,
       total_amount: true,
+      created_at: true,
+      updated_at: true,
+      creator: {
+        select: {
+          full_name: true,
+        },
+      },
       customer: {
         select: {
           name: true,
@@ -189,6 +205,7 @@ const InvoiceDetailPage = async ({
     return {
       ...receipt,
       receipt_number: `RCP-${year}${month}-${String(receipt.receipt_id).padStart(3, "0")}`,
+      amount: receipt.amount,
     };
   });
 
@@ -512,8 +529,29 @@ const InvoiceDetailPage = async ({
             ))}
           </div>
         ) : (
-          <p className="text-[12px] text-stone-500">No GINs linked yet.</p>
+          <p className="text-[12px] text-stone-500">No goods issue notes linked yet.</p>
         )}
+      </section>
+
+      {/* ── Record Metadata ── */}
+      <section className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+        <h2 className="mb-3 text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
+          Record Metadata
+        </h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 text-sm">
+          <div>
+            <p className="text-[11px] text-stone-500">Created By</p>
+            <p className="mt-0.5 text-[13px] font-medium text-stone-900">{invoice.creator.full_name}</p>
+          </div>
+          <div>
+            <p className="text-[11px] text-stone-500">Created At</p>
+            <p className="mt-0.5 text-[13px] font-medium text-stone-900">{formatDateTime(invoice.created_at)}</p>
+          </div>
+          <div>
+            <p className="text-[11px] text-stone-500">Last Updated</p>
+            <p className="mt-0.5 text-[13px] font-medium text-stone-900">{formatDateTime(invoice.updated_at)}</p>
+          </div>
+        </div>
       </section>
     </section>
   );
