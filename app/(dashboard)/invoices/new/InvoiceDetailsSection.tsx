@@ -5,6 +5,7 @@ type InvoiceDetailsSectionProps = {
   invoiceNo: string;
   invoiceDate: string;
   invoiceNoError?: string;
+  invoiceNoStatus?: string;
   invoiceDateError?: string;
   salesRepError?: string;
   customerError?: string;
@@ -30,6 +31,7 @@ const InvoiceDetailsSection = ({
   invoiceNo,
   invoiceDate,
   invoiceNoError,
+  invoiceNoStatus,
   invoiceDateError,
   salesRepError,
   customerError,
@@ -75,6 +77,9 @@ const InvoiceDetailsSection = ({
             className={editableInputClassName}
           />
           {invoiceNoError && <p className="text-[12px] text-red-700 [font-family:var(--font-dmsans)]">{invoiceNoError}</p>}
+          {!invoiceNoError && invoiceNoStatus && (
+            <p className="text-[12px] text-stone-500 [font-family:var(--font-dmsans)]">{invoiceNoStatus}</p>
+          )}
         </label>
 
         <label className="flex flex-col gap-1.5">

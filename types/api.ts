@@ -59,6 +59,14 @@ export type CreateInvoiceSuccessResponse = {
 
 export type CreateInvoiceResponse = ApiResult<CreateInvoiceSuccessResponse>;
 
+export type InvoiceNumberAvailabilityDto = {
+  invoiceNo: string;
+  isUnique: boolean;
+};
+
+export type InvoiceNumberAvailabilityResponse =
+  ApiResult<InvoiceNumberAvailabilityDto>;
+
 export type InvoiceLineDto = {
   productId: number;
   productName: string;

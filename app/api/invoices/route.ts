@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import type {
   CreateInvoiceRequestDto,
   CreateInvoiceSuccessResponse,
+  InvoiceNumberAvailabilityResponse,
   InvoicesResponse,
 } from "@/types/api";
 import { getCurrentUser } from "@/lib/auth";
@@ -27,6 +28,36 @@ export async function GET(request: Request) {
     const range = searchParams.get("range"); // day, week, month, year, all, custom
     const startDateParam = searchParams.get("startDate");
     const endDateParam = searchParams.get("endDate");
+    const checkInvoiceNo = searchParams.get("checkInvoiceNo") === "true";
+    const invoiceNo = searchParams.get("invoiceNo")?.trim();
+
+    if (checkInvoiceNo) {
+      if (!invoiceNo) {
+        return NextResponse.json(
+          { error: "Invoice number is required." },
+          { status: 400 },
+        );
+      }
+
+      const existingInvoice = await prisma.invoice.findFirst({
+        where: {
+          invoice_number: invoiceNo,
+          is_active: true,
+        },
+        select: {
+          invoice_id: true,
+        },
+      });
+
+      const responseBody: InvoiceNumberAvailabilityResponse = {
+        data: {
+          invoiceNo,
+          isUnique: existingInvoice === null,
+        },
+      };
+
+      return NextResponse.json(responseBody);
+    }
 
     const invoiceStatusValues = new Set(Object.values(InvoiceStatus));
     const ginStatusValues = new Set(Object.values(GINStatus));

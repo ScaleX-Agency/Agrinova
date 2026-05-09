@@ -7,6 +7,7 @@ import type {
   CustomersByRepResponse,
   CreateInvoiceRequestDto,
   CreateInvoiceResponse,
+  InvoiceNumberAvailabilityResponse,
   InventoryLocationsResponse,
   StockByLocationResponse,
   SalesRepOptionDto,
@@ -62,6 +63,7 @@ const NewInvoicePage = () => {
   const [productsActionError, setProductsActionError] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [debouncedInvoiceNo, setDebouncedInvoiceNo] = useState("");
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const [submitPayload, setSubmitPayload] = useState<CreateInvoiceRequestDto | null>(null);
@@ -87,6 +89,34 @@ const NewInvoicePage = () => {
     clearFieldErrors(["invoiceDate"]);
     setSubmitError("");
   }, [clearFieldErrors]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedInvoiceNo(invoiceNo.trim());
+    }, 350);
+
+    return () => window.clearTimeout(timeout);
+  }, [invoiceNo]);
+
+  const checkInvoiceNumberAvailability = useCallback(async (value: string) => {
+    const params = new URLSearchParams({
+      checkInvoiceNo: "true",
+      invoiceNo: value,
+    });
+
+    const response = await fetch(`/api/invoices?${params.toString()}`);
+    const result = (await response.json()) as InvoiceNumberAvailabilityResponse;
+
+    if (!response.ok) {
+      throw new Error(result.error ?? "Failed to check invoice number.");
+    }
+
+    if (!result.data) {
+      throw new Error("Invoice number check response is missing.");
+    }
+
+    return result.data;
+  }, []);
 
   const handleRepChange = useCallback((value: number | null) => {
     setRepId(value);
@@ -198,6 +228,13 @@ const NewInvoicePage = () => {
     },
   });
 
+  const invoiceNoAvailabilityQuery = useQuery({
+    queryKey: ["invoice-number-availability", debouncedInvoiceNo],
+    enabled: debouncedInvoiceNo.length > 0,
+    queryFn: () => checkInvoiceNumberAvailability(debouncedInvoiceNo),
+    staleTime: 0,
+  });
+
   const createInvoiceMutation = useMutation({
     mutationFn: async (payload: CreateInvoiceRequestDto) => {
       const response = await fetch("/api/invoices", {
@@ -243,7 +280,6 @@ const NewInvoicePage = () => {
 
   // Sync unit prices when products change (unless manually overridden)
   useEffect(() => {
-  // eslint-disable-next-line
     setLines((prev) =>
       prev.map((line) => {
         if (line.unitPriceEdited) return line;
@@ -437,7 +473,29 @@ const NewInvoicePage = () => {
     setLines([]);
   }, [clearFieldErrors]);
 
-  const handleValidationAndPrepare = (event: React.FormEvent<HTMLFormElement>) => {
+  const trimmedInvoiceNo = invoiceNo.trim();
+  const isWaitingForInvoiceNoCheck =
+    trimmedInvoiceNo.length > 0 &&
+    (debouncedInvoiceNo !== trimmedInvoiceNo || invoiceNoAvailabilityQuery.isFetching);
+  const invoiceNoUniquenessError =
+    trimmedInvoiceNo.length > 0 &&
+    debouncedInvoiceNo === trimmedInvoiceNo &&
+    invoiceNoAvailabilityQuery.data &&
+    !invoiceNoAvailabilityQuery.data.isUnique
+      ? "An active invoice with this number already exists."
+      : invoiceNoAvailabilityQuery.error instanceof Error
+        ? invoiceNoAvailabilityQuery.error.message
+        : undefined;
+  const invoiceNoStatus =
+    trimmedInvoiceNo.length > 0 && !invoiceNoUniquenessError
+      ? isWaitingForInvoiceNoCheck
+        ? "Checking invoice number..."
+        : invoiceNoAvailabilityQuery.data?.isUnique
+          ? "Invoice number is available."
+          : undefined
+      : undefined;
+
+  const handleValidationAndPrepare = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitError("");
     setSuccessMessage("");
@@ -460,6 +518,23 @@ const NewInvoicePage = () => {
     const firstError = Object.values(nextFieldErrors).find(Boolean);
     if (firstError) return;
     if (activeCustomerId == null || activeRepId == null || activeLocationId == null) return;
+
+    try {
+      const availability = await checkInvoiceNumberAvailability(trimmedInvoiceNo);
+      if (!availability.isUnique) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          invoiceNo: "An active invoice with this number already exists.",
+        }));
+        return;
+      }
+    } catch (error) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        invoiceNo: error instanceof Error ? error.message : "Failed to check invoice number.",
+      }));
+      return;
+    }
 
     const payloadLines = lines.map((line) => {
       const selectedProductId = line.productId;
@@ -521,7 +596,8 @@ const NewInvoicePage = () => {
         <InvoiceDetailsSection
           invoiceNo={invoiceNo}
           invoiceDate={invoiceDate}
-          invoiceNoError={fieldErrors.invoiceNo}
+          invoiceNoError={fieldErrors.invoiceNo ?? invoiceNoUniquenessError}
+          invoiceNoStatus={invoiceNoStatus}
           invoiceDateError={fieldErrors.invoiceDate}
           salesRepError={
             fieldErrors.salesRep ??
