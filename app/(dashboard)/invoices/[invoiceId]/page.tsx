@@ -17,6 +17,7 @@ import { prisma } from "@/lib/prisma";
 import BackNavigationLink from "@/components/ui/BackNavigationLink";
 import InvoicePrintButton from "./InvoicePrintButton";
 import IssueStocksModalButton from "../IssueStocksModalButton";
+import RecordPaymentModalButton from "../RecordPaymentModalButton";
 
 const formatDate = (value: Date) =>
   value.toLocaleDateString("en-GB", {
@@ -213,6 +214,16 @@ const InvoiceDetailPage = async ({
     quantity: line.quantity,
     freeQuantity: line.free_quantity,
   }));
+  const paymentSnapshot = {
+    invoiceNo: invoice.invoice_number,
+    invoiceDate: invoice.invoice_date.toISOString(),
+    customerName: invoice.customer.name,
+    repName: invoice.rep.full_name,
+    totalAmount: total,
+    totalPaid: paidAmount,
+    creditedAmount,
+    outstandingAmount: balanceAmount,
+  };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const receiptsWithNumber = invoice.receipts.map((receipt: any) => {
     const year = receipt.receipt_date.getFullYear();
@@ -305,21 +316,20 @@ const InvoiceDetailPage = async ({
           )}
 
           {paymentStatus === "PAID" ? (
-            <span
-              className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-[12px] font-medium text-stone-400"
-              title="Invoice is fully paid"
-            >
-              <DollarSign size={14} />
-              Record Payment
-            </span>
+            <RecordPaymentModalButton
+              invoiceId={invoice.invoice_id}
+              disabled
+              disabledTitle="Invoice is fully paid"
+              buttonClassName="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
+              preloadedSnapshot={paymentSnapshot}
+            />
           ) : (
-            <Link
-              href={`/receipts/new?invoiceId=${invoice.invoice_id}`}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
-            >
-              <DollarSign size={14} />
-              Record Payment
-            </Link>
+            <RecordPaymentModalButton
+              invoiceId={invoice.invoice_id}
+              disabled={false}
+              buttonClassName="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
+              preloadedSnapshot={paymentSnapshot}
+            />
           )}
         </div>
       </div>

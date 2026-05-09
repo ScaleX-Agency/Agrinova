@@ -114,6 +114,7 @@ export type CreateReceiptRequestDto = {
   chequeNo?: string;
   chequeDate?: string;
   bankName?: string;
+  notes?: string;
 };
 
 export type CreateReceiptSuccessResponse = {

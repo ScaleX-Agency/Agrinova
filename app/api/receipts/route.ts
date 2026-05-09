@@ -172,6 +172,7 @@ export async function POST(request: Request) {
           bank_name: paymentMethod === "CHEQUE" || paymentMethod === "BANK_TRANSFER"
             ? body.bankName?.trim() ?? null
             : null,
+          notes: body.notes?.trim() ? body.notes.trim() : null,
         },
         select: {
           receipt_id: true,

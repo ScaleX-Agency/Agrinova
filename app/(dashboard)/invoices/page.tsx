@@ -10,6 +10,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import type { InvoiceOptionDto, InvoicesResponse } from "@/types/api";
 import DataTable from "@/components/ui/DataTable";
 import IssueStocksModalButton from "./IssueStocksModalButton";
+import RecordPaymentModalButton from "./RecordPaymentModalButton";
 
 type StatusFilter = "ALL" | InvoiceOptionDto["status"];
 type GinStatusFilter = "ALL" | InvoiceOptionDto["ginStatus"];
@@ -187,19 +188,18 @@ const InvoicesPage = () => {
                 />
               )}
               {invoice.status === "PAID" ? (
-                <span
-                  className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-100 px-2.5 py-1.5 text-[12px] font-medium text-stone-400"
-                  title="Invoice is fully paid"
-                >
-                  Record Payment
-                </span>
+                <RecordPaymentModalButton
+                  invoiceId={invoice.id}
+                  disabled
+                  disabledTitle="Invoice is fully paid"
+                  buttonClassName="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
+                />
               ) : (
-                <Link
-                  href={`/receipts/new?invoiceId=${invoice.id}`}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
-                >
-                  Record Payment
-                </Link>
+                <RecordPaymentModalButton
+                  invoiceId={invoice.id}
+                  disabled={false}
+                  buttonClassName="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
+                />
               )}
               <Link
                 href={`/invoices/${invoice.id}`}
