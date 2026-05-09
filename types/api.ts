@@ -251,16 +251,13 @@ export type CreateGoodsIssueNoteRequestDto = {
   ginNumber: string;
   ginDate: string;
   invoiceId: number;
-  locationId: number;
-  preparedBy: string;
-  receivedBy: string;
-  createdBy: number;
-  lines: GoodsIssueNoteLineInputDto[];
+  notes?: string;
 };
 
 export type CreateGoodsIssueNoteSuccessResponse = {
   success: true;
   ginId: number;
+  ginNumber: string;
 };
 
 export type CreateGoodsIssueNoteResponse =
@@ -301,12 +298,10 @@ export type GoodsIssueNoteDetailDto = {
   invoiceNumber: string | null;
   customerId: number;
   customerName: string;
-  repId: number;
   locationId: number;
   locationCode: string;
   locationName: string;
-  preparedBy: string;
-  receivedBy: string;
+  notes: string | null;
   lines: GoodsIssueNoteLineDto[];
 };
 

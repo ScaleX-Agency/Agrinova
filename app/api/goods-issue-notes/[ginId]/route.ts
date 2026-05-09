@@ -25,7 +25,6 @@ export async function GET(
           select: {
             customer_id: true,
             name: true,
-            assigned_rep_id: true,
           },
         },
         location: {
@@ -67,9 +66,7 @@ export async function GET(
         locationId: note.location.location_id,
         locationCode: note.location.code,
         locationName: note.location.name,
-        preparedBy: note.prepared_by,
-        receivedBy: note.received_by,
-        repId: note.customer.assigned_rep_id,
+        notes: note.notes,
         lines: note.lines.map((line) => {
           const quantity = line.quantity;
           const unitPrice = Number(line.product.selling_price);
