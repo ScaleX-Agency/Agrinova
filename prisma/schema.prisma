@@ -186,9 +186,6 @@ model GoodsIssueNote {
   customer_id Int
   location_id Int
 
-  prepared_by String
-  received_by String
-
   created_at  DateTime             @default(now())
   created_by  Int
   is_active   Boolean              @default(true)
