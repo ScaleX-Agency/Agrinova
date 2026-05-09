@@ -286,8 +286,6 @@ export type GoodsIssueNoteLineDto = {
   productName: string;
   packSize: string;
   quantity: number;
-  unitPrice: number;
-  lineTotal: number;
 };
 
 export type GoodsIssueNoteDetailDto = {

@@ -68,15 +68,11 @@ export async function GET(
         locationName: note.location.name,
         notes: note.notes,
         lines: note.lines.map((line) => {
-          const quantity = line.quantity;
-          const unitPrice = Number(line.product.selling_price);
           return {
             productId: line.product.product_id,
             productName: line.product.product_name,
             packSize: line.product.pack_size,
-            quantity,
-            unitPrice,
-            lineTotal: quantity * unitPrice,
+            quantity: line.quantity,
           };
         }),
       },

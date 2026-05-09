@@ -16,6 +16,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import BackNavigationLink from "@/components/ui/BackNavigationLink";
 import InvoicePrintButton from "./InvoicePrintButton";
+import IssueStocksModalButton from "../IssueStocksModalButton";
 
 const formatDate = (value: Date) =>
   value.toLocaleDateString("en-GB", {
@@ -206,6 +207,12 @@ const InvoiceDetailPage = async ({
   const creditedAmount = Number(invoice.credited_amount);
   const balanceAmount = Number(invoice.balance_amount);
   const discountTotal = Math.max(0, subtotal - total);
+  const issueStocksLines = invoice.invoice_lines.map((line) => ({
+    productName: line.product.product_name,
+    packSize: line.product.pack_size,
+    quantity: line.quantity,
+    freeQuantity: line.free_quantity,
+  }));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const receiptsWithNumber = invoice.receipts.map((receipt: any) => {
     const year = receipt.receipt_date.getFullYear();
@@ -281,21 +288,20 @@ const InvoiceDetailPage = async ({
           />
 
           {ginStatus === "ISSUED" ? (
-            <span
-              className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-[12px] font-medium text-stone-400"
-              title={`GIN already ${GIN_STATUS_LABEL[ginStatus as "PENDING" | "ISSUED" | "PARTIAL"].toLowerCase()}`}
-            >
-              <Package size={14} />
-              Issue Stocks
-            </span>
+            <IssueStocksModalButton
+              invoiceId={invoice.invoice_id}
+              disabled
+              disabledTitle={`GIN already ${GIN_STATUS_LABEL[ginStatus as "PENDING" | "ISSUED" | "PARTIAL"].toLowerCase()}`}
+              buttonClassName="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
+              preloadedLines={issueStocksLines}
+            />
           ) : (
-            <Link
-              href={`/goods-issue-notes/new?invoiceId=${invoice.invoice_id}`}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
-            >
-              <Package size={14} />
-              Issue Stocks
-            </Link>
+            <IssueStocksModalButton
+              invoiceId={invoice.invoice_id}
+              disabled={false}
+              buttonClassName="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
+              preloadedLines={issueStocksLines}
+            />
           )}
 
           {paymentStatus === "PAID" ? (

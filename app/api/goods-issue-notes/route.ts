@@ -112,8 +112,9 @@ export async function POST(request: Request) {
 
     const ginDate = new Date(body.ginDate);
 
-    const createdGin = await prisma.$transaction(async (tx) => {
-      const invoice = await tx.invoice.findUnique({
+    const createdGin = await prisma.$transaction(
+      async (tx) => {
+        const invoice = await tx.invoice.findUnique({
         where: { invoice_id: invoiceId },
         select: {
           invoice_id: true,
@@ -121,6 +122,16 @@ export async function POST(request: Request) {
           location_id: true,
           is_active: true,
           gin_status: true,
+          invoice_lines: {
+            select: {
+              line_id: true,
+              product_id: true,
+              quantity: true,
+              free_quantity: true,
+              issued_qty: true,
+              returned_qty: true,
+            },
+          },
           goods_issue_notes: {
             where: { is_active: true },
             select: { gin_id: true },
@@ -144,6 +155,60 @@ export async function POST(request: Request) {
         throw new Error("An active GIN already exists for this invoice.");
       }
 
+      if (invoice.invoice_lines.length === 0) {
+        throw new Error("Selected invoice has no lines to issue.");
+      }
+
+      const ginLines = invoice.invoice_lines
+        .map((line) => ({
+          line_id: line.line_id,
+          product_id: line.product_id,
+          quantity: line.quantity + line.free_quantity,
+          issued_qty: line.issued_qty,
+          returned_qty: line.returned_qty,
+        }))
+        .filter((line) => line.quantity > 0);
+
+      if (ginLines.length === 0) {
+        throw new Error("Selected invoice has no issueable quantities.");
+      }
+
+      const productIssueTotals = ginLines.reduce<Map<number, number>>(
+        (map, line) => {
+          map.set(line.product_id, (map.get(line.product_id) ?? 0) + line.quantity);
+          return map;
+        },
+        new Map(),
+      );
+
+      const stockRows = await tx.stock.findMany({
+        where: {
+          location_id: invoice.location_id,
+          product_id: { in: Array.from(productIssueTotals.keys()) },
+        },
+        select: {
+          stock_id: true,
+          product_id: true,
+          quantity_on_hand: true,
+        },
+      });
+
+      const stockByProductId = new Map(stockRows.map((row) => [row.product_id, row]));
+
+      for (const [productId, issueQty] of productIssueTotals.entries()) {
+        const stock = stockByProductId.get(productId);
+        if (!stock) {
+          throw new Error(
+            `Stock record not found for product ${productId} at selected location.`,
+          );
+        }
+        if (stock.quantity_on_hand < issueQty) {
+          throw new Error(
+            `Insufficient stock for product ${productId}. Available: ${stock.quantity_on_hand}, Required: ${issueQty}.`,
+          );
+        }
+      }
+
       const gin = await tx.goodsIssueNote.create({
         data: {
           gin_number: ginNumber,
@@ -153,6 +218,12 @@ export async function POST(request: Request) {
           location_id: invoice.location_id,
           notes: body.notes?.trim() || null,
           created_by: createdBy,
+          lines: {
+            create: ginLines.map((line) => ({
+              product_id: line.product_id,
+              quantity: line.quantity,
+            })),
+          },
         },
         select: {
           gin_id: true,
@@ -160,13 +231,50 @@ export async function POST(request: Request) {
         },
       });
 
-      await tx.invoice.update({
+        await Promise.all(
+          ginLines.map((line) => {
+            const nextIssuedQty = line.issued_qty + line.quantity;
+            const lineTotalQty = line.quantity;
+            const nextBalanceQty = Math.max(
+              0,
+              lineTotalQty - nextIssuedQty + line.returned_qty,
+            );
+
+            return tx.invoiceLine.update({
+              where: { line_id: line.line_id },
+              data: {
+                issued_qty: nextIssuedQty,
+                balance_qty: nextBalanceQty,
+              },
+            });
+          }),
+        );
+
+        await Promise.all(
+          Array.from(productIssueTotals.entries()).map(([productId, issueQty]) => {
+            const stock = stockByProductId.get(productId);
+            if (!stock) {
+              return Promise.resolve();
+            }
+
+            return tx.stock.update({
+              where: { stock_id: stock.stock_id },
+              data: {
+                quantity_on_hand: { decrement: issueQty },
+              },
+            });
+          }),
+        );
+
+        await tx.invoice.update({
         where: { invoice_id: invoice.invoice_id },
         data: { gin_status: "ISSUED" },
       });
 
-      return gin;
-    });
+        return gin;
+      },
+      { timeout: 20000, maxWait: 10000 },
+    );
 
     const responseBody: CreateGoodsIssueNoteResponse = {
       data: {
@@ -179,7 +287,11 @@ export async function POST(request: Request) {
     return NextResponse.json(responseBody, { status: 201 });
   } catch (error) {
     if (error instanceof Error) {
-      const isStockValidationError = error.message.includes("invoice");
+      const isStockValidationError =
+        error.message.includes("invoice") ||
+        error.message.includes("issueable") ||
+        error.message.includes("Stock record not found") ||
+        error.message.includes("Insufficient stock");
 
       if (isStockValidationError) {
         return NextResponse.json({ error: error.message }, { status: 422 });

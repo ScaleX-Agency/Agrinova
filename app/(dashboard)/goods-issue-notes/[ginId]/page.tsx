@@ -8,8 +8,6 @@ import {
   Package,
   FileText,
   CheckCircle,
-  // eslint-disable-next-line
-  DollarSign,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import BackNavigationLink from "@/components/ui/BackNavigationLink";
@@ -31,14 +29,6 @@ const formatDateTime = (value: Date) =>
     minute: "2-digit",
   });
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("en-LK", {
-    style: "currency",
-    currency: "LKR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-
 const GoodsIssueNoteDetailPage = async ({
   params,
 }: {
@@ -56,8 +46,7 @@ const GoodsIssueNoteDetailPage = async ({
       gin_id: true,
       gin_number: true,
       gin_date: true,
-      prepared_by: true,
-      received_by: true,
+      notes: true,
       created_at: true,
       updated_at: true,
       creator: {
@@ -104,10 +93,8 @@ const GoodsIssueNoteDetailPage = async ({
     notFound();
   }
 
-   
-  const totalValue = note.lines.reduce(
-  // eslint-disable-next-line
-    (sum: number, line: any) => sum + line.quantity * Number(line.product.selling_price),
+  const totalIssuedQty = note.lines.reduce(
+    (sum: number, line) => sum + line.quantity,
     0,
   );
 
@@ -144,23 +131,15 @@ const GoodsIssueNoteDetailPage = async ({
             customerName={note.customer.name}
             locationCode={note.location.code}
             locationName={note.location.name}
-   
-            preparedBy={note.prepared_by}
-   
-            receivedBy={note.received_by}
-  // eslint-disable-next-line
-            lines={note.lines.map((line: any) => {
-              const unitPrice = Number(line.product.selling_price);
+            notes={note.notes}
+            lines={note.lines.map((line) => {
               return {
                 lineId: line.gin_line_id,
                 productName: line.product.product_name,
                 packSize: line.product.pack_size,
                 quantity: line.quantity,
-                unitPrice,
-                lineTotal: line.quantity * unitPrice,
               };
             })}
-            totalValue={totalValue}
           />
           {note.invoice?.invoice_id && (
             <Link
@@ -245,23 +224,17 @@ const GoodsIssueNoteDetailPage = async ({
                 <th className="border-b border-r border-stone-200 px-5 py-3.5 text-left">Product</th>
                 <th className="border-b border-r border-stone-200 px-5 py-3.5 text-left">Pack Size</th>
                 <th className="border-b border-r border-stone-200 px-5 py-3.5 text-center">Qty</th>
-                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-right">Unit Price</th>
-                <th className="border-b border-stone-200 px-5 py-3.5 text-right">Line Total</th>
+                <th className="border-b border-stone-200 px-5 py-3.5 text-left">Stock Movement</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
-  {/* eslint-disable-next-line */}
-              {note.lines.map((line: any) => {
-                const unitPrice = Number(line.product.selling_price);
-                const lineTotal = line.quantity * unitPrice;
-
+              {note.lines.map((line) => {
                 return (
                   <tr key={line.gin_line_id} className="transition-colors hover:bg-stone-50">
                     <td className="border-r border-stone-200 px-5 py-3.5 text-left font-medium text-stone-900">{line.product.product_name}</td>
                     <td className="border-r border-stone-200 px-5 py-3.5 text-left text-stone-700">{line.product.pack_size}</td>
                     <td className="border-r border-stone-200 px-5 py-3.5 text-center font-medium text-stone-700">{line.quantity}</td>
-                    <td className="border-r border-stone-200 px-5 py-3.5 text-right text-stone-700">{formatCurrency(unitPrice)}</td>
-                    <td className="px-5 py-3.5 text-right font-semibold text-stone-900">{formatCurrency(lineTotal)}</td>
+                    <td className="px-5 py-3.5 text-left text-stone-700">Issued</td>
                   </tr>
                 );
               })}
@@ -270,20 +243,15 @@ const GoodsIssueNoteDetailPage = async ({
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="rounded-2xl border border-stone-200 bg-white p-4">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Prepared By</p>
-          <p className="mt-1.5 text-[20px] font-semibold text-stone-900">{note.prepared_by}</p>
+          <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Notes</p>
+          <p className="mt-1.5 text-[16px] font-semibold text-stone-900">{note.notes?.trim() ? note.notes : "-"}</p>
         </div>
 
         <div className="rounded-2xl border border-stone-200 bg-white p-4">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Received By</p>
-          <p className="mt-1.5 text-[20px] font-semibold text-stone-900">{note.received_by}</p>
-        </div>
-
-        <div className="rounded-2xl border border-stone-200 bg-white p-4">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Total Value</p>
-          <p className="mt-1.5 text-[20px] font-semibold text-[#1a5c2e]">{formatCurrency(totalValue)}</p>
+          <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Total Issued Qty</p>
+          <p className="mt-1.5 text-[20px] font-semibold text-[#1a5c2e]">{totalIssuedQty}</p>
         </div>
       </section>
 

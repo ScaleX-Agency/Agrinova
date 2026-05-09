@@ -4,11 +4,12 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
    
   // eslint-disable-next-line
-import { Download, Eye, Package, Plus, Printer } from "lucide-react";
+import { Download, Eye, Plus, Printer } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { InvoiceOptionDto, InvoicesResponse } from "@/types/api";
 import DataTable from "@/components/ui/DataTable";
+import IssueStocksModalButton from "./IssueStocksModalButton";
 
 type StatusFilter = "ALL" | InvoiceOptionDto["status"];
 type GinStatusFilter = "ALL" | InvoiceOptionDto["ginStatus"];
@@ -172,21 +173,18 @@ const InvoicesPage = () => {
           return (
             <div className="flex items-center justify-center gap-2">
               {invoice.ginStatus === "ISSUED" ? (
-                <span
-                  className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-100 px-2.5 py-1.5 text-[12px] font-medium text-stone-400"
-                  title="GIN already issued"
-                >
-                  <Package size={12} />
-                  Issue Stocks
-                </span>
+                <IssueStocksModalButton
+                  invoiceId={invoice.id}
+                  disabled
+                  disabledTitle="GIN already issued"
+                  buttonClassName="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
+                />
               ) : (
-                <Link
-                  href={`/goods-issue-notes/new?invoiceId=${invoice.id}`}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
-                >
-                  <Package size={12} />
-                  Issue Stocks
-                </Link>
+                <IssueStocksModalButton
+                  invoiceId={invoice.id}
+                  disabled={false}
+                  buttonClassName="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
+                />
               )}
               {invoice.status === "PAID" ? (
                 <span
