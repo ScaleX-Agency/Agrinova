@@ -116,8 +116,11 @@ const InvoiceDetailPage = async ({
       invoice_number: true,
       invoice_date: true,
       gin_status: true,
-      status: true,
+      payment_status: true,
       total_amount: true,
+      paid_amount: true,
+      credited_amount: true,
+      balance_amount: true,
       created_at: true,
       updated_at: true,
       creator: {
@@ -164,6 +167,9 @@ const InvoiceDetailPage = async ({
         select: {
           line_id: true,
           quantity: true,
+          issued_qty: true,
+          returned_qty: true,
+          balance_qty: true,
           unit_price: true,
           promotion_type: true,
           discount: true,
@@ -185,9 +191,7 @@ const InvoiceDetailPage = async ({
     notFound();
   }
 
-  type InvoiceLine = {
-    line_total: any;
-  };
+  type InvoiceLine = (typeof invoice.invoice_lines)[number];
 
   const subtotal = invoice.invoice_lines.reduce(
     (sum: number, line: InvoiceLine) => sum + Number(line.line_total),
@@ -196,7 +200,11 @@ const InvoiceDetailPage = async ({
   // eslint-disable-next-line
   const latestGin = invoice.goods_issue_notes[0] ?? null;
   const ginStatus = invoice.gin_status;
+  const paymentStatus = invoice.payment_status;
   const total = Number(invoice.total_amount);
+  const paidAmount = Number(invoice.paid_amount);
+  const creditedAmount = Number(invoice.credited_amount);
+  const balanceAmount = Number(invoice.balance_amount);
   const discountTotal = Math.max(0, subtotal - total);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const receiptsWithNumber = invoice.receipts.map((receipt: any) => {
@@ -229,11 +237,11 @@ const InvoiceDetailPage = async ({
               </h1>
               <div
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium ${
-                  STATUS_BADGE_STYLE[invoice.status as "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE"].bg
-                } ${STATUS_BADGE_STYLE[invoice.status as "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE"].text}`}
+                  STATUS_BADGE_STYLE[paymentStatus].bg
+                } ${STATUS_BADGE_STYLE[paymentStatus].text}`}
               >
-                {STATUS_BADGE_STYLE[invoice.status as "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE"].icon}
-                {STATUS_LABEL[invoice.status as "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE"]}
+                {STATUS_BADGE_STYLE[paymentStatus].icon}
+                {STATUS_LABEL[paymentStatus]}
               </div>
               <div
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium ${
@@ -256,7 +264,7 @@ const InvoiceDetailPage = async ({
             customerPhone={invoice.customer.phone ?? null}
             customerAddress={invoice.customer.address ?? null}
             repName={invoice.rep.full_name}
-            statusLabel={STATUS_LABEL[invoice.status as "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE"]}
+            statusLabel={STATUS_LABEL[paymentStatus]}
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             lines={invoice.invoice_lines.map((line: any) => ({
               lineId: line.line_id,
@@ -290,7 +298,7 @@ const InvoiceDetailPage = async ({
             </Link>
           )}
 
-          {invoice.status === "PAID" ? (
+          {paymentStatus === "PAID" ? (
             <span
               className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-[12px] font-medium text-stone-400"
               title="Invoice is fully paid"
@@ -388,6 +396,7 @@ const InvoiceDetailPage = async ({
                 <th className="border-b border-r border-stone-200 px-5 py-3.5 text-left">Product</th>
                 <th className="border-b border-r border-stone-200 px-5 py-3.5 text-left">Pack Size</th>
                 <th className="border-b border-r border-stone-200 px-5 py-3.5 text-center">Qty</th>
+                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-center">Balance Qty</th>
                 <th className="border-b border-r border-stone-200 px-5 py-3.5 text-right">Unit Price</th>
                 <th className="border-b border-r border-stone-200 px-5 py-3.5 text-center">Promotion</th>
                 <th className="border-b border-r border-stone-200 px-5 py-3.5 text-right">Line Total</th>
@@ -406,6 +415,14 @@ const InvoiceDetailPage = async ({
                     {line.quantity}
                     {line.free_quantity > 0 && (
                       <div className="text-[11px] text-green-600 mt-0.5">+{line.free_quantity} Free</div>
+                    )}
+                  </td>
+                  <td className="border-r border-stone-200 px-5 py-3.5 text-center text-stone-700 font-medium whitespace-nowrap">
+                    {line.balance_qty}
+                    {(line.issued_qty > 0 || line.returned_qty > 0) && (
+                      <div className="mt-0.5 text-[11px] text-stone-500">
+                        {line.issued_qty} issued / {line.returned_qty} returned
+                      </div>
                     )}
                   </td>
                   <td className="border-r border-stone-200 px-5 py-3.5 text-right text-stone-700">
@@ -470,6 +487,23 @@ const InvoiceDetailPage = async ({
         <div className="rounded-2xl border border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-4">
           <p className="text-[11px] font-medium uppercase tracking-wide text-green-700">Grand Total</p>
           <p className="mt-1.5 text-[22px] font-bold text-[#1a5c2e]">{formatCurrency(total)}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-700">Paid</p>
+          <p className="mt-1.5 text-[20px] font-semibold text-emerald-800">{formatCurrency(paidAmount)}</p>
+        </div>
+
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-blue-700">Credited</p>
+          <p className="mt-1.5 text-[20px] font-semibold text-blue-800">{formatCurrency(creditedAmount)}</p>
+        </div>
+
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-red-700">Balance</p>
+          <p className="mt-1.5 text-[20px] font-semibold text-red-800">{formatCurrency(balanceAmount)}</p>
         </div>
       </div>
 

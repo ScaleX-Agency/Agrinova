@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { GINStatus, InvoiceStatus, LinePromotionType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getCommissionDueDate } from "@/lib/commission";
 import type {
   CreateInvoiceRequestDto,
   CreateInvoiceSuccessResponse,
@@ -114,7 +113,7 @@ export async function GET(request: Request) {
     const where: Prisma.InvoiceWhereInput = {
       ...(unlinkedOnly ? { goods_issue_notes: { none: {} } } : {}),
       ...(issuableOnly ? { gin_status: { not: "ISSUED" } } : {}),
-      ...(parsedPaymentStatus ? { status: parsedPaymentStatus } : {}),
+      ...(parsedPaymentStatus ? { payment_status: parsedPaymentStatus } : {}),
       ...(parsedGinStatus ? { gin_status: parsedGinStatus } : {}),
       ...(dateFilter ? { invoice_date: dateFilter } : {}),
     };
@@ -127,7 +126,10 @@ export async function GET(request: Request) {
         invoice_number: true,
         invoice_date: true,
         total_amount: true,
-        status: true,
+        payment_status: true,
+        paid_amount: true,
+        credited_amount: true,
+        balance_amount: true,
         gin_status: true,
         customer_id: true,
         rep_id: true,
@@ -159,7 +161,10 @@ export async function GET(request: Request) {
         repId: invoice.rep_id,
         repName: invoice.rep.full_name,
         totalAmount: Number(invoice.total_amount),
-        status: invoice.status,
+        paidAmount: Number(invoice.paid_amount),
+        creditedAmount: Number(invoice.credited_amount),
+        balanceAmount: Number(invoice.balance_amount),
+        status: invoice.payment_status,
         ginStatus: invoice.gin_status,
         locationCode: invoice.location.code,
       })),
@@ -374,7 +379,10 @@ export async function POST(request: Request) {
           created_by: createdBy,
           invoice_date: invoiceDate,
           total_amount: totalAmount,
-          status: "UNPAID",
+          paid_amount: 0,
+          credited_amount: 0,
+          balance_amount: totalAmount,
+          payment_status: "UNPAID",
         },
         select: {
           invoice_id: true,
@@ -386,6 +394,7 @@ export async function POST(request: Request) {
           invoice_id: createdInvoice.invoice_id,
           product_id: line.product_id,
           quantity: line.quantity,
+          balance_qty: line.quantity + line.free_quantity,
           unit_price: line.unit_price,
           line_total: line.line_total,
           promotion_type: line.promotion_type,

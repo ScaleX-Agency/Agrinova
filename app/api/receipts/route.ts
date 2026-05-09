@@ -125,7 +125,10 @@ export async function POST(request: Request) {
           invoice_id: true,
           invoice_date: true,
           total_amount: true,
-          status: true,
+          paid_amount: true,
+          credited_amount: true,
+          balance_amount: true,
+          payment_status: true,
           rep_id: true,
         },
       });
@@ -135,9 +138,9 @@ export async function POST(request: Request) {
       }
 
       const totalAmount = Number(invoice.total_amount);
-      // No receipts on invoice object, so paidAmount is 0 for new receipt
-      const paidAmount = 0;
-      const outstandingAmount = Math.max(0, totalAmount - paidAmount);
+      const paidAmount = Number(invoice.paid_amount);
+      const creditedAmount = Number(invoice.credited_amount);
+      const outstandingAmount = Number(invoice.balance_amount);
 
       if (outstandingAmount <= 0) {
         throw new Error("Invoice is already fully paid.");
@@ -148,8 +151,9 @@ export async function POST(request: Request) {
       }
 
       const nextPaidAmount = paidAmount + amountReceived;
+      const nextBalanceAmount = Math.max(0, totalAmount - creditedAmount - nextPaidAmount);
       const nextStatus =
-        nextPaidAmount >= totalAmount
+        nextBalanceAmount <= 0
           ? "PAID"
           : nextPaidAmount > 0
             ? "PARTIAL"
@@ -182,6 +186,7 @@ export async function POST(request: Request) {
           invoice_id: invoice.invoice_id,
           receipt_id: receipt.receipt_id,
           amount: receipt.amount,
+          settlement_type: "RECEIPT",
           settled_date: receipt.receipt_date,
         },
         select: {
@@ -214,7 +219,11 @@ export async function POST(request: Request) {
       // 6. Update Invoice status
       await tx.invoice.update({
         where: { invoice_id: invoice.invoice_id },
-        data: { status: nextStatus },
+        data: {
+          paid_amount: nextPaidAmount,
+          balance_amount: nextBalanceAmount,
+          payment_status: nextStatus,
+        },
       });
 
       const receiptNo = getReceiptNumber(receipt.receipt_id, receipt.receipt_date);

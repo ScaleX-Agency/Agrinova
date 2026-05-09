@@ -50,7 +50,6 @@ export type CreateInvoiceRequestDto = {
   repId: number;
   locationId: number;
   lines: CreateInvoiceLineDto[];
-  createdBy: number;
 };
 
 export type CreateInvoiceSuccessResponse = {
@@ -65,6 +64,9 @@ export type InvoiceLineDto = {
   productName: string;
   packSize: string;
   quantity: number;
+  issuedQuantity: number;
+  returnedQuantity: number;
+  balanceQuantity: number;
   unitPrice: number;
   promotionType: "NONE" | "DISCOUNT" | "FREE_QTY";
   discount: number;
@@ -82,9 +84,11 @@ export type InvoiceDetailDto = {
   repId: number;
   repName: string;
   locationId: number;
+  status: "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE";
   ginStatus: "PENDING" | "ISSUED" | "PARTIAL";
   totalAmount: number;
   totalPaid: number;
+  creditedAmount: number;
   outstandingAmount: number;
   lines: InvoiceLineDto[];
 };
@@ -361,6 +365,9 @@ export type InvoiceOptionDto = {
   repId: number;
   repName: string;
   totalAmount: number;
+  paidAmount: number;
+  creditedAmount: number;
+  balanceAmount: number;
   status: "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE";
   ginStatus: "PENDING" | "ISSUED" | "PARTIAL";
   locationCode: string | null;

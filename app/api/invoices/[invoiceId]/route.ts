@@ -21,7 +21,11 @@ export async function GET(
         invoice_date: true,
         location_id: true,
         gin_status: true,
+        payment_status: true,
         total_amount: true,
+        paid_amount: true,
+        credited_amount: true,
+        balance_amount: true,
         customer: {
           select: {
             customer_id: true,
@@ -39,6 +43,9 @@ export async function GET(
           select: {
             product_id: true,
             quantity: true,
+            issued_qty: true,
+            returned_qty: true,
+            balance_qty: true,
             unit_price: true,
             promotion_type: true,
             discount: true,
@@ -53,11 +60,6 @@ export async function GET(
             },
           },
         },
-        receipts: {
-          select: {
-            amount: true,
-          },
-        },
       },
     });
 
@@ -66,8 +68,10 @@ export async function GET(
     }
 
     const totalAmount = Number(invoice.total_amount);
-    const totalPaid = invoice.receipts.reduce((sum: number, receipt: any) => sum + Number(receipt.amount), 0);
-    const outstandingAmount = Math.max(0, totalAmount - totalPaid);
+    const totalPaid = Number(invoice.paid_amount);
+    const outstandingAmount = Number(invoice.balance_amount);
+
+    type InvoiceLineRecord = (typeof invoice.invoice_lines)[number];
 
     const responseBody: InvoiceDetailResponse = {
       data: {
@@ -80,14 +84,19 @@ export async function GET(
         repName: invoice.rep.full_name,
         locationId: invoice.location_id,
         ginStatus: invoice.gin_status,
+        status: invoice.payment_status,
         totalAmount,
         totalPaid,
+        creditedAmount: Number(invoice.credited_amount),
         outstandingAmount,
-        lines: invoice.invoice_lines.map((line: any) => ({
+        lines: invoice.invoice_lines.map((line: InvoiceLineRecord) => ({
           productId: line.product_id,
           productName: line.product.product_name,
           packSize: line.product.pack_size,
           quantity: line.quantity,
+          issuedQuantity: line.issued_qty,
+          returnedQuantity: line.returned_qty,
+          balanceQuantity: line.balance_qty,
           unitPrice: Number(line.unit_price),
           promotionType: line.promotion_type,
           discount: Number(line.discount),

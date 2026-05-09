@@ -363,7 +363,6 @@ const NewInvoicePage = () => {
         return recomputeLine(updated);
       }),
     );
-  // eslint-disable-next-line
   }, [availableProductsById, clearFieldErrors, lines]);
 
   const changeQty = useCallback((lineId: number, qty: number) => {
@@ -381,7 +380,6 @@ const NewInvoicePage = () => {
         return recomputeLine({ ...line, qty: boundedQty, freeQty: nextFreeQty });
       }),
     );
-  // eslint-disable-next-line
   }, [availableProductsById, clearFieldErrors]);
 
   const changeUnitPrice = useCallback((lineId: number, unitPrice: number) => {
@@ -393,7 +391,6 @@ const NewInvoicePage = () => {
         return recomputeLine({ ...line, unitPrice: Math.max(0, unitPrice), unitPriceEdited: true });
       }),
     );
-  // eslint-disable-next-line
   }, [clearFieldErrors]);
 
   const changePromoType = useCallback((lineId: number, promoType: LinePromotionType) => {
@@ -500,7 +497,6 @@ const NewInvoicePage = () => {
       repId: activeRepId,
       locationId: activeLocationId,
       lines: payloadLines,
-      createdBy: 1,
     });
     setIsConfirmModalOpen(true);
   };
