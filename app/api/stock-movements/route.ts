@@ -24,40 +24,49 @@ export async function GET(req: Request) {
   }
 }
 
+import { z } from "zod";
+
+const createMovementSchema = z.object({
+  stock_id: z.number().int().positive(),
+  movement_type: z.enum(["ISSUE", "RETURN", "PURCHASE", "ADJUSTMENT"]),
+  quantity: z.number().int().optional(),
+  resulting_quantity: z.number().int().nonnegative().optional(),
+  movement_date: z.string().datetime().optional(),
+  notes: z.string().optional()
+}).superRefine((data, ctx) => {
+  if (data.movement_type !== "ADJUSTMENT") {
+    if (data.quantity === undefined || data.quantity <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "quantity must be a positive integer for this movement type",
+        path: ["quantity"]
+      });
+    }
+  } else {
+    // For ADJUSTMENT
+    if (data.resulting_quantity === undefined && data.quantity === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "For ADJUSTMENT, resulting_quantity or a relative quantity must be provided",
+        path: ["resulting_quantity"]
+      });
+    }
+  }
+});
+
 export async function POST(req: Request) {
   try {
-    const dto = (await req.json()) as CreateMovementDto;
+    const body = await req.json();
+    const parseResult = createMovementSchema.safeParse(body);
 
-    if (!dto.stock_id || !dto.movement_type) {
+    if (!parseResult.success) {
       return NextResponse.json(
-        { error: "stock_id and movement_type are required" },
-        { status: 400 },
+        { error: parseResult.error.issues[0]?.message ?? "Invalid input" },
+        { status: 400 }
       );
     }
-
-    if (
-      dto.movement_type !== "ADJUSTMENT" &&
-      (!Number.isInteger(dto.quantity) || dto.quantity <= 0)
-    ) {
-      return NextResponse.json(
-        { error: "quantity must be a positive integer" },
-        { status: 400 },
-      );
-    }
-
-    if (
-      dto.movement_type === "ADJUSTMENT" &&
-      (!Number.isInteger(dto.resulting_quantity ?? dto.quantity) ||
-        (dto.resulting_quantity ?? dto.quantity) < 0)
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "For ADJUSTMENT, resulting_quantity must be a non-negative integer",
-        },
-        { status: 400 },
-      );
-    }
+    
+    const dto = parseResult.data as CreateMovementDto;
 
     const user = await getCurrentUser();
     if (!user) {

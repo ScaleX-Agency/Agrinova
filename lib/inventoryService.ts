@@ -333,10 +333,6 @@ export async function createMovement(
   updatedStock: { stock_id: number; quantity_on_hand: number };
   movement_id: number;
 }> {
-  const stock = await prisma.stock.findUniqueOrThrow({
-    where: { stock_id: dto.stock_id },
-  });
-
   const isAdjustment = dto.movement_type === "ADJUSTMENT";
   const targetQty = isAdjustment
     ? dto.resulting_quantity ?? dto.quantity
@@ -348,19 +344,29 @@ export async function createMovement(
     }
   }
 
-  const delta = isAdjustment
-    ? (targetQty as number) - stock.quantity_on_hand
-    : computeQtyDelta(dto.movement_type, dto.quantity);
-  const newQty = stock.quantity_on_hand + delta;
-
-  if (newQty < 0) throw new Error("Insufficient stock for this movement");
-
-  const [updatedStock, movement] = await prisma.$transaction([
-    prisma.stock.update({
+  const { updatedStock, movement } = await prisma.$transaction(async (tx) => {
+    // Using a simple read since we can't do increment logic easily with target quantity (adjustment)
+    // without reading it first inside a transaction or resorting to raw query. Since it's in a single
+    // transaction block, any concurrent writes outside transaction logic might race unless we raw lock,
+    // but the `update` atomically decrements using `increment` below.
+    const stock = await tx.stock.findUniqueOrThrow({
       where: { stock_id: dto.stock_id },
-      data: { quantity_on_hand: newQty },
-    }),
-    prisma.stockMovement.create({
+    });
+
+    const delta = isAdjustment
+      ? (targetQty as number) - stock.quantity_on_hand
+      : computeQtyDelta(dto.movement_type, dto.quantity);
+
+    if (stock.quantity_on_hand + delta < 0) {
+      throw new Error("Insufficient stock for this movement");
+    }
+
+    const updated = await tx.stock.update({
+      where: { stock_id: dto.stock_id },
+      data: { quantity_on_hand: { increment: delta } },
+    });
+
+    const mov = await tx.stockMovement.create({
       data: {
         stock_id: dto.stock_id,
         product_id: stock.product_id,
@@ -368,9 +374,12 @@ export async function createMovement(
         movement_type: dto.movement_type,
         quantity: dto.quantity,
         movement_date: new Date(),
+        notes: dto.notes ?? null,
       },
-    }),
-  ]);
+    });
+
+    return { updatedStock: updated, movement: mov };
+  });
 
   // Bust server-side cache so next RSC render gets fresh data
   revalidateTag("inventory", "max");
@@ -868,39 +877,46 @@ export async function importStock(data: any[], userId: number) {
 }
 
 export async function deleteMovement(movementId: number) {
-  const movement = await prisma.stockMovement.findUnique({
-    where: { movement_id: movementId },
+  const result = await prisma.$transaction(async (tx) => {
+    const movement = await tx.stockMovement.findUnique({
+      where: { movement_id: movementId },
+    });
+    if (!movement) throw new Error("Movement not found");
+
+    const stock = await tx.stock.findUnique({
+      where: { stock_id: movement.stock_id },
+    });
+    if (!stock) throw new Error("Stock not found");
+
+    let stockDeltaToApply = 0;
+    if (movement.movement_type === "ISSUE") {
+        stockDeltaToApply = movement.quantity; // It was subtracted, now add
+    } else if (movement.movement_type === "PURCHASE" || movement.movement_type === "RETURN") {
+        stockDeltaToApply = -movement.quantity; // It was added, now subtract
+    } else if (movement.movement_type === "ADJUSTMENT") {
+        stockDeltaToApply = -movement.quantity; // Reverse exact delta (positive becomes negative, negative becomes positive)
+    }
+
+    if (stock.quantity_on_hand + stockDeltaToApply < 0) {
+      throw new Error("Insufficient stock to revert this movement");
+    }
+
+    await tx.stock.update({
+      where: { stock_id: stock.stock_id },
+      data: { quantity_on_hand: { increment: stockDeltaToApply } },
+    });
+
+    await tx.stockMovement.delete({ where: { movement_id: movementId } });
+    return movement;
   });
-  if (!movement) throw new Error("Movement not found");
-
-  const stock = await prisma.stock.findUnique({
-    where: { stock_id: movement.stock_id },
-  });
-  if (!stock) throw new Error("Stock not found");
-
-  // Revert the quantity change
-  let qtyDelta = movement.quantity;
-  if (
-    movement.movement_type === "ISSUE" ||
-    movement.movement_type === "ADJUSTMENT"
-  ) {
-    qtyDelta = -qtyDelta;
-  }
-
-  // We are deleting the movement, so we do the opposite of what it did
-  await prisma.stock.update({
-    where: { stock_id: stock.stock_id },
-    data: { quantity_on_hand: stock.quantity_on_hand - qtyDelta },
-  });
-
-  await prisma.stockMovement.delete({ where: { movement_id: movementId } });
 
   revalidateTag("inventory", "max");
-  return movement;
+  return result;
 }
 
 export async function getAllLocations() {
   return prisma.inventoryLocation.findMany({
+    where: { status: "ACTIVE" },
     orderBy: { location_id: "asc" },
   });
 }

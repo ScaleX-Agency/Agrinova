@@ -201,6 +201,14 @@ export async function POST(request: Request) {
         throw new Error("A GIN is already issued for this invoice.");
       }
 
+      const location = await tx.inventoryLocation.findUnique({
+        where: { location_id: invoice.location_id },
+        select: { location_id: true, status: true },
+      });
+      if (!location || location.status !== "ACTIVE") {
+        throw new Error("Cannot issue from an inactive location.");
+      }
+
       if (invoice.goods_issue_notes.length > 0) {
         throw new Error("An active GIN already exists for this invoice.");
       }

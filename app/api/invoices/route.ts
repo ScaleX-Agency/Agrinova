@@ -376,11 +376,14 @@ export async function POST(request: Request) {
 
       const location = await tx.inventoryLocation.findUnique({
         where: { location_id: locationId },
-        select: { location_id: true },
+        select: { location_id: true, status: true },
       });
 
       if (!location) {
         throw new Error("Selected inventory location was not found.");
+      }
+      if (location.status !== "ACTIVE") {
+        throw new Error("Cannot create invoice for an inactive location.");
       }
 
       const activeDuplicateInvoice = await tx.invoice.findFirst({

@@ -6,11 +6,11 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
 import {
-  
-  // eslint-disable-next-line
+   
   LayoutDashboard,
   Boxes,
   Package,
+  MapPin,
   ArrowLeftRight,
   Users,
   UserCog,
@@ -19,7 +19,6 @@ import {
   ClipboardList,
   UserCheck,
   BarChart3,
-   
   Settings,
   LogOut,
   ChevronRight,
@@ -43,16 +42,16 @@ interface NavGroup {
 }
 
 const NAV_GROUPS: NavGroup[] = [
-  // {
-  //   title: "Dashboard",
-  //   items: [
-  //     {
-  //       href: "/dashboard",
-  //       icon: <LayoutDashboard size={15} />,
-  //       label: "Dashboard",
-  //     },
-  //   ],
-  // },
+  {
+    title: "Dashboard",
+    items: [
+      {
+        href: "/dashboard",
+        icon: <LayoutDashboard size={15} />,
+        label: "Dashboard",
+      },
+    ],
+  },
   {
     title: "Inventory Operations",
     items: [
@@ -65,6 +64,11 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/inventory/products",
         icon: <Package size={15} />,
         label: "Products",
+      },
+      {
+        href: "/locations",
+        icon: <MapPin size={15} />,
+        label: "Locations",
       },
       {
         href: "/goods-receiving-notes",
@@ -119,13 +123,16 @@ const NAV_GROUPS: NavGroup[] = [
 ];
 
 const isPathActive = (pathname: string, href: string) => {
-  const currentPath = pathname.endsWith("/") && pathname !== "/"
-    ? pathname.slice(0, -1)
-    : pathname;
+  const currentPath =
+    pathname.endsWith("/") && pathname !== "/"
+      ? pathname.slice(0, -1)
+      : pathname;
 
   // Treat Stock Overview as a specific route, not a broad parent matcher.
   if (href === "/inventory") {
-    return currentPath === "/inventory" || /^\/inventory\/\d+$/.test(currentPath);
+    return (
+      currentPath === "/inventory" || /^\/inventory\/\d+$/.test(currentPath)
+    );
   }
 
   if (href.includes("?")) {
@@ -145,11 +152,10 @@ const SidebarContent = ({
   pathname,
   signOut,
 }: {
-   
   collapsed: boolean;
-   
+
   pathname: string;
-  
+
   // eslint-disable-next-line
   signOut: any;
 }) => (
@@ -163,13 +169,9 @@ const SidebarContent = ({
   >
     {/* Brand */}
     <div
-   
       className={`h-[64px] border-b border-stone-200 flex items-center shrink-0 ${collapsed ? "justify-center px-3" : "gap-3 px-4"}`}
-  
     >
-  
       <div className="w-9 h-9 rounded-xl border border-stone-200 flex items-center justify-center shrink-0 overflow-hidden bg-white relative">
-  
         <Image
           src="/agrinova-logo.jpeg"
           alt="Agrinova Logo"
@@ -245,14 +247,14 @@ const SidebarContent = ({
 
     {/* Bottom */}
     <div className="border-t border-stone-200 p-3 space-y-1 shrink-0">
-      <Link
+      {/* <Link
         href="/settings"
         className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[13px] font-medium text-stone-500 hover:bg-stone-50 hover:text-stone-800 transition-all [font-family:var(--font-dmsans)] ${collapsed ? "justify-center" : ""}`}
         title={collapsed ? "Settings" : undefined}
       >
         <Settings size={15} className="text-stone-400" />
         {!collapsed && <span>Settings</span>}
-      </Link>
+      </Link> */}
       <button
         onClick={() => signOut({ redirectUrl: "/login" })}
         className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[13px] font-medium text-stone-500 hover:bg-red-50 hover:text-red-700 transition-all [font-family:var(--font-dmsans)] ${collapsed ? "justify-center" : ""}`}
