@@ -62,7 +62,7 @@ export async function GET(
 			return NextResponse.json({ error: "Receipt not found." }, { status: 404 });
 		}
 
-		const settlement = receipt.invoiceSettlements[0];
+		const settlement = receipt.invoiceSettlements.find((s) => s.commissions.length > 0);
 		const commission = settlement?.commissions[0];
 		
 		if (!commission) {

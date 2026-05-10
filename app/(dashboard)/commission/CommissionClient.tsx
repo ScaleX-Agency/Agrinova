@@ -18,6 +18,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import PendingCommissionTab from "./PendingCommissionTab";
 import type {
   CommissionReceiptDetailDto,
   CommissionRepDetailResponse,
@@ -90,6 +91,7 @@ const getSalesStatusForUi = (status: DashboardCommissionRow["salesStatus"]): Sal
 };
 
 const CommissionClient = () => {
+  const [activeTab, setActiveTab] = useState<"analytics" | "pending">("analytics");
   const [datePreset, setDatePreset] = useState<DatePreset>("month");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -431,6 +433,26 @@ const CommissionClient = () => {
 
   return (
     <section className="space-y-5 pb-16">
+      <div className="inline-flex rounded-lg border border-stone-200 bg-white p-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab("analytics")}
+          className={`rounded-md px-3 py-1.5 text-[12px] font-medium ${activeTab === "analytics" ? "bg-[#2b2d7e] text-white" : "text-stone-600"}`}
+        >
+          Analytics
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("pending")}
+          className={`rounded-md px-3 py-1.5 text-[12px] font-medium ${activeTab === "pending" ? "bg-[#1a5c2e] text-white" : "text-stone-600"}`}
+        >
+          Pending Commissions
+        </button>
+      </div>
+      {activeTab === "pending" ? (
+        <PendingCommissionTab />
+      ) : (
+      <>
       <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">Sales Rep Sales</p>
@@ -671,6 +693,8 @@ const CommissionClient = () => {
             </Link>
           </div>
         </div>
+      )}
+      </>
       )}
     </section>
   );

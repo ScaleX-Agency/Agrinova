@@ -126,10 +126,10 @@ export type CreateReceiptSuccessResponse = {
   success: true;
   receiptId: number;
   receiptNo: string;
-  commissionId: number;
-  daysToPay: number;
-  commissionRate: number;
-  commissionAmount: number;
+  commissionId: number | null;
+  daysToPay: number | null;
+  commissionRate: number | null;
+  commissionAmount: number | null;
 };
 
 export type CreateReceiptResponse = ApiResult<CreateReceiptSuccessResponse>;
@@ -231,6 +231,63 @@ export type ReceiptCommissionDetailDto = {
 };
 
 export type ReceiptCommissionResponse = ApiResult<ReceiptCommissionDetailDto>;
+
+export type CommissionConfigDto = {
+  configId: number;
+  sameDayRate: number;
+  rangeMinDays: number;
+  rangeMaxDays: number;
+  rangeRate: number;
+  overRangeRate: number;
+};
+
+export type CommissionConfigResponse = ApiResult<CommissionConfigDto>;
+
+export type UpdateCommissionConfigRequestDto = {
+  sameDayRate: number;
+  rangeMinDays: number;
+  rangeMaxDays: number;
+  rangeRate: number;
+  overRangeRate: number;
+};
+
+export type PendingCommissionRowDto = {
+  settlementId: number;
+  settlementType: "RECEIPT" | "CREDIT_NOTE";
+  invoiceId: number;
+  invoiceNo: string;
+  invoiceDate: string;
+  receiptId: number;
+  receiptNo: string;
+  receiptDate: string;
+  customerName: string;
+  repId: number;
+  repName: string;
+  settlementDate: string;
+  settlementAmount: number;
+  daysToPay: number;
+  appliedRate: number;
+  computedCommissionAmount: number;
+  conditionLabel: string;
+};
+
+export type PendingCommissionsResponse = ApiResult<{
+  rows: PendingCommissionRowDto[];
+}>;
+
+export type ApprovePendingCommissionItemDto = {
+  settlementId: number;
+  rateOverride?: number;
+};
+
+export type ApprovePendingCommissionsRequestDto = {
+  items: ApprovePendingCommissionItemDto[];
+};
+
+export type ApprovePendingCommissionsResponse = ApiResult<{
+  approvedCount: number;
+  commissionIds: number[];
+}>;
 
 export type CommissionRepDetailDto = {
   repId: number;

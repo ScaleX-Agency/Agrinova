@@ -373,9 +373,24 @@ model Commission {
   updated_at         DateTime            @default(now()) @updatedAt
   is_active          Boolean             @default(true)
   rep                SalesRep            @relation(fields: [rep_id], references: [rep_id])
-  invoiceSettlements InvoiceSettlement[] @relation("CommissionToInvoiceSettlement")
+  invoiceSettlement  InvoiceSettlement   @relation("CommissionToInvoiceSettlement", fields: [settlement_id], references: [settlement_id])
 
+  @@index([settlement_id])
   @@map("COMMISSION")
+}
+
+model CommissionConfig {
+  config_id        Int      @id @default(autoincrement())
+  same_day_rate    Decimal  @db.Decimal(5, 4)
+  range_min_days   Int
+  range_max_days   Int
+  range_rate       Decimal  @db.Decimal(5, 4)
+  over_range_rate  Decimal  @db.Decimal(5, 4)
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @default(now()) @updatedAt
+
+  @@map("COMMISSION_CONFIG")
 }
 
 model Reminder {

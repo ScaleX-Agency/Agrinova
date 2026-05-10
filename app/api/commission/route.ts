@@ -32,7 +32,7 @@ export async function GET(request: Request) {
 						full_name: true,
 					},
 				},
-				invoiceSettlements: {
+				invoiceSettlement: {
 					select: {
 						amount: true,
 						settled_date: true,
@@ -75,43 +75,43 @@ export async function GET(request: Request) {
 			const days = Number(commission.days_to_pay);
 			const commissionAmount = Number(commission.commission_amount);
 
-			for (const settlement of commission.invoiceSettlements) {
-				if (start && end) {
-					const invoiceDate = new Date(settlement.invoice.invoice_date);
-					if (invoiceDate < start || invoiceDate >= end) {
-						continue;
-					}
+			const settlement = commission.invoiceSettlement;
+			if (!settlement) continue;
+			if (start && end) {
+				const invoiceDate = new Date(settlement.invoice.invoice_date);
+				if (invoiceDate < start || invoiceDate >= end) {
+					continue;
 				}
-
-				const invoiceId = settlement.invoice.invoice_id;
-				const invoiceAmount = Number(settlement.invoice.total_amount);
-				const receiptId = settlement.receipt?.receipt_id ?? null;
-				const cashCollected = settlement.receipt ? Number(settlement.receipt.amount) : 0;
-
-				const existing = byRep.get(repId) ?? {
-					repId,
-					repName,
-					receiptIds: new Set<number>(),
-					invoiceIds: new Set<number>(),
-					totalSales: 0,
-					cashCollected: 0,
-					daysSum: 0,
-					daysCount: 0,
-					commissionAmount: 0,
-				};
-
-				if (receiptId) {
-					existing.receiptIds.add(receiptId);
-				}
-				existing.invoiceIds.add(invoiceId);
-				existing.totalSales += invoiceAmount;
-				existing.cashCollected += cashCollected;
-				existing.daysSum += days;
-				existing.daysCount += 1;
-				existing.commissionAmount += commissionAmount;
-
-				byRep.set(repId, existing);
 			}
+
+			const invoiceId = settlement.invoice.invoice_id;
+			const invoiceAmount = Number(settlement.invoice.total_amount);
+			const receiptId = settlement.receipt?.receipt_id ?? null;
+			const cashCollected = settlement.receipt ? Number(settlement.receipt.amount) : 0;
+
+			const existing = byRep.get(repId) ?? {
+				repId,
+				repName,
+				receiptIds: new Set<number>(),
+				invoiceIds: new Set<number>(),
+				totalSales: 0,
+				cashCollected: 0,
+				daysSum: 0,
+				daysCount: 0,
+				commissionAmount: 0,
+			};
+
+			if (receiptId) {
+				existing.receiptIds.add(receiptId);
+			}
+			existing.invoiceIds.add(invoiceId);
+			existing.totalSales += invoiceAmount;
+			existing.cashCollected += cashCollected;
+			existing.daysSum += days;
+			existing.daysCount += 1;
+			existing.commissionAmount += commissionAmount;
+
+			byRep.set(repId, existing);
 		}
 
 		const rows: RepCommissionSummaryDto[] = Array.from(byRep.values())

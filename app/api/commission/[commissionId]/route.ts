@@ -4,7 +4,6 @@ import type {
   CommissionRepDetailResponse,
   CommissionReceiptDetailDto,
 } from "@/types/api";
-import type { CommissionStatus, InvoiceStatus } from "@prisma/client";
 
 const getMonthRange = (monthParam: string | null) => {
   if (!monthParam || !/^\d{4}-\d{2}$/.test(monthParam)) {
@@ -57,7 +56,7 @@ export async function GET(
         commission_amount: true,
         status: true,
         created_at: true,
-        invoiceSettlements: {
+        invoiceSettlement: {
           select: {
             settlement_id: true,
             settled_date: true,
@@ -67,7 +66,7 @@ export async function GET(
                 invoice_id: true,
                 invoice_number: true,
                 invoice_date: true,
-                status: true,
+                payment_status: true,
                 total_amount: true,
                 location: {
                   select: {
@@ -108,80 +107,53 @@ export async function GET(
       orderBy: { created_at: "desc" },
     });
 
-    type CommissionRow = {
-      commission_id: number;
-      commission_amount: unknown;
-      commission_rate: unknown;
-      days_to_pay: number;
-      status: CommissionStatus;
-      created_at: Date;
-      invoiceSettlements: {
-        settlement_id: number;
-        settled_date: Date;
-        amount: unknown;
-        invoice: {
-          invoice_id: number;
-          invoice_number: string | null;
-          invoice_date: Date;
-          status: InvoiceStatus;
-          total_amount: unknown;
-          location: { location_id: number; code: string } | null;
-          invoice_lines: { product: { category: { name: string } } }[];
-          customer: { name: string } | null;
-        };
-        receipt: {
-          receipt_id: number;
-          receipt_date: Date;
-          amount: unknown;
-        } | null;
-      }[];
-    };
-
     const allRows: CommissionReceiptDetailDto[] = [];
     
     for (const commission of commissions) {
-      for (const settlement of commission.invoiceSettlements) {
-        if (start && end) {
-          const invoiceDate = new Date(settlement.invoice.invoice_date);
-          if (invoiceDate < start || invoiceDate >= end) {
-            continue;
-          }
-        }
-
-        const invoice = settlement.invoice;
-        const receipt = settlement.receipt;
-        
-        const invoiceAmount = Number(invoice.total_amount);
-        const cashCollected = receipt ? Number(receipt.amount) : 0;
-        const receiptId = receipt?.receipt_id != null ? Number(receipt.receipt_id) : null;
-
-        allRows.push({
-          commissionId: commission.commission_id,
-          receiptId,
-          receiptNo: null,
-          receiptDate: receipt?.receipt_date ? new Date(receipt.receipt_date).toISOString() : null,
-          invoiceId: invoice.invoice_id,
-          invoiceNo: invoice.invoice_number ?? "",
-          invoiceDate: invoice.invoice_date ? new Date(invoice.invoice_date).toISOString() : "",
-          salesStatus: invoice.status,
-          customerName: invoice.customer?.name ?? "",
-          locationId: invoice.location?.location_id ?? null,
-          locationCode: invoice.location?.code ?? null,
-          categories: Array.from(
-            new Set(
-              invoice.invoice_lines.map((line) => line.product?.category?.name ?? ""),
-            ),
-          ).filter(Boolean),
-          invoiceAmount,
-          cashCollected,
-          daysToPay: commission.days_to_pay ?? 0,
-          commissionRate: commission.commission_rate ? Number(commission.commission_rate) : 0,
-          commissionAmount: commission.commission_amount ? Number(commission.commission_amount) : 0,
-          dueDate: settlement.settled_date ? new Date(settlement.settled_date).toISOString() : "",
-          paidDate: null,
-          status: (commission.status ?? "PENDING") as "PENDING" | "PAID" | "OVERDUE",
-        });
+      const settlement = commission.invoiceSettlement;
+      if (!settlement) {
+        continue;
       }
+      if (start && end) {
+        const invoiceDate = new Date(settlement.invoice.invoice_date);
+        if (invoiceDate < start || invoiceDate >= end) {
+          continue;
+        }
+      }
+
+      const invoice = settlement.invoice;
+      const receipt = settlement.receipt;
+      
+      const invoiceAmount = Number(invoice.total_amount);
+      const cashCollected = receipt ? Number(receipt.amount) : 0;
+      const receiptId = receipt?.receipt_id != null ? Number(receipt.receipt_id) : null;
+
+      allRows.push({
+        commissionId: commission.commission_id,
+        receiptId,
+        receiptNo: null,
+        receiptDate: receipt?.receipt_date ? new Date(receipt.receipt_date).toISOString() : null,
+        invoiceId: invoice.invoice_id,
+        invoiceNo: invoice.invoice_number ?? "",
+        invoiceDate: invoice.invoice_date ? new Date(invoice.invoice_date).toISOString() : "",
+        salesStatus: invoice.payment_status,
+        customerName: invoice.customer?.name ?? "",
+        locationId: invoice.location?.location_id ?? null,
+        locationCode: invoice.location?.code ?? null,
+        categories: Array.from(
+          new Set(
+            invoice.invoice_lines.map((line) => line.product?.category?.name ?? ""),
+          ),
+        ).filter(Boolean),
+        invoiceAmount,
+        cashCollected,
+        daysToPay: commission.days_to_pay ?? 0,
+        commissionRate: commission.commission_rate ? Number(commission.commission_rate) : 0,
+        commissionAmount: commission.commission_amount ? Number(commission.commission_amount) : 0,
+        dueDate: settlement.settled_date ? new Date(settlement.settled_date).toISOString() : "",
+        paidDate: null,
+        status: (commission.status ?? "PENDING") as "PENDING" | "PAID" | "OVERDUE",
+      });
     }
 
     const rows = allRows;

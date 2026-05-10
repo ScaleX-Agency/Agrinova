@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { calculateReceiptCommission, getReceiptNumber } from "@/lib/commission";
+import { getReceiptNumber } from "@/lib/commission";
 import { getCurrentUser } from "@/lib/auth";
 import type {
   CreateReceiptRequestDto,
@@ -182,7 +182,7 @@ export async function POST(request: Request) {
       });
 
       // 2. Create InvoiceSettlement
-      const settlement = await tx.invoiceSettlement.create({
+      await tx.invoiceSettlement.create({
         data: {
           invoice_id: invoice.invoice_id,
           receipt_id: receipt.receipt_id,
@@ -190,34 +190,10 @@ export async function POST(request: Request) {
           settlement_type: "RECEIPT",
           settled_date: receipt.receipt_date,
         },
-        select: {
-          settlement_id: true,
-          settled_date: true,
-        },
+        select: { settlement_id: true },
       });
 
-      // 3. Calculate days_to_pay
-      const daysToPay = Math.max(0, Math.floor((settlement.settled_date.getTime() - invoice.invoice_date.getTime()) / (1000 * 60 * 60 * 24)));
-
-      // 4. Calculate commission
-      const commission = calculateReceiptCommission(invoice.invoice_date, settlement.settled_date, totalAmount);
-
-      // 5. Create Commission
-      const commissionRecord = await tx.commission.create({
-        data: {
-          rep_id: invoice.rep_id,
-          commission_rate: commission.commissionRate,
-          commission_amount: commission.commissionAmount,
-          days_to_pay: daysToPay,
-          status: nextStatus === "PAID" ? "PAID" : "PENDING",
-          settlement_id: settlement.settlement_id,
-        },
-        select: {
-          commission_id: true,
-        },
-      });
-
-      // 6. Update Invoice status
+      // 3. Update Invoice status
       await tx.invoice.update({
         where: { invoice_id: invoice.invoice_id },
         data: {
@@ -232,10 +208,10 @@ export async function POST(request: Request) {
       return {
         receiptId: receipt.receipt_id,
         receiptNo,
-        commissionId: commissionRecord.commission_id,
-        daysToPay,
-        commissionRate: commission.commissionRate,
-        commissionAmount: commission.commissionAmount,
+        commissionId: null,
+        daysToPay: null,
+        commissionRate: null,
+        commissionAmount: null,
       };
     });
 
@@ -246,8 +222,8 @@ export async function POST(request: Request) {
         receiptNo: created.receiptNo,
         commissionId: created.commissionId,
         daysToPay: created.daysToPay,
-        commissionRate: Number((created.commissionRate * 100).toFixed(2)),
-        commissionAmount: Number(created.commissionAmount.toFixed(2)),
+        commissionRate: created.commissionRate,
+        commissionAmount: created.commissionAmount,
       },
     };
 
