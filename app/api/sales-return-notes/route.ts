@@ -317,20 +317,17 @@ export async function POST(request: Request) {
 
         for (const [productId, unusableQty] of unusableByProduct.entries()) {
           if (unusableQty <= 0) continue;
-          const existing = stockByProduct.get(productId);
-          if (!existing) {
-            throw new Error(
-              `Stock record missing for product ${productId} to log unusable return movement.`,
-            );
-          }
-          await tx.stockMovement.create({
+
+          await tx.unusableStockMovement.create({
             data: {
-              stock_id: existing.stock_id,
               product_id: productId,
+              location_id: invoice.location_id,
               created_by: currentUser.user_id,
-              movement_type: "RETURN_UNUSABLE" as Prisma.MovementType,
+              movement_type: "RETURN_UNUSABLE",
               quantity: unusableQty,
               movement_date: returnDate,
+              reference_type: "SRN",
+              reference_id: srn.return_id,
               notes: `Unusable return via SRN ${srn.return_number}`,
             },
           });
@@ -413,8 +410,7 @@ export async function POST(request: Request) {
     if (error instanceof Error) {
       const isValidationError =
         error.message.includes("Line") ||
-        error.message.includes("Invoice not found") ||
-        error.message.includes("Stock record missing");
+        error.message.includes("Invoice not found");
 
       if (isValidationError) {
         return NextResponse.json({ error: error.message }, { status: 422 });

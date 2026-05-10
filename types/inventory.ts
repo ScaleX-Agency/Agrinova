@@ -2,7 +2,6 @@ export type StockStatus = "ok" | "low" | "out";
 export type MovementType =
   | "ISSUE"
   | "RETURN"
-  | "RETURN_UNUSABLE"
   | "PURCHASE"
   | "ADJUSTMENT"
   | "NON_SALEABLE";

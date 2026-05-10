@@ -19,10 +19,22 @@ interface Props {
 
 type FilterType = MovementType | "ALL";
 
-const TYPES: FilterType[] = ["ALL", "ISSUE", "RETURN", "PURCHASE", "ADJUSTMENT"];
+const TYPES: FilterType[] = [
+  "ALL",
+  "ISSUE",
+  "RETURN",
+  "PURCHASE",
+  "ADJUSTMENT",
+  "NON_SALEABLE",
+];
 
 const TYPE_LABELS: Record<FilterType, string> = {
-  ALL: "All", ISSUE: "Issue", RETURN: "Return", PURCHASE: "Purchase", ADJUSTMENT: "Adjustment",
+  ALL: "All",
+  ISSUE: "Issue",
+  RETURN: "Return",
+  PURCHASE: "Purchase",
+  ADJUSTMENT: "Adjustment",
+  NON_SALEABLE: "Non Saleable",
 };
 
 const TYPE_BADGE: Record<MovementType, string> = {
@@ -30,6 +42,7 @@ const TYPE_BADGE: Record<MovementType, string> = {
   RETURN:     "bg-teal-50   text-teal-700",
   PURCHASE:   "bg-green-50  text-green-700",
   ADJUSTMENT: "bg-amber-50  text-amber-800",
+  NON_SALEABLE: "bg-stone-100 text-stone-700",
 };
 
 function fmtDate(iso: string) {

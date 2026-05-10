@@ -31,7 +31,12 @@ import BackNavigationLink from "@/components/ui/BackNavigationLink";
 // ── Types ─────────────────────────────────────────────────────
 
 type StockStatus = "ok" | "low" | "out";
-type MovementType = "ISSUE" | "RETURN" | "PURCHASE" | "ADJUSTMENT";
+type MovementType =
+  | "ISSUE"
+  | "RETURN"
+  | "PURCHASE"
+  | "ADJUSTMENT"
+  | "NON_SALEABLE";
 
 interface StockRow {
   stock_id: number;
@@ -102,6 +107,7 @@ const MOV_BADGE: Record<MovementType, string> = {
   RETURN: "bg-teal-50   text-teal-700",
   PURCHASE: "bg-green-50  text-green-700",
   ADJUSTMENT: "bg-amber-50  text-amber-800",
+  NON_SALEABLE: "bg-stone-100 text-stone-700",
 };
 
 const MOV_LABELS: Record<MovementType, string> = {
@@ -109,6 +115,7 @@ const MOV_LABELS: Record<MovementType, string> = {
   RETURN: "Return",
   PURCHASE: "Purchase",
   ADJUSTMENT: "Adjustment",
+  NON_SALEABLE: "Non Saleable",
 };
 
 // ── Helpers ───────────────────────────────────────────────────

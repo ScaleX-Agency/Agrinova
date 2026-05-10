@@ -25,7 +25,7 @@ function computeStatus(
 
 function computeQtyDelta(type: string, qty: number): number {
   if (type === "ISSUE" || type === "ADJUSTMENT") return -qty;
-  if (type === "RETURN_UNUSABLE" || type === "NON_SALEABLE") return 0;
+  if (type === "NON_SALEABLE") return 0;
   return qty;
 }
 
