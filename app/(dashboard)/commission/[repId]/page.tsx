@@ -1,34 +1,64 @@
 "use client";
 
-  // eslint-disable-next-line
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useMemo, useState } from "react";
+import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
+  ArrowLeft,
+  CalendarRange,
+  CheckCircle2,
+  Clock3,
+  CreditCard,
+  FileText,
+  HandCoins,
+  Phone,
+  RefreshCcw,
+  ShieldAlert,
+  TrendingUp,
+} from "lucide-react";
+import {
   Legend,
   Pie,
   PieChart,
   ResponsiveContainer,
   Tooltip,
-  XAxis,
-  YAxis,
+  Cell,
 } from "recharts";
-import type { CommissionRepDetailResponse } from "@/types/api";
 import DataTable from "@/components/ui/DataTable";
-import BackNavigationLink from "@/components/ui/BackNavigationLink";
 
-const formatDate = (value: string) =>
-  new Date(value).toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+type PeriodType = "daily" | "monthly" | "yearly" | "custom";
+
+type DetailResponse = {
+  rep: {
+    repId: number;
+    repName: string;
+    phone: string | null;
+    assignedCustomers: number;
+  };
+  period: { startDate: string; endDate: string; label: string };
+  kpis: {
+    lifetimeSales: number;
+    periodNetSales: number;
+    collections: number;
+    outstanding: number;
+    overdueAmount: number;
+    avgDaysToCollect: number | null;
+    invoiceCount: number;
+    approvedCommission: number;
+    pendingCommission: number;
+  };
+  trend: Array<{ label: string; sales: number; collections: number }>;
+  aging: Array<{ bucket: string; amount: number }>;
+  topProducts: Array<{ productId: number; productCode: string; productName: string; quantity: number; netRevenue: number }>;
+  locationBreakdown: Array<{ locationId: number; locationCode: string; locationName: string; netSales: number; collections: number; outstanding: number }>;
+  customerPerformance: Array<{ customerId: number; customerName: string; invoiceCount: number; netSales: number; collections: number; outstanding: number; overdueAmount: number; lastInvoiceDate: string | null }>;
+  openInvoices: Array<{ invoiceId: number; invoiceNumber: string; customerName: string; invoiceDate: string; total: number; paid: number; credited: number; balance: number; daysOutstanding: number; status: string }>;
+  commissionLedger: Array<{ commissionId: number; settlementId: number | null; settlementType: string | null; settlementDate: string | null; invoiceNo: string | null; customerName: string | null; settlementAmount: number; commissionRate: number; commissionAmount: number; daysToPay: number; status: string; createdAt: string }>;
+  pendingCommissionRows: Array<{ settlementId: number; settlementType: string; invoiceId: number; invoiceNo: string; customerName: string; receiptId: number | null; receiptDate: string | null; settlementDate: string; settlementAmount: number }>;
+  transactions: Array<{ type: "invoice" | "receipt" | "credit"; id: number; reference: string; date: string; amount: number; status: string }>;
+};
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-LK", {
@@ -38,529 +68,291 @@ const formatCurrency = (value: number) =>
     maximumFractionDigits: 2,
   }).format(value);
 
-const formatPercent = (value: number) => `${value.toFixed(2)}%`;
-
-const toDateInput = (value: Date) => {
-  const y = value.getFullYear();
-  const m = String(value.getMonth() + 1).padStart(2, "0");
-  const d = String(value.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+const formatDate = (value: string | null) => {
+  if (!value) return "-";
+  return new Date(value).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 };
 
-const getIsoWeek = (date: Date) => {
-  const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const day = target.getUTCDay() || 7;
-  target.setUTCDate(target.getUTCDate() + 4 - day);
-  const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
-  const weekNo = Math.ceil((((target.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-  return `${target.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
-};
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
 
-type SalesStatus = "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE";
+function monthISO() {
+  return new Date().toISOString().slice(0, 7);
+}
 
-const statusConfig = {
-  PAID: {
-    label: "Paid",
-    pill: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  },
-  PARTIAL: {
-    label: "Partial",
-    pill: "bg-amber-50 text-amber-700 border-amber-200",
-  },
-  PENDING: {
-    label: "Pending",
-    pill: "bg-orange-50 text-orange-700 border-orange-200",
-  },
-  OVERDUE: {
-    label: "Overdue",
-    pill: "bg-red-50 text-red-700 border-red-200",
-  },
-  UNPAID: {
-    label: "Unpaid",
-    pill: "bg-rose-50 text-rose-700 border-rose-200",
-  },
-} as const;
+function yearISO() {
+  return String(new Date().getFullYear());
+}
 
-const getPeriodKey = (value: string, granularity: "day" | "week" | "month") => {
-  const date = new Date(value);
-  if (granularity === "day") {
-    return toDateInput(date);
-  }
-  if (granularity === "week") {
-    return getIsoWeek(date);
-  }
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-};
-
-const CommissionRepDetailPage = () => {
+export default function CommissionRepDetailPage() {
   const params = useParams<{ repId: string }>();
-  const searchParams = useSearchParams();
-  const [statusFilter, setStatusFilter] = useState<"all" | SalesStatus>("all");
-
   const repId = Number(params.repId);
-  const month = searchParams.get("month");
+
+  const [periodType, setPeriodType] = useState<PeriodType>("monthly");
+  const [date, setDate] = useState(todayISO());
+  const [month, setMonth] = useState(monthISO());
+  const [year, setYear] = useState(yearISO());
+  const [from, setFrom] = useState(todayISO());
+  const [to, setTo] = useState(todayISO());
+
+  const filters = useMemo(() => ({ periodType, date, month, year, from, to }), [periodType, date, month, year, from, to]);
+
+  const queryString = useMemo(() => {
+    const sp = new URLSearchParams();
+    sp.set("periodType", filters.periodType);
+    if (filters.periodType === "daily") sp.set("date", filters.date);
+    if (filters.periodType === "monthly") sp.set("month", filters.month);
+    if (filters.periodType === "yearly") sp.set("year", filters.year);
+    if (filters.periodType === "custom") {
+      sp.set("from", filters.from);
+      sp.set("to", filters.to);
+    }
+    return sp.toString();
+  }, [filters]);
 
   const detailQuery = useQuery({
-    queryKey: ["commission-detail", repId, month ?? "all"],
-    enabled: Number.isInteger(repId) && repId > 0,
+    queryKey: ["sales-rep-sales-detail", repId, filters],
     queryFn: async () => {
-      const response = await fetch(month ? `/api/commission/${repId}?month=${month}` : `/api/commission/${repId}`);
-      const result = (await response.json()) as CommissionRepDetailResponse;
-      if (!response.ok) throw new Error(result.error ?? "Failed to load commission detail.");
-      return result.data;
+      const response = await fetch(`/api/sales-rep-sales/${repId}?${queryString}`, { cache: "no-store" });
+      const data = (await response.json()) as DetailResponse | { error?: string };
+      if (!response.ok) throw new Error((data as { error?: string }).error ?? "Failed to load sales rep detail.");
+      return data as DetailResponse;
     },
+    enabled: Number.isInteger(repId) && repId > 0,
   });
-   
 
-  // eslint-disable-next-line
-  const rows = detailQuery.data?.rows ?? [];
+  const reset = () => {
+    setPeriodType("monthly");
+    setDate(todayISO());
+    setMonth(monthISO());
+    setYear(yearISO());
+    setFrom(todayISO());
+    setTo(todayISO());
+  };
 
-  const initialDateRange = useMemo(() => {
-    if (rows.length === 0) {
-      const now = new Date();
-      return {
-        start: toDateInput(new Date(now.getFullYear(), now.getMonth(), 1)),
-        end: toDateInput(now),
-      };
-    }
+  const customerColumns: ColumnDef<DetailResponse["customerPerformance"][number]>[] = [
+    { accessorKey: "customerName", header: "Customer" },
+    { accessorKey: "invoiceCount", header: "Invoices", meta: { align: "right" } },
+    { accessorKey: "netSales", header: "Net Sales", cell: ({ row }) => formatCurrency(row.original.netSales), meta: { align: "right" } },
+    { accessorKey: "collections", header: "Collections", cell: ({ row }) => formatCurrency(row.original.collections), meta: { align: "right" } },
+    { accessorKey: "outstanding", header: "Outstanding", cell: ({ row }) => formatCurrency(row.original.outstanding), meta: { align: "right" } },
+    { accessorKey: "overdueAmount", header: "Overdue", cell: ({ row }) => formatCurrency(row.original.overdueAmount), meta: { align: "right" } },
+    { accessorKey: "lastInvoiceDate", header: "Last Invoice", cell: ({ row }) => formatDate(row.original.lastInvoiceDate) },
+  ];
 
-    const allDates = rows.flatMap((row) => [row.invoiceDate, row.receiptDate].filter(Boolean) as string[]);
-    const sorted = allDates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
-    return {
-      start: toDateInput(new Date(sorted[0])),
-      end: toDateInput(new Date(sorted[sorted.length - 1])),
-    };
-  }, [rows]);
+  const openInvoiceColumns: ColumnDef<DetailResponse["openInvoices"][number]>[] = [
+    { accessorKey: "invoiceNumber", header: "Invoice" },
+    { accessorKey: "customerName", header: "Customer" },
+    { accessorKey: "invoiceDate", header: "Date", cell: ({ row }) => formatDate(row.original.invoiceDate) },
+    { accessorKey: "total", header: "Total", cell: ({ row }) => formatCurrency(row.original.total), meta: { align: "right" } },
+    { accessorKey: "paid", header: "Paid", cell: ({ row }) => formatCurrency(row.original.paid), meta: { align: "right" } },
+    { accessorKey: "credited", header: "Credited", cell: ({ row }) => formatCurrency(row.original.credited), meta: { align: "right" } },
+    { accessorKey: "balance", header: "Balance", cell: ({ row }) => <span className="text-red-700 font-medium">{formatCurrency(row.original.balance)}</span>, meta: { align: "right" } },
+    { accessorKey: "daysOutstanding", header: "Days", meta: { align: "right" } },
+    { accessorKey: "status", header: "Status" },
+  ];
 
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const commissionColumns: ColumnDef<DetailResponse["commissionLedger"][number]>[] = [
+    { accessorKey: "commissionId", header: "Commission #" },
+    { accessorKey: "settlementType", header: "Type" },
+    { accessorKey: "invoiceNo", header: "Invoice" },
+    { accessorKey: "customerName", header: "Customer" },
+    { accessorKey: "settlementAmount", header: "Settlement", cell: ({ row }) => formatCurrency(row.original.settlementAmount), meta: { align: "right" } },
+    { accessorKey: "commissionRate", header: "Rate", cell: ({ row }) => `${row.original.commissionRate.toFixed(2)}%`, meta: { align: "right" } },
+    { accessorKey: "commissionAmount", header: "Commission", cell: ({ row }) => formatCurrency(row.original.commissionAmount), meta: { align: "right" } },
+    { accessorKey: "daysToPay", header: "Days", meta: { align: "right" } },
+    { accessorKey: "status", header: "Status" },
+  ];
 
-  const effectiveStart = startDate || initialDateRange.start;
-  const effectiveEnd = endDate || initialDateRange.end;
+  const transactionColumns: ColumnDef<DetailResponse["transactions"][number]>[] = [
+    { accessorKey: "type", header: "Type" },
+    { accessorKey: "reference", header: "Reference" },
+    { accessorKey: "date", header: "Date", cell: ({ row }) => formatDate(row.original.date) },
+    { accessorKey: "amount", header: "Amount", cell: ({ row }) => formatCurrency(row.original.amount), meta: { align: "right" } },
+    { accessorKey: "status", header: "Status" },
+  ];
 
-  const inRange = useCallback((value: string | null) => {
-    if (!value) return false;
-    const time = new Date(value).getTime();
-    const startTime = new Date(effectiveStart).getTime();
-    const end = new Date(effectiveEnd);
-    end.setHours(23, 59, 59, 999);
-    return time >= startTime && time <= end.getTime();
-  }, [effectiveStart, effectiveEnd]);
-
-  const filteredRows = useMemo(
-    () =>
-      rows.filter((row) => {
-        const matchesStatus = statusFilter === "all" ? true : row.salesStatus === statusFilter;
-        const hasDateInRange = inRange(row.invoiceDate) || inRange(row.receiptDate);
-        return matchesStatus && hasDateInRange;
-      }),
-    [rows, statusFilter, inRange],
-  );
-
-  const invoiceMap = useMemo(() => {
-    const map = new Map<number, { date: string; customer: string; amount: number; status: SalesStatus; invoiceNo: string }>();
-    for (const row of filteredRows) {
-      if (!map.has(row.invoiceId)) {
-        map.set(row.invoiceId, {
-          date: row.invoiceDate,
-          customer: row.customerName,
-          amount: row.invoiceAmount,
-          status: row.salesStatus,
-          invoiceNo: row.invoiceNo,
-        });
-      }
-    }
-    return map;
-  }, [filteredRows]);
-
-  const uniqueInvoices = useMemo(() => Array.from(invoiceMap.entries()), [invoiceMap]);
-
-  const totals = useMemo(() => {
-    const totalSales = uniqueInvoices.reduce((sum, [, invoice]) => sum + invoice.amount, 0);
-    const totalCollected = filteredRows.reduce((sum, row) => sum + row.cashCollected, 0);
-    const outstanding = Math.max(totalSales - totalCollected, 0);
-    const totalCommission = filteredRows.reduce((sum, row) => sum + row.commissionAmount, 0);
-
-    return {
-      totalSales,
-      totalCollected,
-      outstanding,
-      totalCommission,
-    };
-  }, [filteredRows, uniqueInvoices]);
-
-  const monthlyData = useMemo(() => {
-    const monthly = new Map<string, { label: string; sales: number; commission: number }>();
-    for (const [, invoice] of uniqueInvoices) {
-      const key = getPeriodKey(invoice.date, "month");
-      const [year, monthNumber] = key.split("-").map(Number);
-      const existing = monthly.get(key) ?? {
-        label: new Date(year, monthNumber - 1, 1).toLocaleDateString("en-GB", {
-          month: "short",
-          year: "2-digit",
-        }),
-        sales: 0,
-        commission: 0,
-      };
-      existing.sales += invoice.amount;
-      monthly.set(key, existing);
-    }
-
-    for (const row of filteredRows) {
-      const key = getPeriodKey(row.receiptDate ?? row.invoiceDate, "month");
-      const [year, monthNumber] = key.split("-").map(Number);
-      const existing = monthly.get(key) ?? {
-        label: new Date(year, monthNumber - 1, 1).toLocaleDateString("en-GB", {
-          month: "short",
-          year: "2-digit",
-        }),
-        sales: 0,
-        commission: 0,
-      };
-      existing.commission += row.commissionAmount;
-      monthly.set(key, existing);
-    }
-
-    return Array.from(monthly.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([, item]) => ({
-        month: item.label,
-        sales: Number(item.sales.toFixed(2)),
-        commission: Number(item.commission.toFixed(2)),
-      }));
-  }, [filteredRows, uniqueInvoices]);
-
-  const paymentStatusData = useMemo(() => {
-    const amounts: Record<SalesStatus, number> = {
-      PAID: 0,
-      PARTIAL: 0,
-      UNPAID: 0,
-      OVERDUE: 0,
-    };
-
-    for (const [, invoice] of uniqueInvoices) {
-      amounts[invoice.status] += invoice.amount;
-    }
-
+  const pieData = useMemo(() => {
+    if (!detailQuery.data) return [];
     return [
-      { name: "Paid", value: Number(amounts.PAID.toFixed(2)), color: "#1a5c2e" },
-      { name: "Partial", value: Number(amounts.PARTIAL.toFixed(2)), color: "#c07b1d" },
-      { name: "Unpaid", value: Number(amounts.UNPAID.toFixed(2)), color: "#a32d2d" },
-      { name: "Overdue", value: Number(amounts.OVERDUE.toFixed(2)), color: "#7f1d1d" },
+      { name: "Collected", value: detailQuery.data.kpis.collections, color: "#1a5c2e" },
+      { name: "Outstanding", value: detailQuery.data.kpis.outstanding, color: "#dc2626" },
     ].filter((item) => item.value > 0);
-  }, [uniqueInvoices]);
-
-  const customerInsights = useMemo(() => {
-    const map = new Map<string, { sales: number; collected: number; invoices: number }>();
-
-    for (const [, invoice] of uniqueInvoices) {
-      const existing = map.get(invoice.customer) ?? { sales: 0, collected: 0, invoices: 0 };
-      existing.sales += invoice.amount;
-      existing.invoices += 1;
-      map.set(invoice.customer, existing);
-    }
-
-    for (const row of filteredRows) {
-      const existing = map.get(row.customerName) ?? { sales: 0, collected: 0, invoices: 0 };
-      existing.collected += row.cashCollected;
-      map.set(row.customerName, existing);
-    }
-
-    return Array.from(map.entries())
-      .map(([customer, values]) => ({
-        customer,
-        invoices: values.invoices,
-        totalSales: Number(values.sales.toFixed(2)),
-        collected: Number(values.collected.toFixed(2)),
-        outstanding: Number(Math.max(values.sales - values.collected, 0).toFixed(2)),
-      }))
-      .sort((a, b) => b.totalSales - a.totalSales)
-      .slice(0, 8);
-  }, [filteredRows, uniqueInvoices]);
-
-  const commissionTableRows = useMemo(
-    () =>
-      filteredRows
-        .map((row) => ({
-          key: `COM-${row.commissionId}`,
-          commissionId: row.commissionId,
-          receiptNo: row.receiptNo,
-          invoiceNo: row.invoiceNo,
-          invoiceDate: row.invoiceDate,
-          dueDate: row.dueDate,
-          paidDate: row.paidDate,
-          daysToPay: row.daysToPay,
-          commissionRate: row.commissionRate,
-          commissionAmount: row.commissionAmount,
-          status: row.status,
-        }))
-        .sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()),
-    [filteredRows],
-  );
-
-  const commissionColumns: ColumnDef<(typeof commissionTableRows)[number]>[] = [
-    {
-      accessorKey: "commissionId",
-      header: "Commission #",
-      cell: ({ row }) => <span className="[font-family:var(--font-jetbrains)] text-[#2b2d7e]">{row.original.commissionId}</span>,
-    },
-    {
-      accessorKey: "receiptNo",
-      header: "Receipt #",
-      cell: ({ row }) => <span className="[font-family:var(--font-jetbrains)] text-[#2b2d7e]">{row.original.receiptNo ?? "-"}</span>,
-    },
-    {
-      accessorKey: "invoiceNo",
-      header: "Invoice #",
-      cell: ({ row }) => <span className="[font-family:var(--font-jetbrains)] text-[#2b2d7e]">{row.original.invoiceNo}</span>,
-    },
-    {
-      accessorKey: "invoiceDate",
-      header: "Invoice Date",
-      cell: ({ row }) => <span className="text-stone-700">{formatDate(row.original.invoiceDate)}</span>,
-    },
-    {
-      accessorKey: "dueDate",
-      header: "Due Date",
-      cell: ({ row }) => <span className="text-stone-700">{formatDate(row.original.dueDate)}</span>,
-    },
-    {
-      accessorKey: "paidDate",
-      header: "Paid Date",
-      cell: ({ row }) => <span className="text-stone-700">{row.original.paidDate ? formatDate(row.original.paidDate) : "-"}</span>,
-    },
-    {
-      accessorKey: "daysToPay",
-      header: "Days",
-      cell: ({ row }) => <span className="text-stone-700">{row.original.daysToPay}</span>,
-    },
-    {
-      accessorKey: "commissionRate",
-      header: "Rate",
-      cell: ({ row }) => <span className="text-stone-700">{formatPercent(row.original.commissionRate)}</span>,
-    },
-    {
-      accessorKey: "commissionAmount",
-      header: "Amount",
-      cell: ({ row }) => <span className="font-semibold text-[#1a5c2e]">{formatCurrency(row.original.commissionAmount)}</span>,
-    },
-    {
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ row }) =>
-        row.original.status in statusConfig ? (
-          <span
-            className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${statusConfig[row.original.status as keyof typeof statusConfig].pill}`}
-          >
-            {statusConfig[row.original.status as keyof typeof statusConfig].label}
-          </span>
-        ) : (
-          <span className="inline-flex rounded-full border border-stone-200 px-2 py-0.5 text-[11px] font-medium text-stone-600">
-            {row.original.status}
-          </span>
-        ),
-    },
-  ];
-
-  const customerInsightColumns: ColumnDef<(typeof customerInsights)[number]>[] = [
-    {
-      accessorKey: "customer",
-      header: "Customer",
-      cell: ({ row }) => <span className="text-stone-800">{row.original.customer}</span>,
-    },
-    {
-      accessorKey: "invoices",
-      header: "Invoices",
-      cell: ({ row }) => <span className="text-stone-700">{row.original.invoices}</span>,
-    },
-    {
-      accessorKey: "totalSales",
-      header: "Total Sales",
-      cell: ({ row }) => <span className="text-stone-700">{formatCurrency(row.original.totalSales)}</span>,
-    },
-    {
-      accessorKey: "collected",
-      header: "Collected",
-      cell: ({ row }) => <span className="text-stone-700">{formatCurrency(row.original.collected)}</span>,
-    },
-    {
-      accessorKey: "outstanding",
-      header: "Outstanding",
-      cell: ({ row }) => (
-        <span className={row.original.outstanding > 0 ? "font-medium text-red-700" : "text-emerald-700"}>
-          {formatCurrency(row.original.outstanding)}
-        </span>
-      ),
-    },
-  ];
+  }, [detailQuery.data]);
 
   return (
-    <section className="space-y-5 pb-16">
-      <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">Commission</p>
-          <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)] font-semibold">
-            {detailQuery.data?.repName ?? "Sales Rep"} Commission
-          </h1>
-          <p className="text-[13px] text-stone-500">{month ? `Month: ${month}` : "All time"}</p>
+          <Link href="/commission" className="inline-flex items-center gap-1 text-[12px] text-stone-500 hover:text-stone-700">
+            <ArrowLeft size={13} /> Back to Sales Rep Sales
+          </Link>
+          <h1 className="mt-1 text-[28px] leading-tight text-stone-900 font-semibold">{detailQuery.data?.rep.repName ?? "Sales Rep"}</h1>
+          <p className="text-[13px] text-stone-500 mt-1 inline-flex items-center gap-2">
+            <Phone size={13} /> {detailQuery.data?.rep.phone ?? "-"} | Assigned Customers: {detailQuery.data?.rep.assignedCustomers ?? "-"}
+          </p>
         </div>
+        <div className="flex items-center gap-2">
+          <Link href="/invoices" className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[12px] font-medium text-stone-700 hover:bg-stone-50">
+            <FileText size={13} /> Invoices
+          </Link>
+          <Link href="/receipts" className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[12px] font-medium text-stone-700 hover:bg-stone-50">
+            <CreditCard size={13} /> Receipts
+          </Link>
+          <button type="button" onClick={reset} className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[12px] font-medium text-stone-700 hover:bg-stone-50">
+            <RefreshCcw size={13} /> Reset
+          </button>
+        </div>
+      </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="text-[12px] text-stone-600">
-            <span className="mr-2">From</span>
-            <input
-              type="date"
-              value={effectiveStart}
-              onChange={(event) => setStartDate(event.target.value)}
-              className="rounded-lg border border-stone-300 bg-white px-2 py-1.5 text-[12px]"
-            />
-          </label>
-          <label className="text-[12px] text-stone-600">
-            <span className="mr-2">To</span>
-            <input
-              type="date"
-              value={effectiveEnd}
-              onChange={(event) => setEndDate(event.target.value)}
-              className="rounded-lg border border-stone-300 bg-white px-2 py-1.5 text-[12px]"
-            />
-          </label>
-          <label className="text-[12px] text-stone-600">
-            <span className="mr-2">Sales Status</span>
-            <select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value as "all" | SalesStatus)}
-              className="rounded-lg border border-stone-300 bg-white px-2 py-1.5 text-[12px]"
-            >
-              <option value="all">All</option>
-              <option value="PAID">Paid</option>
-              <option value="PARTIAL">Partial</option>
-              <option value="UNPAID">Unpaid</option>
-              <option value="OVERDUE">Overdue</option>
+      <section className="rounded-2xl border border-stone-200 bg-white p-4 lg:p-5">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <label className="space-y-1">
+            <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Period Type</span>
+            <select className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" value={periodType} onChange={(e) => setPeriodType(e.target.value as PeriodType)}>
+              <option value="daily">Daily</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+              <option value="custom">Custom</option>
             </select>
           </label>
-          <BackNavigationLink
-            href="/commission"
-            label="Back to Commission"
-            className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] font-medium text-stone-700 hover:bg-stone-50"
-          />
-        </div>
-      </header>
-
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div className="rounded-2xl border border-stone-200 bg-white p-4">
-          <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Total Sales (LKR)</p>
-          <p className="mt-1 text-[20px] leading-none text-stone-900 [font-family:var(--font-dmsans)]">
-            {formatCurrency(totals.totalSales)}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-stone-200 bg-white p-4">
-          <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Total Collected</p>
-          <p className="mt-1 text-[20px] leading-none text-stone-900 [font-family:var(--font-dmsans)]">
-            {formatCurrency(totals.totalCollected)}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-stone-200 bg-white p-4">
-          <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Outstanding Amount</p>
-          <p className="mt-1 text-[20px] leading-none text-red-700 [font-family:var(--font-dmsans)]">
-            {formatCurrency(totals.outstanding)}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-stone-200 bg-white p-4">
-          <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Total Commission</p>
-          <p className="mt-1 text-[20px] leading-none text-[#1a5c2e] [font-family:var(--font-dmsans)]">
-            {formatCurrency(totals.totalCommission)}
-          </p>
+          {periodType === "daily" && (
+            <label className="space-y-1">
+              <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Date</span>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" />
+            </label>
+          )}
+          {periodType === "monthly" && (
+            <label className="space-y-1">
+              <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Month</span>
+              <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" />
+            </label>
+          )}
+          {periodType === "yearly" && (
+            <label className="space-y-1">
+              <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Year</span>
+              <input type="number" min="2000" max="2100" value={year} onChange={(e) => setYear(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" />
+            </label>
+          )}
+          {periodType === "custom" && (
+            <>
+              <label className="space-y-1">
+                <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">From</span>
+                <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" />
+              </label>
+              <label className="space-y-1">
+                <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">To</span>
+                <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" />
+              </label>
+            </>
+          )}
         </div>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-2xl border border-stone-200 bg-white p-4 lg:col-span-2">
-          <h2 className="mb-3 text-[16px] font-semibold text-[#2b2d7e]">Monthly Breakdown</h2>
-          <div className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyData} margin={{ top: 16, right: 20, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="4 4" stroke="#e7e5e4" />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#78716c" }} />
-                <YAxis tick={{ fontSize: 11, fill: "#78716c" }} />
-                <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
-                <Legend />
-                <Bar dataKey="sales" fill="#2b2d7e" radius={[6, 6, 0, 0]} name="Sales" />
-                <Bar dataKey="commission" fill="#1a5c2e" radius={[6, 6, 0, 0]} name="Commission" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-stone-200 bg-white p-4">
-          <h2 className="mb-3 text-[16px] font-semibold text-[#2b2d7e]">Payment Behavior</h2>
-          <div className="h-[220px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={paymentStatusData}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={2}
-                >
-                  {paymentStatusData.map((entry) => (
-                    <Cell key={entry.name} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {paymentStatusData.map((item) => (
-              <span
-                key={item.name}
-                className="inline-flex items-center gap-1 rounded-full border border-stone-200 px-2 py-0.5 text-[11px] text-stone-600"
-              >
-                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
-                {item.name}: {formatCurrency(item.value)}
-              </span>
+      {detailQuery.isLoading ? (
+        <div className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-8">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="h-[95px] rounded-2xl border border-stone-200 bg-white animate-pulse" />
             ))}
           </div>
+          <div className="h-[260px] rounded-2xl border border-stone-200 bg-white animate-pulse" />
+          <div className="h-[260px] rounded-2xl border border-stone-200 bg-white animate-pulse" />
         </div>
-      </section>
-
-      <section className="rounded-2xl border border-stone-200 bg-white p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-[16px] font-semibold text-[#2b2d7e]">Commission Table</h2>
-          <p className="text-[12px] text-stone-500">Rep-specific commission records</p>
+      ) : detailQuery.error ? (
+        <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-[13px]">
+          {(detailQuery.error as Error).message}
         </div>
+      ) : !detailQuery.data ? (
+        <div className="px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-[13px]">
+          No data available.
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-8">
+            <Kpi label="Lifetime Sales" value={formatCurrency(detailQuery.data.kpis.lifetimeSales)} icon={<TrendingUp size={14} className="text-emerald-700" />} />
+            <Kpi label="Period Sales" value={formatCurrency(detailQuery.data.kpis.periodNetSales)} icon={<CalendarRange size={14} className="text-blue-700" />} />
+            <Kpi label="Collections" value={formatCurrency(detailQuery.data.kpis.collections)} icon={<CheckCircle2 size={14} className="text-emerald-700" />} />
+            <Kpi label="Outstanding" value={formatCurrency(detailQuery.data.kpis.outstanding)} icon={<HandCoins size={14} className="text-red-700" />} />
+            <Kpi label="Overdue" value={formatCurrency(detailQuery.data.kpis.overdueAmount)} icon={<ShieldAlert size={14} className="text-red-700" />} />
+            <Kpi label="Avg Days" value={detailQuery.data.kpis.avgDaysToCollect === null ? "-" : String(detailQuery.data.kpis.avgDaysToCollect)} icon={<Clock3 size={14} className="text-amber-700" />} />
+            <Kpi label="Approved Comm." value={formatCurrency(detailQuery.data.kpis.approvedCommission)} icon={<CheckCircle2 size={14} className="text-violet-700" />} />
+            <Kpi label="Pending Comm." value={formatCurrency(detailQuery.data.kpis.pendingCommission)} icon={<Clock3 size={14} className="text-violet-700" />} />
+          </div>
 
-        <DataTable
-          data={commissionTableRows}
-          columns={commissionColumns}
-          minWidth={1120}
-          searchPlaceholder="Search invoice, receipt, or status"
-          emptyMessage="No commission records found for this sales rep."
-        />
-      </section>
+          <section className="rounded-2xl border border-stone-200 bg-white p-4 lg:p-5">
+            <p className="mb-2 text-[13px] font-medium text-stone-700">Collected vs Outstanding</p>
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={58}
+                    outerRadius={92}
+                    paddingAngle={2}
+                  >
+                    {pieData.map((entry) => (
+                      <Cell key={entry.name} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
 
-      <section className="rounded-2xl border border-stone-200 bg-white p-4">
-        <h2 className="mb-3 text-[16px] font-semibold text-[#2b2d7e]">Customer Insights</h2>
-        <DataTable
-          data={customerInsights}
-          columns={customerInsightColumns}
-          minWidth={760}
-          searchPlaceholder="Search customer"
-          emptyMessage="No customer insight data available for this range."
-        />
-      </section>
+          <section className="rounded-2xl border border-stone-200 bg-white p-4 lg:p-5">
+            <p className="mb-3 text-[13px] font-semibold text-stone-800">Top Products</p>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-[13px]">
+                <thead className="text-[11px] uppercase tracking-[0.1em] text-stone-500">
+                  <tr className="border-b border-stone-200">
+                    <th className="py-2 text-left">Product</th>
+                    <th className="py-2 text-right">Qty</th>
+                    <th className="py-2 text-right">Net Revenue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detailQuery.data.topProducts.map((p) => (
+                    <tr key={p.productId} className="border-b border-stone-100">
+                      <td className="py-2 text-stone-700">
+                        {p.productCode} - {p.productName}
+                      </td>
+                      <td className="py-2 text-right text-stone-700">{p.quantity}</td>
+                      <td className="py-2 text-right text-emerald-700">{formatCurrency(p.netRevenue)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
 
-      {detailQuery.isLoading && <p className="text-[13px] text-stone-500">Loading commission detail...</p>}
-
-      {detailQuery.error instanceof Error && (
-        <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
-          {detailQuery.error.message}
-        </p>
+          <DataTable data={detailQuery.data.customerPerformance} columns={customerColumns} minWidth={1180} searchPlaceholder="Search customer" emptyMessage="No customer performance data." />
+          <DataTable data={detailQuery.data.openInvoices} columns={openInvoiceColumns} minWidth={1300} hideSearch emptyMessage="No open invoices." />
+          <DataTable data={detailQuery.data.commissionLedger} columns={commissionColumns} minWidth={1300} searchPlaceholder="Search commission, invoice, customer" emptyMessage="No commission records." />
+          <DataTable data={detailQuery.data.transactions} columns={transactionColumns} minWidth={980} searchPlaceholder="Search transactions" emptyMessage="No transactions in selected period." />
+        </>
       )}
-    </section>
+    </div>
   );
-};
+}
 
-export default CommissionRepDetailPage;
+function Kpi({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+  return (
+    <div className="bg-white border border-stone-200 rounded-2xl p-4 flex items-start gap-2.5">
+      <div className="w-8 h-8 rounded-lg bg-stone-100 flex items-center justify-center">{icon}</div>
+      <div className="min-w-0">
+        <p className="text-[10px] uppercase tracking-[0.09em] text-stone-400 font-semibold">{label}</p>
+        <p className="text-[17px] leading-tight text-stone-900 font-semibold mt-1">{value}</p>
+      </div>
+    </div>
+  );
+}

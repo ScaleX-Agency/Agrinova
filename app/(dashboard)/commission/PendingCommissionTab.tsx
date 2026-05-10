@@ -90,7 +90,8 @@ export default function PendingCommissionTab() {
       setRateEdits({});
       qc.invalidateQueries({ queryKey: ["commission-pending"] });
       qc.invalidateQueries({ queryKey: ["commission-summary"] });
-    },
+      qc.invalidateQueries({ queryKey: ["sales-rep-sales"] });
+      },
   });
 
   const rows = useMemo(() => pendingQuery.data ?? [], [pendingQuery.data]);
@@ -272,3 +273,4 @@ export default function PendingCommissionTab() {
     </section>
   );
 }
+
