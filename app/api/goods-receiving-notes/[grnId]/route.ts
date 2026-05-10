@@ -45,7 +45,7 @@ export async function GET(
       },
     });
 
-    if (!note) {
+    if (!note || !note.is_active) {
       return NextResponse.json(
         { error: "Goods receiving note not found." },
         { status: 404 },

@@ -18,6 +18,7 @@ export async function GET(
 			where: { receipt_id: receiptId },
 			select: {
 				receipt_id: true,
+        is_active: true,
 				receipt_date: true,
 				invoice: {
 					select: {
@@ -38,8 +39,10 @@ export async function GET(
 					},
 				},
 				invoiceSettlements: {
+          where: { is_active: true },
 					select: {
 						commissions: {
+              where: { is_active: true },
 							select: {
 								commission_id: true,
 								commission_rate: true,
@@ -58,7 +61,7 @@ export async function GET(
 			},
 		});
 
-		if (!receipt) {
+		if (!receipt || !receipt.is_active) {
 			return NextResponse.json({ error: "Receipt not found." }, { status: 404 });
 		}
 

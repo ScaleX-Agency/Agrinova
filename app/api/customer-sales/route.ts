@@ -113,6 +113,7 @@ export async function GET(request: Request) {
     const rangeInvoices = await 
       prisma.invoice.findMany({
         where: {
+          is_active: true,
           invoice_date: {
             gte: previousStart,
             lte: currentRange.end,
@@ -136,6 +137,7 @@ export async function GET(request: Request) {
             },
           },
           receipts: {
+            where: { is_active: true },
             select: {
               receipt_date: true,
               amount: true,
@@ -146,6 +148,7 @@ export async function GET(request: Request) {
 
       const openInvoices = await prisma.invoice.findMany({
         where: {
+          is_active: true,
           status: {
             in: [InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE],
           },
@@ -166,6 +169,7 @@ export async function GET(request: Request) {
             },
           },
           receipts: {
+            where: { is_active: true },
             select: {
               amount: true,
             },
@@ -182,6 +186,7 @@ export async function GET(request: Request) {
 
       const recentInvoiceCustomers = await prisma.invoice.findMany({
         where: {
+          is_active: true,
           invoice_date: {
             gte: startOfDay(new Date(currentRange.end.getTime() - 30 * DAY_MS)),
             lte: currentRange.end,
@@ -195,6 +200,7 @@ export async function GET(request: Request) {
 
       const receiptsThisPeriod = await prisma.receipt.aggregate({
         where: {
+          is_active: true,
           receipt_date: {
             gte: currentRange.start,
             lte: currentRange.end,

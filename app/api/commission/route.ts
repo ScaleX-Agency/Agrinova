@@ -19,6 +19,12 @@ export async function GET(request: Request) {
 		const { month, start, end } = getMonthRange(searchParams.get("month"));
 
 		const commissions = await prisma.commission.findMany({
+      where: {
+        is_active: true,
+        invoiceSettlement: {
+          is: { is_active: true },
+        },
+      },
 			select: {
 				commission_id: true,
 				rep_id: true,

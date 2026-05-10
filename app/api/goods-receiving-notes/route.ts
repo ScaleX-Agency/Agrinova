@@ -5,6 +5,7 @@ import type { GoodsReceivingNotesResponse } from "@/types/api";
 export async function GET() {
   try {
     const notes = await prisma.goodsReceivingNote.findMany({
+      where: { is_active: true },
       orderBy: [{ grn_date: "desc" }, { grn_id: "desc" }],
       include: {
         location: {

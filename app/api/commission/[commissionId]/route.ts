@@ -47,6 +47,10 @@ export async function GET(
     const commissions = await prisma.commission.findMany({
       where: {
         rep_id: repId,
+        is_active: true,
+        invoiceSettlement: {
+          is: { is_active: true },
+        },
       },
       select: {
         commission_id: true,

@@ -19,6 +19,7 @@ export async function GET(
       where: { invoice_number: invoiceNumber },
       select: {
         invoice_id: true,
+        is_active: true,
         invoice_number: true,
         invoice_date: true,
         total_amount: true,
@@ -108,7 +109,7 @@ export async function GET(
       },
     });
 
-    if (!invoice) {
+    if (!invoice || !invoice.is_active) {
       return NextResponse.json(
         { error: "Invoice not found." },
         { status: 404 },
@@ -216,10 +217,6 @@ export async function GET(
     );
     const initialNetTotal = finalProductLines.reduce(
       (sum, p) => sum + p.initial.netLineTotal,
-      0,
-    );
-    const totalReturned = finalProductLines.reduce(
-      (sum, p) => sum + p.returned.lineTotal,
       0,
     );
     const finalNetTotal = finalProductLines.reduce(

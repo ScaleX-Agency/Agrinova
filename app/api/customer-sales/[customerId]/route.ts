@@ -134,7 +134,7 @@ export async function GET(
       });
 
       const invoices = await prisma.invoice.findMany({
-        where: { customer_id: customerId },
+        where: { customer_id: customerId, is_active: true },
         orderBy: [{ invoice_date: "desc" }, { invoice_id: "desc" }],
         select: {
           invoice_id: true,
@@ -155,6 +155,7 @@ export async function GET(
             },
           },
           receipts: {
+            where: { is_active: true },
             orderBy: [{ receipt_date: "desc" }, { receipt_id: "desc" }],
             select: {
               receipt_id: true,
@@ -167,7 +168,7 @@ export async function GET(
       });
 
       const goodsIssueNotes = await prisma.goodsIssueNote.findMany({
-        where: { customer_id: customerId },
+        where: { customer_id: customerId, is_active: true },
         orderBy: [{ gin_date: "desc" }, { gin_id: "desc" }],
         select: {
           gin_id: true,

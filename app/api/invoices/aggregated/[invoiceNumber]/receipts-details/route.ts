@@ -19,6 +19,7 @@ export async function GET(
       where: { invoice_number: invoiceNumber },
       select: {
         invoice_id: true,
+        is_active: true,
         invoice_number: true,
         invoice_date: true,
         total_amount: true,
@@ -71,7 +72,7 @@ export async function GET(
       },
     });
 
-    if (!invoice) {
+    if (!invoice || !invoice.is_active) {
       return NextResponse.json(
         { error: "Invoice not found." },
         { status: 404 },

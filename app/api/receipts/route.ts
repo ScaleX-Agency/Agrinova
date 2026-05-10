@@ -124,6 +124,7 @@ export async function POST(request: Request) {
         where: { invoice_id: invoiceId },
         select: {
           invoice_id: true,
+          is_active: true,
           invoice_date: true,
           total_amount: true,
           paid_amount: true,
@@ -136,6 +137,9 @@ export async function POST(request: Request) {
 
       if (!invoice) {
         throw new Error("Selected invoice not found.");
+      }
+      if (!invoice.is_active) {
+        throw new Error("Selected invoice is inactive.");
       }
 
       const totalAmount = Number(invoice.total_amount);

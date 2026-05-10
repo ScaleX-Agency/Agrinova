@@ -55,6 +55,7 @@ const GoodsReceivingNoteDetailPage = async ({
     where: { grn_id: grnId },
     select: {
       grn_id: true,
+      is_active: true,
       grn_number: true,
       grn_date: true,
       entry_type: true,
@@ -92,7 +93,7 @@ const GoodsReceivingNoteDetailPage = async ({
     },
   });
 
-  if (!note) {
+  if (!note || !note.is_active) {
     notFound();
   }
 
