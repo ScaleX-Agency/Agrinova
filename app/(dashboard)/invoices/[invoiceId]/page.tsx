@@ -19,6 +19,9 @@ import IssueStocksModalButton from "../IssueStocksModalButton";
 import RecordPaymentModalButton from "../RecordPaymentModalButton";
 import RecordReturnsModalButton from "../RecordReturnsModalButton";
 import DeleteSalesReturnButton from "../DeleteSalesReturnButton";
+import DeleteInvoiceButton from "../DeleteInvoiceButton";
+import DeleteReceiptButton from "../../receipts/DeleteReceiptButton";
+import DeleteGoodsIssueNoteButton from "../../goods-issue-notes/DeleteGoodsIssueNoteButton";
 
 const formatDate = (value: Date) =>
   value.toLocaleDateString("en-GB", {
@@ -120,6 +123,7 @@ const InvoiceDetailPage = async ({
     select: {
       invoice_id: true,
       invoice_number: true,
+      is_active: true,
       invoice_date: true,
       gin_status: true,
       payment_status: true,
@@ -211,7 +215,7 @@ const InvoiceDetailPage = async ({
     },
   });
 
-  if (!invoice) {
+  if (!invoice || !invoice.is_active) {
     notFound();
   }
 
@@ -371,6 +375,12 @@ const InvoiceDetailPage = async ({
               buttonClassName="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
             />
           )}
+          {canDeleteReturns ? (
+            <DeleteInvoiceButton
+              invoiceId={invoice.invoice_id}
+              invoiceNo={invoice.invoice_number}
+            />
+          ) : null}
         </div>
       </div>
 
@@ -577,15 +587,24 @@ const InvoiceDetailPage = async ({
           <div className="flex flex-wrap gap-2">
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {receiptsWithNumber.map((receipt: any) => (
-              <Link
-                key={receipt.receipt_id}
-                href={`/receipts/${receipt.receipt_id}`}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[12px] font-medium text-emerald-900 transition-colors hover:bg-emerald-100"
-              >
-                <Receipt size={13} className="text-emerald-700" />
-                <span>{receipt.receipt_number}</span>
-                <span className="text-[11px] text-emerald-700">{formatCurrency(Number(receipt.amount))}</span>
-              </Link>
+              <div key={receipt.receipt_id} className="inline-flex items-center gap-1.5">
+                <Link
+                  href={`/receipts/${receipt.receipt_id}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[12px] font-medium text-emerald-900 transition-colors hover:bg-emerald-100"
+                >
+                  <Receipt size={13} className="text-emerald-700" />
+                  <span>{receipt.receipt_number}</span>
+                  <span className="text-[11px] text-emerald-700">{formatCurrency(Number(receipt.amount))}</span>
+                </Link>
+                {canDeleteReturns ? (
+                  <DeleteReceiptButton
+                    receiptId={receipt.receipt_id}
+                    receiptNo={receipt.receipt_number}
+                    redirectTo={null}
+                    compact
+                  />
+                ) : null}
+              </div>
             ))}
           </div>
         ) : (
@@ -646,15 +665,24 @@ const InvoiceDetailPage = async ({
           <div className="flex flex-wrap gap-2">
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {invoice.goods_issue_notes.map((gin: any) => (
-              <Link
-                key={gin.gin_id}
-                href={`/goods-issue-notes/${gin.gin_id}`}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[12px] font-medium text-blue-900 transition-colors hover:bg-blue-100"
-              >
-                <FileText size={13} className="text-blue-700" />
-                <span>{gin.gin_number}</span>
-                <span className="text-[11px] text-blue-700">({gin.location.code})</span>
-              </Link>
+              <div key={gin.gin_id} className="inline-flex items-center gap-1.5">
+                <Link
+                  href={`/goods-issue-notes/${gin.gin_id}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[12px] font-medium text-blue-900 transition-colors hover:bg-blue-100"
+                >
+                  <FileText size={13} className="text-blue-700" />
+                  <span>{gin.gin_number}</span>
+                  <span className="text-[11px] text-blue-700">({gin.location.code})</span>
+                </Link>
+                {canDeleteReturns ? (
+                  <DeleteGoodsIssueNoteButton
+                    ginId={gin.gin_id}
+                    ginNumber={gin.gin_number}
+                    redirectTo={null}
+                    compact
+                  />
+                ) : null}
+              </div>
             ))}
           </div>
         ) : (

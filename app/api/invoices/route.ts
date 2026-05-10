@@ -142,6 +142,7 @@ export async function GET(request: Request) {
     }
 
     const where: Prisma.InvoiceWhereInput = {
+      is_active: true,
       ...(unlinkedOnly ? { goods_issue_notes: { none: {} } } : {}),
       ...(issuableOnly ? { gin_status: { not: "ISSUED" } } : {}),
       ...(parsedPaymentStatus ? { payment_status: parsedPaymentStatus } : {}),

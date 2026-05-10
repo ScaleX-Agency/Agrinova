@@ -10,8 +10,10 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import BackNavigationLink from "@/components/ui/BackNavigationLink";
 import GinPrintButton from "./GinPrintButton";
+import DeleteGoodsIssueNoteButton from "../DeleteGoodsIssueNoteButton";
 
 const formatDate = (value: Date) =>
   value.toLocaleDateString("en-GB", {
@@ -40,11 +42,15 @@ const GoodsIssueNoteDetailPage = async ({
     notFound();
   }
 
+  const currentUser = await getCurrentUser();
+  const canDeleteGin = isAdminUser(currentUser);
+
   const note = await prisma.goodsIssueNote.findUnique({
     where: { gin_id: ginId },
     select: {
       gin_id: true,
       gin_number: true,
+      is_active: true,
       gin_date: true,
       notes: true,
       created_at: true,
@@ -89,7 +95,7 @@ const GoodsIssueNoteDetailPage = async ({
     },
   });
 
-  if (!note) {
+  if (!note || !note.is_active) {
     notFound();
   }
 
@@ -150,6 +156,12 @@ const GoodsIssueNoteDetailPage = async ({
               View Invoice
             </Link>
           )}
+          {canDeleteGin ? (
+            <DeleteGoodsIssueNoteButton
+              ginId={note.gin_id}
+              ginNumber={note.gin_number}
+            />
+          ) : null}
         </div>
       </div>
 

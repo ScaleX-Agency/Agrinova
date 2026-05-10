@@ -26,6 +26,7 @@ const isValidPaymentMethod = (value: unknown): value is "CASH" | "CHEQUE" | "BAN
 export async function GET() {
   try {
     const receipts = await prisma.receipt.findMany({
+      where: { is_active: true },
       orderBy: [{ receipt_date: "desc" }, { receipt_id: "desc" }],
       select: {
         receipt_id: true,

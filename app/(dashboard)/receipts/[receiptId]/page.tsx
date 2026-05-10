@@ -10,8 +10,10 @@ import {
   Building2,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import BackNavigationLink from "@/components/ui/BackNavigationLink";
 import ReceiptPrintButton from "./ReceiptPrintButton";
+import DeleteReceiptButton from "../DeleteReceiptButton";
 
 const METHOD_LABEL: Record<"CASH" | "CHEQUE" | "BANK_TRANSFER", string> = {
   CASH: "Cash",
@@ -66,10 +68,14 @@ const ReceiptDetailPage = async ({
     notFound();
   }
 
+  const currentUser = await getCurrentUser();
+  const canDeleteReceipt = isAdminUser(currentUser);
+
   const receipt = await prisma.receipt.findUnique({
     where: { receipt_id: receiptId },
     select: {
       receipt_id: true,
+      is_active: true,
       receipt_date: true,
       amount: true,
       payment_method: true,
@@ -104,7 +110,7 @@ const ReceiptDetailPage = async ({
     },
   });
 
-  if (!receipt) {
+  if (!receipt || !receipt.is_active) {
     notFound();
   }
 
@@ -156,6 +162,12 @@ const ReceiptDetailPage = async ({
             chequeDate={receipt.cheque_date ? receipt.cheque_date.toISOString() : null}
             bankName={receipt.bank_name ?? null}
           />
+          {canDeleteReceipt ? (
+            <DeleteReceiptButton
+              receiptId={receipt.receipt_id}
+              receiptNo={receiptNo}
+            />
+          ) : null}
         </div>
       </div>
 

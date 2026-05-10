@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import type { ReceiptDetailResponse } from "@/types/api";
 
 export async function GET(
@@ -17,6 +18,7 @@ export async function GET(
       where: { receipt_id: receiptId },
       select: {
         receipt_id: true,
+        is_active: true,
         receipt_date: true,
         amount: true,
         payment_method: true,
@@ -51,7 +53,7 @@ export async function GET(
       },
     });
 
-    if (!receipt) {
+    if (!receipt || !receipt.is_active) {
       return NextResponse.json({ error: "Receipt not found." }, { status: 404 });
     }
 
@@ -88,5 +90,130 @@ export async function GET(
       { error: "Failed to load receipt details." },
       { status: 500 },
     );
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ receiptId: string }> },
+) {
+  try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!isAdminUser(currentUser)) {
+      return NextResponse.json({ error: "Forbidden. Admin access required." }, { status: 403 });
+    }
+
+    const receiptId = Number((await params).receiptId);
+    if (!Number.isInteger(receiptId) || receiptId <= 0) {
+      return NextResponse.json({ error: "Invalid receiptId." }, { status: 400 });
+    }
+
+    const deleted = await prisma.$transaction(async (tx) => {
+      const receipt = await tx.receipt.findUnique({
+        where: { receipt_id: receiptId },
+        select: {
+          receipt_id: true,
+          is_active: true,
+          invoice_id: true,
+          invoice: {
+            select: {
+              total_amount: true,
+            },
+          },
+          invoiceSettlements: {
+            where: { is_active: true },
+            select: {
+              settlement_id: true,
+              is_active: true,
+            },
+          },
+        },
+      });
+
+      if (!receipt || !receipt.is_active) {
+        throw new Error("Receipt not found or already inactive.");
+      }
+
+      for (const settlement of receipt.invoiceSettlements) {
+        await tx.commission.updateMany({
+          where: {
+            settlement_id: settlement.settlement_id,
+            is_active: true,
+          },
+          data: {
+            is_active: false,
+            status: "CANCELLED",
+          },
+        });
+
+        await tx.invoiceSettlement.update({
+          where: { settlement_id: settlement.settlement_id },
+          data: {
+            is_active: false,
+            commission_issued: false,
+          },
+        });
+      }
+
+      await tx.receipt.update({
+        where: { receipt_id: receipt.receipt_id },
+        data: {
+          is_active: false,
+          deleted_by: currentUser.user_id,
+        },
+      });
+
+      const activeReceipts = await tx.receipt.findMany({
+        where: {
+          invoice_id: receipt.invoice_id,
+          is_active: true,
+        },
+        select: { amount: true },
+      });
+      const activeCredits = await tx.creditNote.findMany({
+        where: {
+          invoice_id: receipt.invoice_id,
+          is_active: true,
+        },
+        select: { amount: true },
+      });
+
+      const nextPaidAmount = activeReceipts.reduce((sum, r) => sum + Number(r.amount), 0);
+      const nextCreditedAmount = activeCredits.reduce((sum, c) => sum + Number(c.amount), 0);
+      const totalAmount = Number(receipt.invoice.total_amount);
+      const nextBalanceAmount = Math.max(0, totalAmount - nextPaidAmount - nextCreditedAmount);
+      const nextStatus =
+        nextBalanceAmount <= 0 ? "PAID" : nextPaidAmount > 0 || nextCreditedAmount > 0 ? "PARTIAL" : "UNPAID";
+
+      await tx.invoice.update({
+        where: { invoice_id: receipt.invoice_id },
+        data: {
+          paid_amount: nextPaidAmount,
+          credited_amount: nextCreditedAmount,
+          balance_amount: nextBalanceAmount,
+          payment_status: nextStatus,
+        },
+      });
+
+      return receipt;
+    });
+
+    return NextResponse.json({
+      data: {
+        success: true,
+        receiptId: deleted.receipt_id,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to delete receipt.";
+    const status =
+      message.includes("not found") || message.includes("already inactive")
+        ? 404
+        : 500;
+    console.error("Failed to delete receipt", error);
+    return NextResponse.json({ error: message }, { status });
   }
 }

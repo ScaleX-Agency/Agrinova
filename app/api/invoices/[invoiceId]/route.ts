@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import type { InvoiceDetailResponse } from "@/types/api";
 
 export async function GET(
@@ -18,6 +19,7 @@ export async function GET(
       select: {
         invoice_id: true,
         invoice_number: true,
+        is_active: true,
         invoice_date: true,
         location_id: true,
         gin_status: true,
@@ -66,7 +68,7 @@ export async function GET(
       },
     });
 
-    if (!invoice) {
+    if (!invoice || !invoice.is_active) {
       return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
     }
 
@@ -125,5 +127,104 @@ export async function GET(
       { error: "Failed to load invoice details." },
       { status: 500 },
     );
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ invoiceId: string }> },
+) {
+  try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!isAdminUser(currentUser)) {
+      return NextResponse.json({ error: "Forbidden. Admin access required." }, { status: 403 });
+    }
+
+    const invoiceId = Number((await params).invoiceId);
+    if (!Number.isInteger(invoiceId) || invoiceId <= 0) {
+      return NextResponse.json({ error: "Invalid invoiceId." }, { status: 400 });
+    }
+
+    const deleted = await prisma.$transaction(async (tx) => {
+      const invoice = await tx.invoice.findUnique({
+        where: { invoice_id: invoiceId },
+        select: {
+          invoice_id: true,
+          invoice_number: true,
+          is_active: true,
+          goods_issue_notes: {
+            where: { is_active: true },
+            select: { gin_id: true },
+          },
+          receipts: {
+            where: { is_active: true },
+            select: { receipt_id: true },
+          },
+          salesReturnNotes: {
+            where: { is_active: true },
+            select: { return_id: true },
+          },
+          creditNotes: {
+            where: { is_active: true },
+            select: { credit_note_id: true },
+          },
+          invoiceSettlements: {
+            where: { is_active: true },
+            select: { settlement_id: true },
+          },
+        },
+      });
+
+      if (!invoice || !invoice.is_active) {
+        throw new Error("Invoice not found or already inactive.");
+      }
+
+      if (invoice.goods_issue_notes.length > 0) {
+        throw new Error("Cannot delete invoice with active goods issue notes.");
+      }
+      if (invoice.receipts.length > 0) {
+        throw new Error("Cannot delete invoice with active receipts.");
+      }
+      if (invoice.salesReturnNotes.length > 0) {
+        throw new Error("Cannot delete invoice with active sales return notes.");
+      }
+      if (invoice.creditNotes.length > 0) {
+        throw new Error("Cannot delete invoice with active credit notes.");
+      }
+      if (invoice.invoiceSettlements.length > 0) {
+        throw new Error("Cannot delete invoice with active settlements.");
+      }
+
+      await tx.invoice.update({
+        where: { invoice_id: invoice.invoice_id },
+        data: {
+          is_active: false,
+          deleted_by: currentUser.user_id,
+        },
+      });
+
+      return invoice;
+    });
+
+    return NextResponse.json({
+      data: {
+        success: true,
+        invoiceId: deleted.invoice_id,
+        invoiceNo: deleted.invoice_number,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to delete invoice.";
+    const status =
+      message.includes("not found") || message.includes("already inactive")
+        ? 404
+        : message.includes("Cannot delete")
+          ? 422
+          : 500;
+    console.error("Failed to delete invoice", error);
+    return NextResponse.json({ error: message }, { status });
   }
 }

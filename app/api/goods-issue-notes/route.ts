@@ -63,7 +63,10 @@ export async function GET(request: Request) {
     }
 
     const notes = await prisma.goodsIssueNote.findMany({
-      where: invoiceId ? { invoice_id: invoiceId } : undefined,
+      where: {
+        is_active: true,
+        ...(invoiceId ? { invoice_id: invoiceId } : {}),
+      },
       orderBy: [{ gin_date: "desc" }, { gin_id: "desc" }],
       include: {
         invoice: {
