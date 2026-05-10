@@ -120,6 +120,7 @@ const InvoiceDetailPage = async ({
       invoice_date: true,
       gin_status: true,
       payment_status: true,
+      notes: true,
       total_amount: true,
       paid_amount: true,
       credited_amount: true,
@@ -603,6 +604,20 @@ const InvoiceDetailPage = async ({
       </section>
 
       {/* ── Record Metadata ── */}
+      <section className="rounded-2xl border border-stone-200 bg-white p-4">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700">
+            <FileText size={14} />
+          </span>
+          <h2 className="text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
+            Notes
+          </h2>
+        </div>
+        <p className="whitespace-pre-wrap text-[13px] text-stone-700">
+          {invoice.notes?.trim() ? invoice.notes : "No notes added."}
+        </p>
+      </section>
+
       <section className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
         <h2 className="mb-3 text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
           Record Metadata

@@ -49,6 +49,7 @@ export type CreateInvoiceRequestDto = {
   customerId: number;
   repId: number;
   locationId: number;
+  notes?: string;
   lines: CreateInvoiceLineDto[];
 };
 
@@ -267,6 +268,14 @@ export type CreateGoodsIssueNoteSuccessResponse = {
 
 export type CreateGoodsIssueNoteResponse =
   ApiResult<CreateGoodsIssueNoteSuccessResponse>;
+
+export type GinNumberAvailabilityDto = {
+  ginNumber: string;
+  isUnique: boolean;
+};
+
+export type GinNumberAvailabilityResponse =
+  ApiResult<GinNumberAvailabilityDto>;
 
 export type GoodsIssueNoteOptionDto = {
   id: number;

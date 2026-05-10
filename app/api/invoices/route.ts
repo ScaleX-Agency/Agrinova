@@ -236,6 +236,7 @@ export async function POST(request: Request) {
     const createdBy = currentUser.user_id;
 
     const invoiceNumber = body.invoiceNo.trim();
+    const invoiceNotes = body.notes?.trim() ? body.notes.trim() : null;
 
     console.log("Received invoice creation request", {
       customerId,
@@ -424,6 +425,7 @@ export async function POST(request: Request) {
           credited_amount: 0,
           balance_amount: totalAmount,
           payment_status: "UNPAID",
+          notes: invoiceNotes,
         },
         select: {
           invoice_id: true,

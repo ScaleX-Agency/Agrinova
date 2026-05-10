@@ -54,6 +54,7 @@ const NewInvoicePage = () => {
   const router = useRouter();
   const [invoiceNo, setInvoiceNo] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(getTodayDateInputValue);
+  const [notes, setNotes] = useState("");
   const [customerId, setCustomerId] = useState<number | null>(null);
   const [repId, setRepId] = useState<number | null>(null);
   const [locationId, setLocationId] = useState<number | null>(null);
@@ -89,6 +90,11 @@ const NewInvoicePage = () => {
     clearFieldErrors(["invoiceDate"]);
     setSubmitError("");
   }, [clearFieldErrors]);
+
+  const handleNotesChange = useCallback((value: string) => {
+    setNotes(value);
+    setSubmitError("");
+  }, []);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -571,6 +577,7 @@ const NewInvoicePage = () => {
       customerId: activeCustomerId,
       repId: activeRepId,
       locationId: activeLocationId,
+      notes: notes.trim() || undefined,
       lines: payloadLines,
     });
     setIsConfirmModalOpen(true);
@@ -596,6 +603,7 @@ const NewInvoicePage = () => {
         <InvoiceDetailsSection
           invoiceNo={invoiceNo}
           invoiceDate={invoiceDate}
+          notes={notes}
           invoiceNoError={fieldErrors.invoiceNo ?? invoiceNoUniquenessError}
           invoiceNoStatus={invoiceNoStatus}
           invoiceDateError={fieldErrors.invoiceDate}
@@ -620,6 +628,7 @@ const NewInvoicePage = () => {
           hasRepSelected={repId !== null}
           onInvoiceNoChange={handleInvoiceNoChange}
           onInvoiceDateChange={handleInvoiceDateChange}
+          onNotesChange={handleNotesChange}
           onRepChange={handleRepChange}
           onCustomerChange={handleCustomerChange}
           onLocationChange={handleLocationChange}
