@@ -6,8 +6,10 @@ import {
   FileText,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import BackNavigationLink from "@/components/ui/BackNavigationLink";
 import GrnPrintButton from "./GrnPrintButton";
+import DeleteGoodsReceivingNoteButton from "../DeleteGoodsReceivingNoteButton";
 
 const ENTRY_TYPE_LABEL: Record<"LOCAL_PURCHASE" | "FOREIGN_IMPORT", string> = {
   LOCAL_PURCHASE: "Local Purchase",
@@ -50,6 +52,8 @@ const GoodsReceivingNoteDetailPage = async ({
   if (!Number.isInteger(grnId) || grnId <= 0) {
     notFound();
   }
+  const currentUser = await getCurrentUser();
+  const canDeleteGrn = isAdminUser(currentUser);
 
   const note = await prisma.goodsReceivingNote.findUnique({
     where: { grn_id: grnId },
@@ -146,6 +150,12 @@ const GoodsReceivingNoteDetailPage = async ({
             }))}
             totalQuantity={totalQuantity}
           />
+          {canDeleteGrn ? (
+            <DeleteGoodsReceivingNoteButton
+              grnId={note.grn_id}
+              grnNumber={note.grn_number}
+            />
+          ) : null}
         </div>
       </div>
 
