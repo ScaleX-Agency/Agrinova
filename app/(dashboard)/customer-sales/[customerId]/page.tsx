@@ -10,8 +10,6 @@ import {
   BarChart,
   CartesianGrid,
   Legend,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -33,7 +31,6 @@ import {
 import DataTable from "@/components/ui/DataTable";
 
 type PeriodType = "daily" | "monthly" | "yearly" | "custom";
-type TxType = "invoice" | "receipt" | "return" | "credit";
 
 type DetailResponse = {
   customer: {
@@ -56,7 +53,6 @@ type DetailResponse = {
   };
   trend: Array<{ label: string; sales: number; collections: number }>;
   aging: Array<{ bucket: string; amount: number }>;
-  topProducts: Array<{ productId: number; productCode: string; productName: string; quantity: number; netRevenue: number }>;
   openInvoices: Array<{
     invoiceId: number;
     invoiceNumber: string;
@@ -66,14 +62,6 @@ type DetailResponse = {
     credited: number;
     balance: number;
     daysOutstanding: number;
-    status: string;
-  }>;
-  transactions: Array<{
-    type: TxType;
-    id: number;
-    reference: string;
-    date: string;
-    amount: number;
     status: string;
   }>;
 };
@@ -103,13 +91,6 @@ function monthISO() {
 }
 function yearISO() {
   return String(new Date().getFullYear());
-}
-
-function txTone(type: TxType) {
-  if (type === "invoice") return "bg-blue-50 text-blue-700 border-blue-200";
-  if (type === "receipt") return "bg-emerald-50 text-emerald-700 border-emerald-200";
-  if (type === "return") return "bg-amber-50 text-amber-700 border-amber-200";
-  return "bg-violet-50 text-violet-700 border-violet-200";
 }
 
 export default function CustomerSalesDetailPage() {
@@ -173,21 +154,16 @@ export default function CustomerSalesDetailPage() {
     { accessorKey: "status", header: "Status" },
   ];
 
-  const txColumns: ColumnDef<DetailResponse["transactions"][number]>[] = [
-    {
-      accessorKey: "type",
-      header: "Type",
-      cell: ({ row }) => (
-        <span className={`inline-flex px-2 py-0.5 rounded-full border text-[11px] font-medium ${txTone(row.original.type)}`}>
-          {row.original.type}
-        </span>
-      ),
-    },
-    { accessorKey: "reference", header: "Reference" },
-    { accessorKey: "date", header: "Date", cell: ({ row }) => formatDate(row.original.date) },
-    { accessorKey: "amount", header: "Amount", cell: ({ row }) => formatCurrency(row.original.amount), meta: { align: "right" } },
-    { accessorKey: "status", header: "Status", meta: { align: "right" } },
-  ];
+  const customerComparisonData = useMemo(
+    () => [
+      {
+        name: detailQuery.data?.customer.name ?? "Customer",
+        collections: detailQuery.data?.kpis.collections ?? 0,
+        outstanding: detailQuery.data?.kpis.outstanding ?? 0,
+      },
+    ],
+    [detailQuery.data],
+  );
 
   return (
     <div className="space-y-5">
@@ -289,60 +265,19 @@ export default function CustomerSalesDetailPage() {
           </div>
 
           <section className="rounded-2xl border border-stone-200 bg-white p-4 lg:p-5">
-            <p className="mb-2 text-[13px] font-medium text-stone-700">Sales and Collections Trend</p>
-            <div className="h-[250px]">
+            <p className="mb-2 text-[13px] font-medium text-stone-700">Collections vs Outstanding</p>
+            <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={detailQuery.data.trend}>
+                <BarChart data={customerComparisonData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#edeae1" />
-                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#6b7280" }} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6b7280" }} />
                   <YAxis tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`} tick={{ fontSize: 11, fill: "#6b7280" }} />
                   <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0))} />
                   <Legend />
-                  <Line dataKey="sales" stroke="#1a5c2e" strokeWidth={2} dot={false} name="Sales" />
-                  <Line dataKey="collections" stroke="#2b2d7e" strokeWidth={2} dot={false} name="Collections" />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-stone-200 bg-white p-4 lg:p-5">
-            <p className="mb-2 text-[13px] font-medium text-stone-700">Aging Analysis</p>
-            <div className="h-[220px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={detailQuery.data.aging}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#edeae1" />
-                  <XAxis dataKey="bucket" tick={{ fontSize: 11, fill: "#6b7280" }} />
-                  <YAxis tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`} tick={{ fontSize: 11, fill: "#6b7280" }} />
-                  <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0))} />
-                  <Bar dataKey="amount" fill="#b91c1c" />
+                  <Bar dataKey="collections" stackId="sales" fill="#1a5c2e" name="Collected" />
+                  <Bar dataKey="outstanding" stackId="sales" fill="#dc2626" name="Outstanding" />
                 </BarChart>
               </ResponsiveContainer>
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-stone-200 bg-white p-4 lg:p-5">
-            <p className="mb-3 text-[13px] font-semibold text-stone-800">Top Products</p>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-[13px]">
-                <thead className="text-[11px] uppercase tracking-[0.1em] text-stone-500">
-                  <tr className="border-b border-stone-200">
-                    <th className="py-2 text-left">Product</th>
-                    <th className="py-2 text-right">Qty</th>
-                    <th className="py-2 text-right">Net Revenue</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {detailQuery.data.topProducts.map((p) => (
-                    <tr key={p.productId} className="border-b border-stone-100">
-                      <td className="py-2 text-stone-700">
-                        {p.productCode} - {p.productName}
-                      </td>
-                      <td className="py-2 text-right text-stone-700">{p.quantity}</td>
-                      <td className="py-2 text-right text-emerald-700">{formatCurrency(p.netRevenue)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </section>
 
@@ -354,13 +289,6 @@ export default function CustomerSalesDetailPage() {
             emptyMessage="No open invoices."
           />
 
-          <DataTable
-            data={detailQuery.data.transactions}
-            columns={txColumns}
-            minWidth={980}
-            searchPlaceholder="Search transactions..."
-            emptyMessage="No transactions in selected period."
-          />
         </>
       )}
     </div>
@@ -378,4 +306,3 @@ function Kpi({ label, value, icon }: { label: string; value: string; icon: React
     </div>
   );
 }
-

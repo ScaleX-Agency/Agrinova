@@ -9,8 +9,6 @@ import {
   BarChart,
   CartesianGrid,
   Legend,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -73,15 +71,6 @@ const formatCurrency = (value: number) =>
     maximumFractionDigits: 2,
   }).format(value);
 
-const formatDate = (value: string | null) => {
-  if (!value) return "-";
-  return new Date(value).toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-};
-
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -92,13 +81,6 @@ function monthISO() {
 
 function yearISO() {
   return String(new Date().getFullYear());
-}
-
-function riskTone(risk: CustomerRow["riskStatus"]) {
-  if (risk === "overdue") return "bg-red-50 text-red-700 border-red-200";
-  if (risk === "inactive") return "bg-amber-50 text-amber-700 border-amber-200";
-  if (risk === "watch") return "bg-blue-50 text-blue-700 border-blue-200";
-  return "bg-emerald-50 text-emerald-700 border-emerald-200";
 }
 
 export default function CustomerSalesPage() {
@@ -165,21 +147,16 @@ export default function CustomerSalesPage() {
       ),
     },
     {
-      accessorKey: "salesRep",
-      header: "Sales Rep",
-      cell: ({ row }) => <span className="text-stone-700">{row.original.salesRep ?? "Unassigned"}</span>,
-    },
-    {
       accessorKey: "netSales",
       header: "Net Sales",
       cell: ({ row }) => <span className="text-stone-800">{formatCurrency(row.original.netSales)}</span>,
-      meta: { align: "right" },
+      meta: { align: "right", className: "border-l border-stone-200", headerClassName: "border-l border-stone-200" },
     },
     {
       accessorKey: "collections",
       header: "Collections",
       cell: ({ row }) => <span className="text-emerald-700">{formatCurrency(row.original.collections)}</span>,
-      meta: { align: "right" },
+      meta: { align: "right", className: "border-l border-stone-200", headerClassName: "border-l border-stone-200" },
     },
     {
       accessorKey: "outstanding",
@@ -189,38 +166,7 @@ export default function CustomerSalesPage() {
           {formatCurrency(row.original.outstanding)}
         </span>
       ),
-      meta: { align: "right" },
-    },
-    {
-      accessorKey: "oldestOpenInvoiceDate",
-      header: "Oldest Open",
-      cell: ({ row }) => formatDate(row.original.oldestOpenInvoiceDate),
-    },
-    {
-      accessorKey: "daysOutstanding",
-      header: "Days Out.",
-      cell: ({ row }) => row.original.daysOutstanding,
-      meta: { align: "right" },
-    },
-    {
-      accessorKey: "lastPurchaseDate",
-      header: "Last Purchase",
-      cell: ({ row }) => formatDate(row.original.lastPurchaseDate),
-    },
-    {
-      accessorKey: "invoiceCount",
-      header: "Invoices",
-      cell: ({ row }) => row.original.invoiceCount,
-      meta: { align: "right" },
-    },
-    {
-      accessorKey: "riskStatus",
-      header: "Risk",
-      cell: ({ row }) => (
-        <span className={`inline-flex px-2 py-0.5 rounded-full border text-[11px] font-medium ${riskTone(row.original.riskStatus)}`}>
-          {row.original.riskStatus}
-        </span>
-      ),
+      meta: { align: "right", className: "border-l border-stone-200", headerClassName: "border-l border-stone-200" },
     },
     {
       id: "view",
@@ -233,7 +179,7 @@ export default function CustomerSalesPage() {
           View
         </Link>
       ),
-      meta: { align: "right" },
+      meta: { align: "right", className: "border-l border-stone-200", headerClassName: "border-l border-stone-200" },
     },
   ];
 
@@ -370,33 +316,24 @@ export default function CustomerSalesPage() {
 
           <section className="rounded-2xl border border-stone-200 bg-white p-4 lg:p-5">
             <p className="mb-2 text-[13px] font-medium text-stone-700 inline-flex items-center gap-2">
-              <CalendarRange size={14} /> Sales vs Collections Trend
+              <CalendarRange size={14} /> Customer Collections vs Outstanding
             </p>
-            <div className="h-[260px]">
+            <div className="h-[320px]">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={dashboardQuery.data.trend}>
+                <BarChart
+                  data={dashboardQuery.data.customers.slice(0, 12).map((c) => ({
+                    name: c.name,
+                    collections: c.collections,
+                    outstanding: c.outstanding,
+                  }))}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="#edeae1" />
-                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#6b7280" }} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6b7280" }} />
                   <YAxis tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`} tick={{ fontSize: 11, fill: "#6b7280" }} />
                   <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0))} />
                   <Legend />
-                  <Line type="monotone" dataKey="sales" stroke="#1a5c2e" strokeWidth={2} dot={false} name="Sales" />
-                  <Line type="monotone" dataKey="collections" stroke="#2b2d7e" strokeWidth={2} dot={false} name="Collections" />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-stone-200 bg-white p-4 lg:p-5">
-            <p className="mb-2 text-[13px] font-medium text-stone-700">Receivables Aging (Current Outstanding)</p>
-            <div className="h-[240px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={dashboardQuery.data.aging}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#edeae1" />
-                  <XAxis dataKey="bucket" tick={{ fontSize: 11, fill: "#6b7280" }} />
-                  <YAxis tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`} tick={{ fontSize: 11, fill: "#6b7280" }} />
-                  <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0))} />
-                  <Bar dataKey="amount" fill="#b91c1c" />
+                  <Bar dataKey="collections" stackId="sales" fill="#1a5c2e" name="Collected" />
+                  <Bar dataKey="outstanding" stackId="sales" fill="#dc2626" name="Outstanding" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -426,4 +363,3 @@ function Metric({ label, value, icon }: { label: string; value: string; icon: Re
     </div>
   );
 }
-
