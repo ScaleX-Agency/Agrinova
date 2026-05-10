@@ -401,10 +401,19 @@ export type CreateSalesReturnLineDto = {
 
 export type CreateSalesReturnRequestDto = {
   invoiceId: number;
+  returnNumber: string;
   returnDate: string;
   notes?: string;
   lines: CreateSalesReturnLineDto[];
 };
+
+export type ReturnNumberAvailabilityDto = {
+  returnNumber: string;
+  isUnique: boolean;
+};
+
+export type ReturnNumberAvailabilityResponse =
+  ApiResult<ReturnNumberAvailabilityDto>;
 
 export type CreateSalesReturnSuccessResponse = {
   success: true;

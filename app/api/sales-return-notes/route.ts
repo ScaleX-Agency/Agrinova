@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import type {
   CreateSalesReturnRequestDto,
+  ReturnNumberAvailabilityResponse,
   CreateSalesReturnResponse,
 } from "@/types/api";
 
@@ -25,19 +26,6 @@ const getDatedPrefix = (prefix: string, date: Date) => {
   return `${prefix}-${year}${month}-`;
 };
 
-const getNextSrnNumber = async (tx: Prisma.TransactionClient, date: Date) => {
-  const prefix = getDatedPrefix("SRN", date);
-  const latest = await tx.salesReturnNote.findFirst({
-    where: { return_number: { startsWith: prefix } },
-    orderBy: { return_number: "desc" },
-    select: { return_number: true },
-  });
-  const sequence = latest
-    ? Number(latest.return_number.split("-").at(-1) ?? "0")
-    : 0;
-  return `${prefix}${String((Number.isFinite(sequence) ? sequence : 0) + 1).padStart(3, "0")}`;
-};
-
 const getNextGrnNumber = async (tx: Prisma.TransactionClient, date: Date) => {
   const prefix = getDatedPrefix("GRN-RET", date);
   const latest = await tx.goodsReturnNote.findFirst({
@@ -51,6 +39,51 @@ const getNextGrnNumber = async (tx: Prisma.TransactionClient, date: Date) => {
   return `${prefix}${String((Number.isFinite(sequence) ? sequence : 0) + 1).padStart(3, "0")}`;
 };
 
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const checkReturnNo = searchParams.get("checkReturnNo") === "true";
+    const returnNumber = searchParams.get("returnNumber")?.trim() ?? "";
+
+    if (!checkReturnNo) {
+      return NextResponse.json(
+        { error: "Invalid query parameters." },
+        { status: 400 },
+      );
+    }
+
+    if (!returnNumber) {
+      return NextResponse.json(
+        { error: "Return number is required." },
+        { status: 400 },
+      );
+    }
+
+    const existing = await prisma.salesReturnNote.findFirst({
+      where: {
+        return_number: returnNumber,
+        is_active: true,
+      },
+      select: { return_id: true },
+    });
+
+    const responseBody: ReturnNumberAvailabilityResponse = {
+      data: {
+        returnNumber,
+        isUnique: existing === null,
+      },
+    };
+
+    return NextResponse.json(responseBody);
+  } catch (error) {
+    console.error("Return number check failed", error);
+    return NextResponse.json(
+      { error: "Failed to check return number." },
+      { status: 500 },
+    );
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as CreateSalesReturnRequestDto;
@@ -60,8 +93,12 @@ export async function POST(request: Request) {
     }
 
     const invoiceId = toPositiveInt(body.invoiceId);
+    const returnNumber = (body.returnNumber ?? "").trim();
     if (!invoiceId) {
       return NextResponse.json({ error: "Invalid invoice ID." }, { status: 400 });
+    }
+    if (!returnNumber) {
+      return NextResponse.json({ error: "Return number is required." }, { status: 400 });
     }
 
     if (!body.returnDate || Number.isNaN(new Date(body.returnDate).getTime())) {
@@ -136,6 +173,7 @@ export async function POST(request: Request) {
                 quantity: true,
                 issued_qty: true,
                 returned_qty: true,
+                balance_amount: true,
               },
             },
           },
@@ -168,6 +206,11 @@ export async function POST(request: Request) {
               `Line ${inputLine.lineId}: return qty exceeds max returnable (${maxReturnableQty}).`,
             );
           }
+          if (inputLine.lineTotal > Number(invoiceLine.balance_amount)) {
+            throw new Error(
+              `Line ${inputLine.lineId}: deduction exceeds line balance (${Number(invoiceLine.balance_amount).toFixed(2)}).`,
+            );
+          }
 
           stockAddableByProduct.set(
             inputLine.productId,
@@ -181,7 +224,16 @@ export async function POST(request: Request) {
           );
         }
 
-        const srnNumber = await getNextSrnNumber(tx, returnDate);
+        const existingActiveReturnNumber = await tx.salesReturnNote.findFirst({
+          where: {
+            return_number: returnNumber,
+            is_active: true,
+          },
+          select: { return_id: true },
+        });
+        if (existingActiveReturnNumber) {
+          throw new Error("An active return with this number already exists.");
+        }
         const grnNumber = await getNextGrnNumber(tx, returnDate);
 
         const totalAmount = normalizedLines.reduce(
@@ -191,7 +243,7 @@ export async function POST(request: Request) {
 
         const srn = await tx.salesReturnNote.create({
           data: {
-            return_number: srnNumber,
+            return_number: returnNumber,
             return_date: returnDate,
             customer_id: invoice.customer_id,
             location_id: invoice.location_id,
@@ -228,7 +280,7 @@ export async function POST(request: Request) {
             lines: {
               create: normalizedLines.map((line) => ({
                 product_id: line.productId,
-                quantity: line.returnQty,
+                quantity: line.quantityUsable,
               })),
             },
           },
@@ -246,21 +298,33 @@ export async function POST(request: Request) {
               0,
               invoiceLine.issued_qty - nextReturnedQty,
             );
+            const currentLineBalanceAmount = Number(invoiceLine.balance_amount);
+            const nextLineBalanceAmount = Math.max(
+              0,
+              currentLineBalanceAmount - line.lineTotal,
+            );
             return tx.invoiceLine.update({
               where: { line_id: line.lineId },
               data: {
                 returned_qty: nextReturnedQty,
                 balance_qty: nextBalanceQty,
                 credited_amount: { increment: line.lineTotal },
-                balance_amount: { decrement: line.lineTotal },
+                balance_amount: nextLineBalanceAmount,
               },
             });
           }),
         );
 
-        const productIdsNeedingStock = Array.from(stockAddableByProduct.entries())
-          .filter(([, qty]) => qty > 0)
-          .map(([productId]) => productId);
+        const productIdsNeedingStock = Array.from(
+          new Set([
+            ...Array.from(stockAddableByProduct.entries())
+              .filter(([, qty]) => qty > 0)
+              .map(([productId]) => productId),
+            ...Array.from(unusableByProduct.entries())
+              .filter(([, qty]) => qty > 0)
+              .map(([productId]) => productId),
+          ]),
+        );
 
         const existingStocks = productIdsNeedingStock.length
           ? await tx.stock.findMany({
@@ -317,8 +381,15 @@ export async function POST(request: Request) {
           const existingStock = stockByProduct.get(productId);
           const stockForAudit = existingStock
             ? { stock_id: existingStock.stock_id }
-            : await tx.stock.create({
-                data: {
+            : await tx.stock.upsert({
+                where: {
+                  product_id_location_id: {
+                    product_id: productId,
+                    location_id: invoice.location_id,
+                  },
+                },
+                update: {},
+                create: {
                   product_id: productId,
                   location_id: invoice.location_id,
                   quantity_on_hand: 0,
@@ -415,7 +486,8 @@ export async function POST(request: Request) {
     if (error instanceof Error) {
       const isValidationError =
         error.message.includes("Line") ||
-        error.message.includes("Invoice not found");
+        error.message.includes("Invoice not found") ||
+        error.message.includes("already exists");
 
       if (isValidationError) {
         return NextResponse.json({ error: error.message }, { status: 422 });
@@ -426,10 +498,21 @@ export async function POST(request: Request) {
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
-      return NextResponse.json(
-        { error: "Duplicate return number conflict. Please retry." },
-        { status: 409 },
-      );
+      const targets = Array.isArray(error.meta?.target)
+        ? (error.meta.target as string[])
+        : [];
+      if (targets.includes("return_number")) {
+        return NextResponse.json(
+          { error: "Duplicate return number conflict. Please retry." },
+          { status: 409 },
+        );
+      }
+      if (targets.includes("product_id") && targets.includes("location_id")) {
+        return NextResponse.json(
+          { error: "Stock record conflict detected. Please retry." },
+          { status: 409 },
+        );
+      }
     }
 
     console.error("Create sales return failed", error);

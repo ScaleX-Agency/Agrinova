@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { RotateCcw } from "lucide-react";
@@ -8,6 +8,7 @@ import type {
   CreateSalesReturnRequestDto,
   CreateSalesReturnResponse,
   InvoiceDetailResponse,
+  ReturnNumberAvailabilityResponse,
 } from "@/types/api";
 
 type ReturnLineDraft = {
@@ -15,15 +16,13 @@ type ReturnLineDraft = {
   productId: number;
   productName: string;
   packSize: string;
-  issuedQty: number;
-  returnedQty: number;
-  maxReturnableQty: number;
+  returnableQty: number;
   returnQty: number;
-  stockAddableQty: number;
+  usableQty: number;
   condition: string;
   reasonForReturn: string;
-  lineTotal: number;
-  invoiceNetLineTotal: number;
+  deductionAmount: number;
+  invoiceLineBalanceAmount: number;
   defaultUnitRate: number;
 };
 
@@ -52,6 +51,8 @@ const RecordReturnsModalButton = ({
 }: RecordReturnsModalButtonProps) => {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const [returnNumber, setReturnNumber] = useState("");
+  const [debouncedReturnNumber, setDebouncedReturnNumber] = useState("");
   const [returnDate, setReturnDate] = useState(getTodayDateInputValue);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
@@ -73,13 +74,43 @@ const RecordReturnsModalButton = ({
     },
   });
 
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedReturnNumber(returnNumber.trim());
+    }, 350);
+    return () => window.clearTimeout(timeout);
+  }, [returnNumber]);
+
+  const checkReturnNumberAvailability = async (value: string) => {
+    const params = new URLSearchParams({
+      checkReturnNo: "true",
+      returnNumber: value,
+    });
+    const response = await fetch(`/api/sales-return-notes?${params.toString()}`);
+    const result = (await response.json()) as ReturnNumberAvailabilityResponse;
+    if (!response.ok) {
+      throw new Error(result.error ?? "Failed to check return number.");
+    }
+    if (!result.data) {
+      throw new Error("Return number check response is missing.");
+    }
+    return result.data;
+  };
+
+  const returnNoAvailabilityQuery = useQuery({
+    queryKey: ["return-number-availability", debouncedReturnNumber],
+    enabled: isOpen && debouncedReturnNumber.length > 0,
+    queryFn: () => checkReturnNumberAvailability(debouncedReturnNumber),
+    staleTime: 0,
+  });
+
   const baseDrafts = useMemo<ReturnLineDraft[]>(() => {
     if (!invoiceDetailQuery.data) return [];
     return invoiceDetailQuery.data.lines
       .map((line) => {
-        const maxReturnableQty = Math.max(
+        const returnableQty = Math.max(
           0,
-          line.issuedQuantity - line.returnedQuantity,
+          (line.issuedQuantity ?? 0) - (line.returnedQuantity ?? 0),
         );
         const defaultUnitRate =
           line.quantity > 0 ? line.netLineTotal / line.quantity : 0;
@@ -88,19 +119,17 @@ const RecordReturnsModalButton = ({
           productId: line.productId,
           productName: line.productName,
           packSize: line.packSize,
-          issuedQty: line.issuedQuantity,
-          returnedQty: line.returnedQuantity,
-          maxReturnableQty,
+          returnableQty,
           returnQty: 0,
-          stockAddableQty: 0,
+          usableQty: 0,
           condition: "",
           reasonForReturn: "",
-          lineTotal: 0,
-          invoiceNetLineTotal: line.netLineTotal,
+          deductionAmount: 0,
+          invoiceLineBalanceAmount: line.balanceAmount,
           defaultUnitRate,
         } satisfies ReturnLineDraft;
       })
-      .filter((line) => line.maxReturnableQty > 0);
+      .filter((line) => line.returnableQty > 0);
   }, [invoiceDetailQuery.data]);
 
   const workingLineDrafts = lineDrafts.length > 0 ? lineDrafts : baseDrafts;
@@ -126,6 +155,7 @@ const RecordReturnsModalButton = ({
   const openModal = () => {
     if (disabled) return;
     setError("");
+    setReturnNumber("");
     setReturnDate(getTodayDateInputValue());
     setNotes("");
     setLineDrafts([]);
@@ -146,14 +176,14 @@ const RecordReturnsModalButton = ({
   const totals = useMemo(() => {
     return workingLineDrafts.reduce(
       (acc, line) => {
-        const unusable = Math.max(0, line.returnQty - line.stockAddableQty);
+        const unusable = Math.max(0, line.returnQty - line.usableQty);
         acc.returnQty += line.returnQty;
-        acc.stockAddableQty += line.stockAddableQty;
+        acc.usableQty += line.usableQty;
         acc.unusableQty += unusable;
-        acc.totalAmount += line.returnQty > 0 ? line.lineTotal : 0;
+        acc.totalAmount += line.returnQty > 0 ? line.deductionAmount : 0;
         return acc;
       },
-      { returnQty: 0, stockAddableQty: 0, unusableQty: 0, totalAmount: 0 },
+      { returnQty: 0, usableQty: 0, unusableQty: 0, totalAmount: 0 },
     );
   }, [workingLineDrafts]);
 
@@ -161,6 +191,24 @@ const RecordReturnsModalButton = ({
     setError("");
     if (!returnDate || Number.isNaN(new Date(returnDate).getTime())) {
       setError("Valid return date is required.");
+      return;
+    }
+    if (!returnNumber.trim()) {
+      setError("Return number is required.");
+      return;
+    }
+    try {
+      const availability = await checkReturnNumberAvailability(returnNumber.trim());
+      if (!availability.isUnique) {
+        setError("An active return with this number already exists.");
+        return;
+      }
+    } catch (availabilityError) {
+      setError(
+        availabilityError instanceof Error
+          ? availabilityError.message
+          : "Failed to check return number.",
+      );
       return;
     }
 
@@ -171,12 +219,12 @@ const RecordReturnsModalButton = ({
     }
 
     for (const line of selectedLines) {
-      if (line.returnQty > line.maxReturnableQty) {
+      if (line.returnQty > line.returnableQty) {
         setError(`${line.productName}: return qty exceeds max returnable.`);
         return;
       }
-      if (line.stockAddableQty < 0 || line.stockAddableQty > line.returnQty) {
-        setError(`${line.productName}: invalid stock-addable quantity.`);
+      if (line.usableQty < 0 || line.usableQty > line.returnQty) {
+        setError(`${line.productName}: invalid usable quantity.`);
         return;
       }
       if (!line.condition.trim()) {
@@ -187,8 +235,12 @@ const RecordReturnsModalButton = ({
         setError(`${line.productName}: reason is required.`);
         return;
       }
-      if (!Number.isFinite(line.lineTotal) || line.lineTotal < 0) {
-        setError(`${line.productName}: line total must be 0 or greater.`);
+      if (!Number.isFinite(line.deductionAmount) || line.deductionAmount < 0) {
+        setError(`${line.productName}: deduction must be 0 or greater.`);
+        return;
+      }
+      if (line.deductionAmount > line.invoiceLineBalanceAmount) {
+        setError(`${line.productName}: deduction exceeds invoice line balance.`);
         return;
       }
     }
@@ -196,16 +248,17 @@ const RecordReturnsModalButton = ({
     try {
       const payload: CreateSalesReturnRequestDto = {
         invoiceId,
+        returnNumber: returnNumber.trim(),
         returnDate,
         notes: notes.trim() || undefined,
         lines: selectedLines.map((line) => ({
           lineId: line.lineId,
           productId: line.productId,
-          quantityUsable: line.stockAddableQty,
-          quantityUnusable: line.returnQty - line.stockAddableQty,
+          quantityUsable: line.usableQty,
+          quantityUnusable: line.returnQty - line.usableQty,
           condition: line.condition.trim(),
           reasonForReturn: line.reasonForReturn.trim(),
-          lineTotal: line.lineTotal,
+          lineTotal: line.deductionAmount,
         })),
       };
       await createReturnMutation.mutateAsync(payload);
@@ -261,10 +314,22 @@ const RecordReturnsModalButton = ({
                   Return Number
                 </span>
                 <input
-                  value="Auto-generated"
-                  disabled
-                  className="rounded-lg border border-stone-300 bg-stone-100 px-3 py-2 text-[13px] text-stone-600"
+                  value={returnNumber}
+                  onChange={(event) => {
+                    setReturnNumber(event.target.value);
+                    setError("");
+                  }}
+                  className="rounded-lg border border-stone-300 px-3 py-2 text-[13px] outline-none focus:border-[#1a5c2e]"
+                  placeholder="SRN-YYYYMM-001"
                 />
+                {returnNumber.trim().length > 0 &&
+                  (returnNoAvailabilityQuery.isFetching ? (
+                    <p className="text-[12px] text-stone-500">Checking return number...</p>
+                  ) : returnNoAvailabilityQuery.data?.isUnique ? (
+                    <p className="text-[12px] text-stone-500">Return number is available.</p>
+                  ) : (
+                    <p className="text-[12px] text-red-700">An active return with this number already exists.</p>
+                  ))}
               </label>
 
               <label className="flex flex-col gap-1">
@@ -297,28 +362,26 @@ const RecordReturnsModalButton = ({
                 <thead className="bg-stone-50 text-[11px] uppercase tracking-[0.08em] text-stone-500">
                   <tr>
                     <th className="border-b border-stone-200 px-3 py-2 text-left">Product</th>
-                    <th className="border-b border-stone-200 px-3 py-2 text-center">Issued</th>
-                    <th className="border-b border-stone-200 px-3 py-2 text-center">Returned</th>
-                    <th className="border-b border-stone-200 px-3 py-2 text-center">Max Returnable</th>
+                    <th className="border-b border-stone-200 px-3 py-2 text-center">Returnable Qty</th>
                     <th className="border-b border-stone-200 px-3 py-2 text-center">Return Qty</th>
-                    <th className="border-b border-stone-200 px-3 py-2 text-center">Re-add to Stock</th>
+                    <th className="border-b border-stone-200 px-3 py-2 text-center">Usable Qty</th>
+                    <th className="border-b border-stone-200 px-3 py-2 text-right">Balance</th>
                     <th className="border-b border-stone-200 px-3 py-2 text-center">Unusable</th>
                     <th className="border-b border-stone-200 px-3 py-2 text-left">Condition</th>
                     <th className="border-b border-stone-200 px-3 py-2 text-left">Reason</th>
-                    <th className="border-b border-stone-200 px-3 py-2 text-right">Invoice Net</th>
-                    <th className="border-b border-stone-200 px-3 py-2 text-right">Line Total</th>
+                    <th className="border-b border-stone-200 px-3 py-2 text-right">Deduction</th>
                   </tr>
                 </thead>
                 <tbody>
                   {invoiceDetailQuery.isLoading ? (
                     <tr>
-                      <td colSpan={11} className="px-3 py-3 text-stone-500">
+                      <td colSpan={9} className="px-3 py-3 text-stone-500">
                         Loading invoice products...
                       </td>
                     </tr>
                   ) : workingLineDrafts.length === 0 ? (
                     <tr>
-                      <td colSpan={11} className="px-3 py-3 text-stone-500">
+                      <td colSpan={9} className="px-3 py-3 text-stone-500">
                         No returnable lines are available.
                       </td>
                     </tr>
@@ -326,7 +389,7 @@ const RecordReturnsModalButton = ({
                     workingLineDrafts.map((line) => {
                       const unusableQty = Math.max(
                         0,
-                        line.returnQty - line.stockAddableQty,
+                        line.returnQty - line.usableQty,
                       );
                       return (
                         <tr key={line.lineId}>
@@ -334,14 +397,12 @@ const RecordReturnsModalButton = ({
                             <div className="font-medium">{line.productName}</div>
                             <div className="text-[11px] text-stone-500">{line.packSize}</div>
                           </td>
-                          <td className="border-b border-stone-100 px-2 py-2 text-center">{line.issuedQty}</td>
-                          <td className="border-b border-stone-100 px-2 py-2 text-center">{line.returnedQty}</td>
-                          <td className="border-b border-stone-100 px-2 py-2 text-center">{line.maxReturnableQty}</td>
+                          <td className="border-b border-stone-100 px-2 py-2 text-center">{line.returnableQty}</td>
                           <td className="border-b border-stone-100 px-2 py-2">
                             <input
                               type="number"
                               min={0}
-                              max={line.maxReturnableQty}
+                              max={line.returnableQty}
                               value={line.returnQty}
                               onChange={(event) => {
                                 const returnQty = Math.max(
@@ -349,24 +410,27 @@ const RecordReturnsModalButton = ({
                                   Number(event.target.value) || 0,
                                 );
                                 const clampedReturn = Math.min(
-                                  line.maxReturnableQty,
+                                  line.returnableQty,
                                   returnQty,
                                 );
                                 setDraftValue(line.lineId, (current) => {
-                                  const nextStockAddable = Math.min(
-                                    current.stockAddableQty,
+                                  const nextUsableQty = Math.min(
+                                    current.usableQty,
                                     clampedReturn,
                                   );
                                   return {
                                     ...current,
                                     returnQty: clampedReturn,
-                                    stockAddableQty: nextStockAddable,
-                                    lineTotal:
+                                    usableQty: nextUsableQty,
+                                    deductionAmount:
                                       clampedReturn > 0
-                                        ? Number(
-                                            (
-                                              current.defaultUnitRate * clampedReturn
-                                            ).toFixed(2),
+                                        ? Math.min(
+                                            current.invoiceLineBalanceAmount,
+                                            Number(
+                                              (
+                                                current.defaultUnitRate * clampedReturn
+                                              ).toFixed(2),
+                                            ),
                                           )
                                         : 0,
                                   };
@@ -380,22 +444,25 @@ const RecordReturnsModalButton = ({
                               type="number"
                               min={0}
                               max={line.returnQty}
-                              value={line.stockAddableQty}
+                              value={line.usableQty}
                               onChange={(event) => {
-                                const stockAddableQty = Math.max(
+                                const usableQty = Math.max(
                                   0,
                                   Number(event.target.value) || 0,
                                 );
                                 setDraftValue(line.lineId, (current) => ({
                                   ...current,
-                                  stockAddableQty: Math.min(
+                                  usableQty: Math.min(
                                     current.returnQty,
-                                    stockAddableQty,
+                                    usableQty,
                                   ),
                                 }));
                               }}
                               className="w-full min-w-0 rounded-md border border-stone-300 px-2 py-1 text-[12px] outline-none focus:border-[#1a5c2e]"
                             />
+                          </td>
+                          <td className="border-b border-stone-100 px-2 py-2 text-right text-stone-700">
+                            {formatCurrency(line.invoiceLineBalanceAmount)}
                           </td>
                           <td className="border-b border-stone-100 px-2 py-2 text-center font-medium text-amber-700">
                             {unusableQty}
@@ -424,21 +491,19 @@ const RecordReturnsModalButton = ({
                               className="w-full min-w-0 rounded-md border border-stone-300 px-2 py-1 text-[12px] outline-none focus:border-[#1a5c2e]"
                             />
                           </td>
-                          <td className="border-b border-stone-100 px-2 py-2 text-right text-stone-700">
-                            {formatCurrency(line.invoiceNetLineTotal)}
-                          </td>
                           <td className="border-b border-stone-100 px-2 py-2">
                             <input
                               type="number"
                               min={0}
                               step="0.01"
-                              value={line.lineTotal}
+                              max={line.invoiceLineBalanceAmount}
+                              value={line.deductionAmount}
                               onChange={(event) =>
                                 setDraftValue(line.lineId, (current) => ({
                                   ...current,
-                                  lineTotal: Math.max(
-                                    0,
-                                    Number(event.target.value) || 0,
+                                  deductionAmount: Math.min(
+                                    current.invoiceLineBalanceAmount,
+                                    Math.max(0, Number(event.target.value) || 0),
                                   ),
                                 }))
                               }
@@ -459,8 +524,8 @@ const RecordReturnsModalButton = ({
                 <p className="mt-1 text-[14px] font-semibold text-stone-900">{totals.returnQty}</p>
               </div>
               <div className="rounded-lg border border-stone-200 bg-stone-50 p-3">
-                <p className="text-[11px] uppercase tracking-[0.08em] text-stone-500">Re-add to Stock</p>
-                <p className="mt-1 text-[14px] font-semibold text-stone-900">{totals.stockAddableQty}</p>
+                <p className="text-[11px] uppercase tracking-[0.08em] text-stone-500">Usable Qty</p>
+                <p className="mt-1 text-[14px] font-semibold text-stone-900">{totals.usableQty}</p>
               </div>
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                 <p className="text-[11px] uppercase tracking-[0.08em] text-amber-700">Unusable Qty</p>
