@@ -37,6 +37,7 @@ model User {
   created_salesReturnNotes SalesReturnNote[] @relation("SalesReturnNoteCreatedBy")
   deleted_salesReturnNotes SalesReturnNote[] @relation("SalesReturnNoteDeletedBy")
   stock_movements       StockMovement[]      @relation("StockMovementCreatedBy")
+  unusable_stock_movements UnusableStockMovement[] @relation("UnusableStockMovementCreatedBy")
   role                  Role                 @relation(fields: [role_id], references: [role_id])
 
   @@map("USER")
@@ -125,6 +126,8 @@ model InvoiceLine {
   discount       Decimal           @default(0) @db.Decimal(10, 2)
   line_total     Decimal           @db.Decimal(10, 2)
   net_line_total Decimal           @db.Decimal(10, 2)
+  credited_amount Decimal          @default(0) @db.Decimal(10, 2) 
+  balance_amount  Decimal          @db.Decimal(10, 2) 
 
   promotion_type LinePromotionType @default(NONE)
   invoice        Invoice           @relation(fields: [invoice_id], references: [invoice_id])
@@ -409,6 +412,7 @@ model Product {
   salesReturnNoteLines       SalesReturnNoteLine[]
   stocks                     Stock[]
   stock_movements            StockMovement[]          @relation("StockMovementProduct")
+  unusable_stock_movements   UnusableStockMovement[]  @relation("UnusableStockMovementProduct")
 
   @@map("PRODUCT")
 }
@@ -427,6 +431,7 @@ model InventoryLocation {
   invoices              Invoice[]
   salesReturnNotes      SalesReturnNote[]
   stocks                Stock[]
+  unusable_stock_movements UnusableStockMovement[] @relation("UnusableStockMovementLocation")
 
   @@index([status])
   @@map("INVENTORY_LOCATION")
@@ -456,12 +461,34 @@ model StockMovement {
   movement_date DateTime
   notes         String?
   product_id    Int
+  is_active     Boolean      @default(true)
   creator       User         @relation("StockMovementCreatedBy", fields: [created_by], references: [user_id])
   product       Product      @relation("StockMovementProduct", fields: [product_id], references: [product_id])
   stock         Stock        @relation(fields: [stock_id], references: [stock_id])
 
   @@index([stock_id, movement_type])
   @@map("STOCK_MOVEMENT")
+}
+
+model UnusableStockMovement {
+  movement_id      Int                       @id @default(autoincrement())
+  product_id       Int
+  location_id      Int
+  created_by       Int
+  movement_type    UnusableStockMovementType
+  quantity         Int
+  movement_date    DateTime
+  reference_type   String?
+  reference_id     Int?
+  notes            String?
+  product          Product                   @relation("UnusableStockMovementProduct", fields: [product_id], references: [product_id])
+  location         InventoryLocation         @relation("UnusableStockMovementLocation", fields: [location_id], references: [location_id])
+  creator          User                      @relation("UnusableStockMovementCreatedBy", fields: [created_by], references: [user_id])
+
+  @@index([product_id])
+  @@index([location_id])
+  @@index([movement_type])
+  @@map("UNUSABLE_STOCK_MOVEMENT")
 }
 
 enum InvoiceStatus {
@@ -480,10 +507,16 @@ enum PaymentMethod {
 enum MovementType {
   ISSUE
   RETURN
-  RETURN_UNUSABLE
   PURCHASE
   ADJUSTMENT
   NON_SALEABLE
+}
+
+enum UnusableStockMovementType {
+  RETURN_UNUSABLE
+  ADJUSTMENT
+  WRITE_OFF
+  RECOVERY
 }
 
 enum StockEntryType {
