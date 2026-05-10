@@ -480,6 +480,7 @@ enum PaymentMethod {
 enum MovementType {
   ISSUE
   RETURN
+  RETURN_UNUSABLE
   PURCHASE
   ADJUSTMENT
   NON_SALEABLE
