@@ -521,20 +521,10 @@ const InvoiceDetailPage = async ({
                         {line.returned_qty}
                       </td>
                       <td className="border-r border-stone-200 px-4 py-3 text-right text-stone-700">
-                        {formatCurrency(Number(line.unit_price))}
+                        -
                       </td>
                       <td className="border-r border-stone-200 px-4 py-3 text-center text-stone-700">
-                        {line.promotion_type === "DISCOUNT" && Number(line.discount) > 0 ? (
-                          <span className="inline-flex rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
-                            {Number(line.discount)}% OFF
-                          </span>
-                        ) : line.promotion_type === "FREE_QTY" && Number(line.free_quantity) > 0 ? (
-                          <span className="inline-flex rounded-md bg-green-50 px-2 py-0.5 text-[11px] font-medium text-green-700">
-                            FREE QTY
-                          </span>
-                        ) : (
-                          "-"
-                        )}
+                        -
                       </td>
                       <td className="border-r border-stone-200 px-4 py-3 text-right text-red-700">
                         - {formatCurrency(Number(line.line_total))}
@@ -575,114 +565,110 @@ const InvoiceDetailPage = async ({
       </section>
 
       <section className="rounded-2xl border border-stone-200 bg-white p-4">
-        <div className="mb-2 flex items-center gap-2">
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700">
-            <Receipt size={14} />
-          </span>
-          <h2 className="text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
-            Receipts ({receiptsWithNumber.length})
-          </h2>
-        </div>
-        {receiptsWithNumber.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {receiptsWithNumber.map((receipt) => (
-              <div key={receipt.receipt_id} className="inline-flex items-center gap-1.5">
-                <Link
-                  href={`/receipts/${receipt.receipt_id}`}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[12px] font-medium text-emerald-900 transition-colors hover:bg-emerald-100"
-                >
-                  <Receipt size={13} className="text-emerald-700" />
-                  <span>{receipt.receipt_number}</span>
-                  <span className="text-[11px] text-emerald-700">{formatCurrency(Number(receipt.amount))}</span>
-                </Link>
-                {canDeleteReturns ? (
-                  <DeleteReceiptButton
-                    receiptId={receipt.receipt_id}
-                    receiptNo={receipt.receipt_number}
-                    redirectTo={null}
-                    compact
-                  />
-                ) : null}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-[12px] text-stone-500">No receipts linked yet.</p>
-        )}
-      </section>
-
-      <section className="rounded-2xl border border-stone-200 bg-white p-4">
-        <div className="mb-2 flex items-center gap-2">
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-stone-200 bg-stone-100 text-stone-700">
             <FileText size={14} />
           </span>
           <h2 className="text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
-            Goods Issue Notes ({invoice.goods_issue_notes.length})
+            Linked Notes
           </h2>
         </div>
-        {invoice.goods_issue_notes.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {invoice.goods_issue_notes.map((gin) => (
-              <div key={gin.gin_id} className="inline-flex items-center gap-1.5">
-                <Link
-                  href={`/goods-issue-notes/${gin.gin_id}`}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[12px] font-medium text-blue-900 transition-colors hover:bg-blue-100"
-                >
-                  <FileText size={13} className="text-blue-700" />
-                  <span>{gin.gin_number}</span>
-                  <span className="text-[11px] text-blue-700">({gin.location.code})</span>
-                </Link>
-                {canDeleteReturns ? (
-                  <DeleteGoodsIssueNoteButton
-                    ginId={gin.gin_id}
-                    ginNumber={gin.gin_number}
-                    redirectTo={null}
-                    compact
-                  />
-                ) : null}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-[12px] text-stone-500">No goods issue notes linked yet.</p>
-        )}
-      </section>
 
-      <section className="rounded-2xl border border-stone-200 bg-white p-4">
-        <div className="mb-2 flex items-center gap-2">
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700">
-            <FileText size={14} />
-          </span>
-          <h2 className="text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
-            Sales Return Notes ({invoice.salesReturnNotes.length})
-          </h2>
-        </div>
-        {invoice.salesReturnNotes.length > 0 ? (
-          <div className="space-y-2">
-            {invoice.salesReturnNotes.map((srn) => (
-              <div
-                key={srn.return_id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2"
-              >
-                <div className="min-w-0">
-                  <p className="text-[12px] font-semibold text-stone-900">{srn.return_number}</p>
-                  <p className="text-[11px] text-stone-600">
-                    {formatDate(srn.return_date)} | {formatCurrency(Number(srn.total_amount))} |{" "}
-                    {srn.creator.full_name}
-                  </p>
-                </div>
-                {canDeleteReturns ? (
-                  <DeleteSalesReturnButton
-                    returnId={srn.return_id}
-                    returnNumber={srn.return_number}
-                  />
-                ) : null}
+        <div className="space-y-3">
+          <div>
+            <p className="mb-1 text-[11px] uppercase tracking-[0.1em] text-stone-500">
+              Receipts ({receiptsWithNumber.length})
+            </p>
+            {receiptsWithNumber.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {receiptsWithNumber.map((receipt) => (
+                  <div key={receipt.receipt_id} className="inline-flex items-center gap-1.5">
+                    <Link
+                      href={`/receipts/${receipt.receipt_id}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[12px] font-medium text-emerald-900 transition-colors hover:bg-emerald-100"
+                    >
+                      <Receipt size={13} className="text-emerald-700" />
+                      <span>{receipt.receipt_number}</span>
+                      <span className="text-[11px] text-emerald-700">{formatCurrency(Number(receipt.amount))}</span>
+                    </Link>
+                    {canDeleteReturns ? (
+                      <DeleteReceiptButton
+                        receiptId={receipt.receipt_id}
+                        receiptNo={receipt.receipt_number}
+                        redirectTo={null}
+                        compact
+                      />
+                    ) : null}
+                  </div>
+                ))}
               </div>
-            ))}
+            ) : (
+              <p className="text-[12px] text-stone-500">No receipts linked yet.</p>
+            )}
           </div>
-        ) : (
-          <p className="text-[12px] text-stone-500">No sales return notes linked yet.</p>
-        )}
+
+          <div>
+            <p className="mb-1 text-[11px] uppercase tracking-[0.1em] text-stone-500">
+              Goods Issue Notes ({invoice.goods_issue_notes.length})
+            </p>
+            {invoice.goods_issue_notes.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {invoice.goods_issue_notes.map((gin) => (
+                  <div key={gin.gin_id} className="inline-flex items-center gap-1.5">
+                    <Link
+                      href={`/goods-issue-notes/${gin.gin_id}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[12px] font-medium text-blue-900 transition-colors hover:bg-blue-100"
+                    >
+                      <FileText size={13} className="text-blue-700" />
+                      <span>{gin.gin_number}</span>
+                      <span className="text-[11px] text-blue-700">({gin.location.code})</span>
+                    </Link>
+                    {canDeleteReturns ? (
+                      <DeleteGoodsIssueNoteButton
+                        ginId={gin.gin_id}
+                        ginNumber={gin.gin_number}
+                        redirectTo={null}
+                        compact
+                      />
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[12px] text-stone-500">No goods issue notes linked yet.</p>
+            )}
+          </div>
+
+          <div>
+            <p className="mb-1 text-[11px] uppercase tracking-[0.1em] text-stone-500">
+              Sales Return Notes ({invoice.salesReturnNotes.length})
+            </p>
+            {invoice.salesReturnNotes.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {invoice.salesReturnNotes.map((srn) => (
+                  <div key={srn.return_id} className="inline-flex items-center gap-1.5">
+                    <Link
+                      href={`/sales-return-notes/${srn.return_id}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[12px] font-medium text-amber-900 transition-colors hover:bg-amber-100"
+                    >
+                      <FileText size={13} className="text-amber-700" />
+                      <span>{srn.return_number}</span>
+                      <span className="text-[11px] text-amber-700">{formatCurrency(Number(srn.total_amount))}</span>
+                    </Link>
+                    {canDeleteReturns ? (
+                      <DeleteSalesReturnButton
+                        returnId={srn.return_id}
+                        returnNumber={srn.return_number}
+                      />
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[12px] text-stone-500">No sales return notes linked yet.</p>
+            )}
+          </div>
+        </div>
       </section>
 
       <section className="rounded-2xl border border-stone-200 bg-white p-4">
