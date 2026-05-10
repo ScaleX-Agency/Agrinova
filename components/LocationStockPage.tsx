@@ -55,6 +55,7 @@ interface MovementRow {
   movement_date: string;
   movement_type: MovementType;
   product_name: string;
+  movement_qty: number;
   qty_delta: number;
   notes: string | null;
   created_by_name: string;
@@ -180,6 +181,7 @@ function RecordMovementModal({
       movement_date: new Date().toISOString(),
       movement_type: type,
       product_name: row.product_name,
+      movement_qty: qtyNum,
       qty_delta: delta,
       notes: notes || null,
       created_by_name: "Admin",
@@ -804,11 +806,11 @@ export default function LocationStockPage({
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-stone-100">
-                {["Date", "Type", "Product", "Qty Change", "Notes", "By"].map(
+                {["Date", "Type", "Product", "Recorded Qty", "Stock Delta", "Notes", "By"].map(
                   (h, i) => (
                     <th
                       key={h}
-                      className={`px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-stone-400 bg-white [font-family:var(--font-dmsans)] ${i === 3 ? "text-right" : "text-left"}`}
+                      className={`px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-stone-400 bg-white [font-family:var(--font-dmsans)] ${i === 3 || i === 4 ? "text-right" : "text-left"}`}
                     >
                       {h}
                     </th>
@@ -819,7 +821,7 @@ export default function LocationStockPage({
             <tbody>
               {movements.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center">
+                  <td colSpan={7} className="px-4 py-12 text-center">
                     <p className="text-[14px] font-medium text-stone-400 [font-family:var(--font-dmsans)]">
                       No movements recorded
                     </p>
@@ -847,6 +849,9 @@ export default function LocationStockPage({
                       </td>
                       <td className="px-4 py-3 text-[13px] font-medium text-stone-700 [font-family:var(--font-dmsans)]">
                         {m.product_name}
+                      </td>
+                      <td className="px-4 py-3 text-right [font-family:var(--font-jetbrains)] text-[14px] font-medium text-stone-700">
+                        {m.movement_qty}
                       </td>
                       <td
                         className="px-4 py-3 text-right [font-family:var(--font-jetbrains)] text-[14px] font-bold"

@@ -296,6 +296,7 @@ export async function getAllMovements(
     product_name: m.product.product_name,
     product_code: m.product.product_code,
     location_code: m.stock.location.code,
+    movement_qty: m.quantity,
     qty_delta: computeQtyDelta(m.movement_type, m.quantity),
     created_by_name: m.creator.full_name,
   }));

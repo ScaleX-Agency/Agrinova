@@ -54,6 +54,7 @@ export interface MovementRow {
   product_name: string;
   product_code: string;
   location_code: string;
+  movement_qty: number;
   qty_delta: number;
   notes?: string | null;
   created_by_name: string;

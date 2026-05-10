@@ -179,10 +179,10 @@ export default function MovementsPage() {
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-stone-100">
-              {["Date", "Type", "Product", "Location", "Qty", "By"].map((h, i) => (
+              {["Date", "Type", "Product", "Location", "Recorded Qty", "Stock Delta", "By"].map((h, i) => (
                 <th
                   key={h}
-                  className={`px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-stone-400 bg-white [font-family:var(--font-dmsans)] ${i === 4 ? "text-right" : "text-left"}`}
+                  className={`px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-stone-400 bg-white [font-family:var(--font-dmsans)] ${i === 4 || i === 5 ? "text-right" : "text-left"}`}
                 >
                   {h}
                 </th>
@@ -194,7 +194,7 @@ export default function MovementsPage() {
               // Loading rows — consistent height prevents layout shift
               [...Array(6)].map((_, i) => (
                 <tr key={i} className="border-b border-stone-50">
-                  {[...Array(6)].map((_, j) => (
+                  {[...Array(7)].map((_, j) => (
                     <td key={j} className="px-4 py-3">
                       <div className="h-3 bg-stone-100 rounded animate-pulse" />
                     </td>
@@ -203,7 +203,7 @@ export default function MovementsPage() {
               ))
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center">
+                <td colSpan={7} className="px-4 py-12 text-center">
                   <p className="text-[14px] font-medium text-stone-400 [font-family:var(--font-dmsans)]">No movements found</p>
                   <p className="text-[12px] text-stone-300 mt-1 [font-family:var(--font-dmsans)]">Try a different filter</p>
                 </td>
@@ -231,6 +231,9 @@ export default function MovementsPage() {
                       <span className="[font-family:var(--font-jetbrains)] text-[11px] font-medium text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-md">
                         {m.location_code}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-right [font-family:var(--font-jetbrains)] text-[14px] font-medium text-stone-700">
+                      {m.movement_qty}
                     </td>
                     <td className="px-4 py-3 text-right [font-family:var(--font-jetbrains)] text-[14px] font-bold" style={{ color: isNeg ? "#991b1b" : "#166534" }}>
                       {isNeg ? `−${Math.abs(m.qty_delta)}` : `+${m.qty_delta}`}

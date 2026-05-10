@@ -127,6 +127,7 @@ function RecordMovementModal({
         product_name:    selectedStock.product_name,
         product_code:    selectedStock.product_code,
         location_code:   selectedStock.location_code,
+        movement_qty:    qtyNum,
         qty_delta:       delta,
         notes:           notes || null,
         created_by_name: user?.firstName || "Admin",
@@ -412,8 +413,8 @@ export default function DashboardPage() {
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-stone-50">
-                {["Type","Product","Location","Qty","Time","By"].map((h,i) => (
-                  <th key={h} className={`px-4 py-2.5 text-[11px] font-medium uppercase tracking-wide text-stone-400 text-left [font-family:var(--font-dmsans)] ${i===3?"text-right":""}`}>{h}</th>
+                {["Type","Product","Location","Recorded Qty","Stock Delta","Time","By"].map((h,i) => (
+                  <th key={h} className={`px-4 py-2.5 text-[11px] font-medium uppercase tracking-wide text-stone-400 text-left [font-family:var(--font-dmsans)] ${i===3 || i===4 ? "text-right" : ""}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -435,6 +436,9 @@ export default function DashboardPage() {
                       <td className="px-4 py-3 text-[12.5px] font-medium text-stone-700 max-w-[140px] truncate [font-family:var(--font-dmsans)]">{m.product_name}</td>
                       <td className="px-4 py-3">
                         <span className="[font-family:var(--font-jetbrains)] text-[11px] font-medium text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-md">{m.location_code}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium text-[14px] text-stone-700 [font-family:var(--font-jetbrains)]">
+                        {m.movement_qty}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold text-[14px] [font-family:var(--font-jetbrains)]" style={{ color: isNeg ? "#991b1b" : "#166534" }}>
                         {isNeg ? `−${Math.abs(m.qty_delta)}` : `+${m.qty_delta}`}

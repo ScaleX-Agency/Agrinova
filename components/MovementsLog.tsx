@@ -104,10 +104,10 @@ export default function MovementsLog({ movements, pagination, filterType, onFilt
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-stone-100">
-              {["Date", "Type", "Product", "Location", "Qty Change", "Reference / Notes", "By"].map((h, i) => (
+              {["Date", "Type", "Product", "Location", "Recorded Qty", "Stock Delta", "Reference / Notes", "By"].map((h, i) => (
                 <th
                   key={h}
-                  className={`px-3.5 py-2.5 text-[11px] font-medium uppercase tracking-wide text-stone-400 bg-white ${i === 4 ? "text-right" : "text-left"}`}
+                  className={`px-3.5 py-2.5 text-[11px] font-medium uppercase tracking-wide text-stone-400 bg-white ${i === 4 || i === 5 ? "text-right" : "text-left"}`}
                 >
                   {h}
                 </th>
@@ -136,6 +136,9 @@ export default function MovementsLog({ movements, pagination, filterType, onFilt
                       {m.location_code}
                     </span>
                   </td>
+                  <td className="px-3.5 py-3 text-right [font-family:var(--font-jetbrains)] text-[14px] font-medium text-stone-700">
+                    {m.movement_qty}
+                  </td>
                   <td className="px-3.5 py-3 text-right [font-family:var(--font-jetbrains)] text-[14px] font-bold" style={{ color: isNeg ? "#991b1b" : "#166534" }}>
                     {display}
                   </td>
@@ -150,7 +153,7 @@ export default function MovementsLog({ movements, pagination, filterType, onFilt
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center">
+                <td colSpan={8} className="px-4 py-10 text-center">
                   <p className="text-[14px] font-medium text-stone-400">No movements found</p>
                   <p className="text-[12px] text-stone-300 mt-1">Try a different filter</p>
                 </td>
