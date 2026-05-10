@@ -1,5 +1,11 @@
 export type StockStatus = "ok" | "low" | "out";
-export type MovementType = "ISSUE" | "RETURN" | "PURCHASE" | "ADJUSTMENT";
+export type MovementType =
+  | "ISSUE"
+  | "RETURN"
+  | "RETURN_UNUSABLE"
+  | "PURCHASE"
+  | "ADJUSTMENT"
+  | "NON_SALEABLE";
 
 export interface StockOverviewRow {
   stock_id: number;
@@ -44,7 +50,7 @@ export interface MovementRow {
   product_name: string;
   product_code: string;
   location_code: string;
-  qty_delta: number; // negative for ISSUE/ADJUSTMENT, positive for PURCHASE/RETURN
+  qty_delta: number; // negative for ISSUE/ADJUSTMENT, positive for PURCHASE/RETURN, zero for non-stock-impact movements
   notes: string | null;
   created_by_name: string;
 }

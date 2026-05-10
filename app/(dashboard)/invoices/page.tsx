@@ -11,6 +11,7 @@ import type { InvoiceOptionDto, InvoicesResponse } from "@/types/api";
 import DataTable from "@/components/ui/DataTable";
 import IssueStocksModalButton from "./IssueStocksModalButton";
 import RecordPaymentModalButton from "./RecordPaymentModalButton";
+import RecordReturnsModalButton from "./RecordReturnsModalButton";
 
 type StatusFilter = "ALL" | InvoiceOptionDto["status"];
 type GinStatusFilter = "ALL" | InvoiceOptionDto["ginStatus"];
@@ -196,6 +197,20 @@ const InvoicesPage = () => {
                 />
               ) : (
                 <RecordPaymentModalButton
+                  invoiceId={invoice.id}
+                  disabled={false}
+                  buttonClassName="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
+                />
+              )}
+              {invoice.totalReturnableQty <= 0 ? (
+                <RecordReturnsModalButton
+                  invoiceId={invoice.id}
+                  disabled
+                  disabledTitle="No returnable quantities available"
+                  buttonClassName="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
+                />
+              ) : (
+                <RecordReturnsModalButton
                   invoiceId={invoice.id}
                   disabled={false}
                   buttonClassName="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"

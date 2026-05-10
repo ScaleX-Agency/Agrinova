@@ -266,6 +266,27 @@ export async function POST(request: Request) {
           }),
         );
 
+        await Promise.all(
+          Array.from(productIssueTotals.entries()).map(([productId, issueQty]) => {
+            const stock = stockByProductId.get(productId);
+            if (!stock) {
+              return Promise.resolve();
+            }
+
+            return tx.stockMovement.create({
+              data: {
+                stock_id: stock.stock_id,
+                product_id: productId,
+                created_by: createdBy,
+                movement_type: "ISSUE",
+                quantity: issueQty,
+                movement_date: ginDate,
+                notes: `Issued via GIN ${gin.gin_number}`,
+              },
+            });
+          }),
+        );
+
         await tx.invoice.update({
         where: { invoice_id: invoice.invoice_id },
         data: { gin_status: "ISSUED" },

@@ -70,7 +70,7 @@ const RecordPaymentModalButton = ({
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [receiptDate, setReceiptDate] = useState(getTodayDateInputValue);
-  const [amountReceived, setAmountReceived] = useState<number | null>(null);
+  const [amountDraft, setAmountDraft] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<ReceiptMethod>("CASH");
   const [chequeNo, setChequeNo] = useState("");
   const [chequeDate, setChequeDate] = useState("");
@@ -128,13 +128,23 @@ const RecordPaymentModalButton = ({
   }, [invoiceDetailQuery.data, preloadedSnapshot]);
 
   const resolvedAmountReceived =
-    amountReceived ?? snapshot?.outstandingAmount ?? null;
+    amountDraft === null
+      ? snapshot?.outstandingAmount ?? 0
+      : amountDraft.trim() === ""
+      ? 0
+      : parseCurrencyInput(amountDraft);
+  const paymentCoverageLabel =
+    snapshot && resolvedAmountReceived !== null && resolvedAmountReceived > 0
+      ? resolvedAmountReceived >= snapshot.outstandingAmount
+        ? "Full Payment"
+        : "Partial Payment"
+      : null;
 
   const openModal = () => {
     if (disabled) return;
     setError("");
     setIsOpen(true);
-    setAmountReceived(null);
+    setAmountDraft(null);
     setNotes("");
   };
 
@@ -341,13 +351,30 @@ const RecordPaymentModalButton = ({
                     type="text"
                     inputMode="decimal"
                     value={
-                      resolvedAmountReceived === null
-                        ? ""
-                        : formatCurrencyInput(resolvedAmountReceived)
+                      amountDraft === null
+                        ? resolvedAmountReceived === null
+                          ? ""
+                          : formatCurrencyInput(resolvedAmountReceived)
+                        : amountDraft
                     }
-                    onChange={(event) =>
-                      setAmountReceived(parseCurrencyInput(event.target.value))
-                    }
+                    onChange={(event) => {
+                      const nextValue = event.target.value;
+                      const parsedValue = parseCurrencyInput(nextValue);
+
+                      if (
+                        snapshot &&
+                        parsedValue !== null &&
+                        parsedValue > snapshot.outstandingAmount
+                      ) {
+                        setError("Amount cannot exceed outstanding amount.");
+                        return;
+                      }
+
+                      if (error === "Amount cannot exceed outstanding amount.") {
+                        setError("");
+                      }
+                      setAmountDraft(nextValue);
+                    }}
                     className="w-full rounded-r-lg px-3 py-2 text-[13px] outline-none"
                     placeholder={
                       snapshot
@@ -356,6 +383,17 @@ const RecordPaymentModalButton = ({
                     }
                   />
                 </div>
+                {paymentCoverageLabel && (
+                  <span
+                    className={`inline-flex w-fit rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                      paymentCoverageLabel === "Full Payment"
+                        ? "bg-green-100 text-green-800"
+                        : "bg-amber-100 text-amber-800"
+                    }`}
+                  >
+                    {paymentCoverageLabel}
+                  </span>
+                )}
               </label>
 
               <label className="flex flex-col gap-1">

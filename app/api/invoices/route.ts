@@ -179,6 +179,12 @@ export async function GET(request: Request) {
             code: true,
           },
         },
+        invoice_lines: {
+          select: {
+            issued_qty: true,
+            returned_qty: true,
+          },
+        },
       },
     });
 
@@ -195,6 +201,10 @@ export async function GET(request: Request) {
         paidAmount: Number(invoice.paid_amount),
         creditedAmount: Number(invoice.credited_amount),
         balanceAmount: Number(invoice.balance_amount),
+        totalReturnableQty: invoice.invoice_lines.reduce(
+          (sum, line) => sum + Math.max(0, line.issued_qty - line.returned_qty),
+          0,
+        ),
         status: invoice.payment_status,
         ginStatus: invoice.gin_status,
         locationCode: invoice.location.code,

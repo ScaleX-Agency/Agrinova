@@ -41,6 +41,7 @@ export async function GET(
         invoice_lines: {
           orderBy: { line_id: "asc" },
           select: {
+            line_id: true,
             product_id: true,
             quantity: true,
             issued_qty: true,
@@ -70,6 +71,10 @@ export async function GET(
     const totalAmount = Number(invoice.total_amount);
     const totalPaid = Number(invoice.paid_amount);
     const outstandingAmount = Number(invoice.balance_amount);
+    const totalReturnableQty = invoice.invoice_lines.reduce(
+      (sum, line) => sum + Math.max(0, line.issued_qty - line.returned_qty),
+      0,
+    );
 
     type InvoiceLineRecord = (typeof invoice.invoice_lines)[number];
 
@@ -89,7 +94,9 @@ export async function GET(
         totalPaid,
         creditedAmount: Number(invoice.credited_amount),
         outstandingAmount,
+        totalReturnableQty,
         lines: invoice.invoice_lines.map((line: InvoiceLineRecord) => ({
+          lineId: line.line_id,
           productId: line.product_id,
           productName: line.product.product_name,
           packSize: line.product.pack_size,

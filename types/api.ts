@@ -68,6 +68,7 @@ export type InvoiceNumberAvailabilityResponse =
   ApiResult<InvoiceNumberAvailabilityDto>;
 
 export type InvoiceLineDto = {
+  lineId: number;
   productId: number;
   productName: string;
   packSize: string;
@@ -98,6 +99,7 @@ export type InvoiceDetailDto = {
   totalPaid: number;
   creditedAmount: number;
   outstandingAmount: number;
+  totalReturnableQty: number;
   lines: InvoiceLineDto[];
 };
 
@@ -370,10 +372,42 @@ export type InvoiceOptionDto = {
   paidAmount: number;
   creditedAmount: number;
   balanceAmount: number;
+  totalReturnableQty: number;
   status: "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE";
   ginStatus: "PENDING" | "ISSUED" | "PARTIAL";
   locationCode: string | null;
 };
+
+export type CreateSalesReturnLineDto = {
+  lineId: number;
+  productId: number;
+  returnQty: number;
+  stockAddableQty: number;
+  unusableQty: number;
+  condition: string;
+  reasonForReturn: string;
+  lineTotal: number;
+};
+
+export type CreateSalesReturnRequestDto = {
+  invoiceId: number;
+  returnDate: string;
+  notes?: string;
+  lines: CreateSalesReturnLineDto[];
+};
+
+export type CreateSalesReturnSuccessResponse = {
+  success: true;
+  salesReturnId: number;
+  salesReturnNumber: string;
+  goodsReturnId: number;
+  goodsReturnNumber: string;
+  creditNoteId: number;
+  creditAmount: number;
+};
+
+export type CreateSalesReturnResponse =
+  ApiResult<CreateSalesReturnSuccessResponse>;
 
 export type InvoicesResponse = ApiResult<InvoiceOptionDto[]>;
 

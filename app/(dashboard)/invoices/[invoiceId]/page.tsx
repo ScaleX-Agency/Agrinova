@@ -18,6 +18,7 @@ import BackNavigationLink from "@/components/ui/BackNavigationLink";
 import InvoicePrintButton from "./InvoicePrintButton";
 import IssueStocksModalButton from "../IssueStocksModalButton";
 import RecordPaymentModalButton from "../RecordPaymentModalButton";
+import RecordReturnsModalButton from "../RecordReturnsModalButton";
 
 const formatDate = (value: Date) =>
   value.toLocaleDateString("en-GB", {
@@ -224,6 +225,10 @@ const InvoiceDetailPage = async ({
     creditedAmount,
     outstandingAmount: balanceAmount,
   };
+  const totalReturnableQty = invoice.invoice_lines.reduce(
+    (sum, line) => sum + Math.max(0, line.issued_qty - line.returned_qty),
+    0,
+  );
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const receiptsWithNumber = invoice.receipts.map((receipt: any) => {
     const year = receipt.receipt_date.getFullYear();
@@ -329,6 +334,20 @@ const InvoiceDetailPage = async ({
               disabled={false}
               buttonClassName="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
               preloadedSnapshot={paymentSnapshot}
+            />
+          )}
+          {totalReturnableQty <= 0 ? (
+            <RecordReturnsModalButton
+              invoiceId={invoice.invoice_id}
+              disabled
+              disabledTitle="No returnable quantities available"
+              buttonClassName="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
+            />
+          ) : (
+            <RecordReturnsModalButton
+              invoiceId={invoice.invoice_id}
+              disabled={false}
+              buttonClassName="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
             />
           )}
         </div>
