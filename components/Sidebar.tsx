@@ -20,7 +20,7 @@ import {
   UserCheck,
   BarChart3,
   PackageSearch,
-  Settings,
+  RotateCcw,
   LogOut,
   ChevronRight,
 } from "lucide-react";
@@ -93,6 +93,11 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/invoices", icon: <FileText size={15} />, label: "Invoices" },
       { href: "/receipts", icon: <Receipt size={15} />, label: "Receipts" },
+      {
+        href: "/sales-return-notes",
+        icon: <RotateCcw size={15} />,
+        label: "Sales Return Notes",
+      },
       {
         href: "/customer-sales",
         icon: <BarChart3 size={15} />,

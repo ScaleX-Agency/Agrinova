@@ -15,6 +15,187 @@ const toInvoiceStatus = (balanceAmount: number, paidAmount: number, creditedAmou
   return "UNPAID";
 };
 
+const toNum = (value: number | string | { toString(): string } | null | undefined) =>
+  Number(value ?? 0);
+
+const canAccess = (roleName?: string) => {
+  const role = roleName?.toLowerCase();
+  return role === "admin" || role === "operator";
+};
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ returnId: string }> },
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!canAccess(user.role?.role_name)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const returnId = parsePositiveInt((await params).returnId);
+    if (!returnId) {
+      return NextResponse.json({ error: "Invalid return id." }, { status: 400 });
+    }
+
+    const srn = await prisma.salesReturnNote.findUnique({
+      where: { return_id: returnId },
+      select: {
+        return_id: true,
+        return_number: true,
+        return_date: true,
+        total_amount: true,
+        notes: true,
+        is_active: true,
+        customer: {
+          select: {
+            customer_id: true,
+            name: true,
+            phone: true,
+          },
+        },
+        invoice: {
+          select: {
+            invoice_id: true,
+            invoice_number: true,
+            invoice_date: true,
+            total_amount: true,
+            credited_amount: true,
+            balance_amount: true,
+            payment_status: true,
+          },
+        },
+        location: {
+          select: {
+            location_id: true,
+            code: true,
+            name: true,
+          },
+        },
+        creator: {
+          select: {
+            full_name: true,
+          },
+        },
+        lines: {
+          orderBy: { return_line_id: "asc" },
+          select: {
+            return_line_id: true,
+            quantity_usable: true,
+            quantity_unusable: true,
+            condition: true,
+            reason_for_return: true,
+            line_total: true,
+            product: {
+              select: {
+                product_id: true,
+                product_code: true,
+                product_name: true,
+                pack_size: true,
+              },
+            },
+          },
+        },
+        goodsReturnNotes: {
+          where: { is_active: true },
+          orderBy: [{ return_date: "desc" }, { return_id: "desc" }],
+          select: {
+            return_id: true,
+            return_number: true,
+            return_date: true,
+            lines: {
+              select: {
+                product_id: true,
+                quantity: true,
+              },
+            },
+          },
+        },
+        creditNotes: {
+          where: { is_active: true },
+          orderBy: [{ created_at: "desc" }, { credit_note_id: "desc" }],
+          select: {
+            credit_note_id: true,
+            amount: true,
+            created_at: true,
+          },
+        },
+      },
+    });
+
+    if (!srn || !srn.is_active) {
+      return NextResponse.json({ error: "Sales return note not found." }, { status: 404 });
+    }
+
+    const goodsReturn = srn.goodsReturnNotes[0] ?? null;
+    const creditNote = srn.creditNotes[0] ?? null;
+
+    const lineRows = srn.lines.map((line) => ({
+      lineId: line.return_line_id,
+      productId: line.product.product_id,
+      productCode: line.product.product_code,
+      productName: line.product.product_name,
+      packSize: line.product.pack_size,
+      usableQty: line.quantity_usable,
+      unusableQty: line.quantity_unusable,
+      totalQty: line.quantity_usable + line.quantity_unusable,
+      condition: line.condition,
+      reasonForReturn: line.reason_for_return,
+      lineTotal: Number(toNum(line.line_total).toFixed(2)),
+    }));
+
+    const goodsReturnTotalQty = goodsReturn
+      ? goodsReturn.lines.reduce((sum, line) => sum + line.quantity, 0)
+      : 0;
+
+    return NextResponse.json({
+      data: {
+        returnId: srn.return_id,
+        srnNumber: srn.return_number,
+        srnDate: srn.return_date.toISOString(),
+        notes: srn.notes,
+        customer: {
+          customerId: srn.customer.customer_id,
+          name: srn.customer.name,
+          phone: srn.customer.phone,
+        },
+        invoice: {
+          invoiceId: srn.invoice.invoice_id,
+          invoiceNumber: srn.invoice.invoice_number,
+          invoiceDate: srn.invoice.invoice_date.toISOString(),
+          totalAmount: Number(toNum(srn.invoice.total_amount).toFixed(2)),
+          creditedAmount: Number(toNum(srn.invoice.credited_amount).toFixed(2)),
+          balanceAmount: Number(toNum(srn.invoice.balance_amount).toFixed(2)),
+          paymentStatus: srn.invoice.payment_status,
+        },
+        location: {
+          locationId: srn.location.location_id,
+          code: srn.location.code,
+          name: srn.location.name,
+        },
+        packageSummary: {
+          srnNumber: srn.return_number,
+          srnAmount: Number(toNum(srn.total_amount).toFixed(2)),
+          grnNumber: goodsReturn?.return_number ?? "Missing",
+          grnDate: goodsReturn?.return_date.toISOString() ?? null,
+          grnTotalQty: goodsReturnTotalQty,
+          creditNoteNumber: creditNote ? `CN-${creditNote.credit_note_id}` : "Missing",
+          creditNoteDate: creditNote?.created_at.toISOString() ?? null,
+          creditAmount: Number(toNum(creditNote?.amount).toFixed(2)),
+        },
+        createdBy: srn.creator.full_name,
+        lines: lineRows,
+      },
+    });
+  } catch (error) {
+    console.error("Failed to load sales return note detail", error);
+    return NextResponse.json({ error: "Failed to load sales return note detail." }, { status: 500 });
+  }
+}
+
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ returnId: string }> },
