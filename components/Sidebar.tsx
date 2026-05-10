@@ -19,6 +19,7 @@ import {
   ClipboardList,
   UserCheck,
   BarChart3,
+  PackageSearch,
   Settings,
   LogOut,
   ChevronRight,
@@ -96,6 +97,11 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/customer-sales",
         icon: <BarChart3 size={15} />,
         label: "Customer Sales",
+      },
+      {
+        href: "/product-performance",
+        icon: <PackageSearch size={15} />,
+        label: "Product Performance",
       },
       {
         href: "/commission",
