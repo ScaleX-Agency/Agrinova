@@ -15,29 +15,29 @@ model Role {
 }
 
 model User {
-  user_id               Int                  @id @default(autoincrement())
-  role_id               Int
-  full_name             String
-  username              String               @unique
-  password_hash         String?
-  clerk_id              String?              @unique
+  user_id       Int     @id @default(autoincrement())
+  role_id       Int
+  full_name     String
+  username      String  @unique
+  password_hash String?
+  clerk_id      String? @unique
 
-  created_creditNotes           CreditNote[]         @relation("CreditNoteCreatedBy")
-  deleted_creditNotes CreditNote[] @relation("CreditNoteDeletedBy")
-  created_goodsIssueNotes       GoodsIssueNote[]  @relation("GINCreatedBy")
-  deleted_goodsIssueNotes GoodsIssueNote[]        @relation("GINDeletedBy")
+  created_creditNotes         CreditNote[]         @relation("CreditNoteCreatedBy")
+  deleted_creditNotes         CreditNote[]         @relation("CreditNoteDeletedBy")
+  created_goodsIssueNotes     GoodsIssueNote[]     @relation("GINCreatedBy")
+  deleted_goodsIssueNotes     GoodsIssueNote[]     @relation("GINDeletedBy")
   created_goodsReceivingNotes GoodsReceivingNote[] @relation("GoodsReceivingNoteCreatedBy")
   deleted_goodsReceivingNotes GoodsReceivingNote[] @relation("GoodsReceivingNoteDeletedBy")
-  created_goodsReturnNotes      GoodsReturnNote[]    @relation("GoodsReturnNoteCreatedBy")
-  deleted_goodsReturnNotes GoodsReturnNote[] @relation("GoodsReturnNoteDeletedBy")
-  created_invoices      Invoice[]            @relation("InvoiceCreatedBy")
-  deleted_invoices      Invoice[]            @relation("InvoiceDeletedBy")
-  created_receipts              Receipt[]            @relation("ReceiptCreatedBy")
-  deleted_receipts Receipt[] @relation("ReceiptDeletedBy")
-  created_salesReturnNotes SalesReturnNote[] @relation("SalesReturnNoteCreatedBy")
-  deleted_salesReturnNotes SalesReturnNote[] @relation("SalesReturnNoteDeletedBy")
-  stock_movements       StockMovement[]      @relation("StockMovementCreatedBy")
-  role                  Role                 @relation(fields: [role_id], references: [role_id])
+  created_goodsReturnNotes    GoodsReturnNote[]    @relation("GoodsReturnNoteCreatedBy")
+  deleted_goodsReturnNotes    GoodsReturnNote[]    @relation("GoodsReturnNoteDeletedBy")
+  created_invoices            Invoice[]            @relation("InvoiceCreatedBy")
+  deleted_invoices            Invoice[]            @relation("InvoiceDeletedBy")
+  created_receipts            Receipt[]            @relation("ReceiptCreatedBy")
+  deleted_receipts            Receipt[]            @relation("ReceiptDeletedBy")
+  created_salesReturnNotes    SalesReturnNote[]    @relation("SalesReturnNoteCreatedBy")
+  deleted_salesReturnNotes    SalesReturnNote[]    @relation("SalesReturnNoteDeletedBy")
+  stock_movements             StockMovement[]      @relation("StockMovementCreatedBy")
+  role                        Role                 @relation(fields: [role_id], references: [role_id])
 
   @@map("USER")
 }
@@ -73,27 +73,27 @@ model Customer {
 }
 
 model Invoice {
-  invoice_id         Int                 @id @default(autoincrement())
-  invoice_number     String              @unique
-  customer_id        Int
-  rep_id             Int
-  location_id        Int
-  invoice_date       DateTime
+  invoice_id     Int      @id @default(autoincrement())
+  invoice_number String
+  customer_id    Int
+  rep_id         Int
+  location_id    Int
+  invoice_date   DateTime
 
-  total_amount    Decimal             @db.Decimal(10, 2) //initial total
+  total_amount    Decimal @db.Decimal(10, 2) //initial total
   paid_amount     Decimal @default(0) @db.Decimal(10, 2) //from receipts
   credited_amount Decimal @default(0) @db.Decimal(10, 2) //from returns
   balance_amount  Decimal @default(0) @db.Decimal(10, 2) //final
 
-  payment_status     InvoiceStatus       @default(UNPAID)
-  gin_status         GINStatus           @default(PENDING)
-  
-  created_by         Int
-  created_at         DateTime            @default(now())
-  is_active          Boolean             @default(true)
-  updated_at         DateTime            @default(now()) @updatedAt
-  deleted_by         Int?
-  notes              String?
+  payment_status InvoiceStatus @default(UNPAID)
+  gin_status     GINStatus     @default(PENDING)
+
+  created_by Int
+  created_at DateTime @default(now())
+  is_active  Boolean  @default(true)
+  updated_at DateTime @default(now()) @updatedAt
+  deleted_by Int?
+  notes      String?
 
   creditNotes        CreditNote[]
   goods_issue_notes  GoodsIssueNote[]
@@ -111,22 +111,22 @@ model Invoice {
 }
 
 model InvoiceLine {
-  line_id        Int               @id @default(autoincrement())
-  invoice_id     Int
-  product_id     Int
+  line_id    Int @id @default(autoincrement())
+  invoice_id Int
+  product_id Int
 
-  quantity       Int
-  free_quantity  Int               @default(0)
-  issued_qty     Int               @default(0)
-  returned_qty   Int               @default(0)
-  balance_qty    Int               @default(0)
+  quantity      Int
+  free_quantity Int @default(0)
+  issued_qty    Int @default(0)
+  returned_qty  Int @default(0)
+  balance_qty   Int @default(0)
 
-  unit_price     Decimal           @db.Decimal(10, 2)
-  discount       Decimal           @default(0) @db.Decimal(10, 2)
-  line_total     Decimal           @db.Decimal(10, 2)
-  net_line_total Decimal           @db.Decimal(10, 2)
-  credited_amount Decimal          @default(0) @db.Decimal(10, 2) 
-  balance_amount  Decimal          @db.Decimal(10, 2) 
+  unit_price      Decimal @db.Decimal(10, 2)
+  discount        Decimal @default(0) @db.Decimal(10, 2)
+  line_total      Decimal @db.Decimal(10, 2)
+  net_line_total  Decimal @db.Decimal(10, 2)
+  credited_amount Decimal @default(0) @db.Decimal(10, 2)
+  balance_amount  Decimal @db.Decimal(10, 2)
 
   promotion_type LinePromotionType @default(NONE)
   invoice        Invoice           @relation(fields: [invoice_id], references: [invoice_id])
@@ -136,20 +136,20 @@ model InvoiceLine {
 }
 
 model SalesReturnNote {
-  return_id        Int                   @id @default(autoincrement())
-  return_number    String                @unique
-  return_date      DateTime
-  customer_id      Int
-  location_id      Int
-  invoice_id       Int
-  total_amount     Decimal               @db.Decimal(10, 2)
-  notes            String?
-  created_by       Int
-  created_at       DateTime              @default(now())
-  updated_at       DateTime              @default(now()) @updatedAt
-  is_active        Boolean               @default(true)
-  deleted_by       Int?
-  
+  return_id     Int      @id @default(autoincrement())
+  return_number String   
+  return_date   DateTime
+  customer_id   Int
+  location_id   Int
+  invoice_id    Int
+  total_amount  Decimal  @db.Decimal(10, 2)
+  notes         String?
+  created_by    Int
+  created_at    DateTime @default(now())
+  updated_at    DateTime @default(now()) @updatedAt
+  is_active     Boolean  @default(true)
+  deleted_by    Int?
+
   deleter          User?                 @relation("SalesReturnNoteDeletedBy", fields: [deleted_by], references: [user_id])
   creditNotes      CreditNote[]
   goodsReturnNotes GoodsReturnNote[]
@@ -182,26 +182,26 @@ model SalesReturnNoteLine {
 }
 
 model GoodsIssueNote {
-  gin_id      Int                  @id @default(autoincrement())
+  gin_id      Int      @id @default(autoincrement())
   invoice_id  Int
-  gin_number  String               @unique
+  gin_number  String   
   gin_date    DateTime
   customer_id Int
   location_id Int
 
-  created_at  DateTime             @default(now())
-  created_by  Int
-  is_active   Boolean              @default(true)
-  notes       String?
-  updated_at  DateTime             @default(now()) @updatedAt
-  deleted_by  Int?
+  created_at DateTime @default(now())
+  created_by Int
+  is_active  Boolean  @default(true)
+  notes      String?
+  updated_at DateTime @default(now()) @updatedAt
+  deleted_by Int?
 
-  deleter     User?                 @relation("GINDeletedBy", fields: [deleted_by], references: [user_id])
-  creator     User                 @relation("GINCreatedBy", fields: [created_by], references: [user_id])
-  customer    Customer             @relation(fields: [customer_id], references: [customer_id])
-  invoice     Invoice              @relation(fields: [invoice_id], references: [invoice_id])
-  location    InventoryLocation    @relation(fields: [location_id], references: [location_id])
-  lines       GoodsIssueNoteLine[]
+  deleter  User?                @relation("GINDeletedBy", fields: [deleted_by], references: [user_id])
+  creator  User                 @relation("GINCreatedBy", fields: [created_by], references: [user_id])
+  customer Customer             @relation(fields: [customer_id], references: [customer_id])
+  invoice  Invoice              @relation(fields: [invoice_id], references: [invoice_id])
+  location InventoryLocation    @relation(fields: [location_id], references: [location_id])
+  lines    GoodsIssueNoteLine[]
 
   @@index([invoice_id])
   @@index([customer_id])
@@ -235,7 +235,7 @@ model GoodsReturnNote {
   updated_at        DateTime              @default(now()) @updatedAt
   is_active         Boolean               @default(true)
   deleted_by        Int?
-  deleter          User?                 @relation("GoodsReturnNoteDeletedBy", fields: [deleted_by], references: [user_id])
+  deleter           User?                 @relation("GoodsReturnNoteDeletedBy", fields: [deleted_by], references: [user_id])
   creator           User                  @relation("GoodsReturnNoteCreatedBy", fields: [created_by], references: [user_id])
   customer          Customer              @relation(fields: [customer_id], references: [customer_id])
   location          InventoryLocation     @relation(fields: [location_id], references: [location_id])
@@ -262,7 +262,7 @@ model GoodsReturnNoteLine {
 
 model GoodsReceivingNote {
   grn_id       Int                      @id @default(autoincrement())
-  grn_number   String                   @unique
+  grn_number   String                   
   grn_date     DateTime
   entry_type   StockEntryType
   location_id  Int
@@ -273,7 +273,7 @@ model GoodsReceivingNote {
   is_active    Boolean                  @default(true)
   updated_at   DateTime                 @default(now()) @updatedAt
   deleted_by   Int?
-  deleter      User?                     @relation("GoodsReceivingNoteDeletedBy", fields: [deleted_by], references: [user_id])
+  deleter      User?                    @relation("GoodsReceivingNoteDeletedBy", fields: [deleted_by], references: [user_id])
   creator      User                     @relation("GoodsReceivingNoteCreatedBy", fields: [created_by], references: [user_id])
   location     InventoryLocation        @relation(fields: [location_id], references: [location_id])
   lines        GoodsReceivingNoteLine[]
@@ -297,22 +297,22 @@ model GoodsReceivingNoteLine {
 }
 
 model Receipt {
-  receipt_id         Int                 @id @default(autoincrement())
-  invoice_id         Int
-  receipt_date       DateTime
+  receipt_id   Int      @id @default(autoincrement())
+  invoice_id   Int
+  receipt_date DateTime
 
-  payment_method     PaymentMethod
-  cheque_no          String?
-  cheque_date        DateTime?
-  bank_name          String?
+  payment_method PaymentMethod
+  cheque_no      String?
+  cheque_date    DateTime?
+  bank_name      String?
 
-  amount             Decimal             @db.Decimal(10, 2)
-  created_at         DateTime            @default(now())
-  created_by         Int
-  is_active          Boolean             @default(true)
-  notes              String?
-  updated_at         DateTime            @default(now()) @updatedAt
-  deleted_by         Int?
+  amount     Decimal  @db.Decimal(10, 2)
+  created_at DateTime @default(now())
+  created_by Int
+  is_active  Boolean  @default(true)
+  notes      String?
+  updated_at DateTime @default(now()) @updatedAt
+  deleted_by Int?
 
   deleter            User?               @relation("ReceiptDeletedBy", fields: [deleted_by], references: [user_id])
   invoiceSettlements InvoiceSettlement[]
@@ -323,72 +323,72 @@ model Receipt {
 }
 
 model CreditNote {
-  credit_note_id    Int             @id @default(autoincrement())
-  srn_id            Int
-  invoice_id        Int
-  amount            Decimal         @db.Decimal(10, 2)
-  notes             String?
-  created_by        Int
-  created_at        DateTime        @default(now())
-  updated_at        DateTime        @default(now()) @updatedAt
-  is_active         Boolean         @default(true)
-  deleted_by        Int?
-  deleter          User?           @relation("CreditNoteDeletedBy", fields: [deleted_by], references: [user_id])
-  creator           User            @relation("CreditNoteCreatedBy", fields: [created_by], references: [user_id])
-  invoice           Invoice         @relation(fields: [invoice_id], references: [invoice_id])
-  sales_return_note SalesReturnNote @relation(fields: [srn_id], references: [return_id])
+  credit_note_id     Int                 @id @default(autoincrement())
+  srn_id             Int
+  invoice_id         Int
+  amount             Decimal             @db.Decimal(10, 2)
+  notes              String?
+  created_by         Int
+  created_at         DateTime            @default(now())
+  updated_at         DateTime            @default(now()) @updatedAt
+  is_active          Boolean             @default(true)
+  deleted_by         Int?
+  deleter            User?               @relation("CreditNoteDeletedBy", fields: [deleted_by], references: [user_id])
+  creator            User                @relation("CreditNoteCreatedBy", fields: [created_by], references: [user_id])
+  invoice            Invoice             @relation(fields: [invoice_id], references: [invoice_id])
+  sales_return_note  SalesReturnNote     @relation(fields: [srn_id], references: [return_id])
+  invoiceSettlements InvoiceSettlement[]
 
   @@map("CREDIT_NOTE")
-  invoiceSettlements InvoiceSettlement[]
 }
 
 model InvoiceSettlement {
-  settlement_id Int          @id @default(autoincrement())
-  invoice_id    Int
-  receipt_id    Int?
-  credit_note_id Int?
-  amount        Decimal      @db.Decimal(10, 2)
-  settlement_type SettlementType
-  settled_date  DateTime
-  is_active     Boolean      @default(true)
-  commission_issued Boolean      @default(false)
-  invoice       Invoice      @relation(fields: [invoice_id], references: [invoice_id])
-  receipt       Receipt?     @relation(fields: [receipt_id], references: [receipt_id])
-  creditNote    CreditNote?  @relation(fields: [credit_note_id], references: [credit_note_id])
-  commissions   Commission[] @relation("CommissionToInvoiceSettlement")
+  settlement_id     Int            @id @default(autoincrement())
+  invoice_id        Int
+  receipt_id        Int?
+  credit_note_id    Int?
+  amount            Decimal        @db.Decimal(10, 2)
+  settlement_type   SettlementType
+  settled_date      DateTime
+  is_active         Boolean        @default(true)
+  commission_issued Boolean        @default(false)
+  invoice           Invoice        @relation(fields: [invoice_id], references: [invoice_id])
+  receipt           Receipt?       @relation(fields: [receipt_id], references: [receipt_id])
+  creditNote        CreditNote?    @relation(fields: [credit_note_id], references: [credit_note_id])
+  commissions       Commission[]   @relation("CommissionToInvoiceSettlement")
 
   @@index([invoice_id])
   @@map("INVOICE_SETTLEMENT")
 }
 
 model Commission {
-  commission_id      Int                 @id @default(autoincrement())
-  rep_id             Int
-  commission_rate    Decimal             @db.Decimal(5, 4)
-  commission_amount  Decimal             @db.Decimal(10, 2)
-  days_to_pay        Int
-  status             CommissionStatus    @default(PENDING)
-  created_at         DateTime            @default(now())
-  settlement_id      Int
-  updated_at         DateTime            @default(now()) @updatedAt
-  is_active          Boolean             @default(true)
-  rep                SalesRep            @relation(fields: [rep_id], references: [rep_id])
-  invoiceSettlement  InvoiceSettlement   @relation("CommissionToInvoiceSettlement", fields: [settlement_id], references: [settlement_id])
+  commission_id     Int               @id @default(autoincrement())
+  rep_id            Int
+  commission_rate   Decimal           @db.Decimal(5, 4)
+  commission_amount Decimal           @db.Decimal(10, 2)
+  days_to_pay       Int
+  status            CommissionStatus  @default(PENDING)
+  created_at        DateTime          @default(now())
+  settlement_id     Int
+  updated_at        DateTime          @default(now()) @updatedAt
+  is_active         Boolean           @default(true)
+  rep               SalesRep          @relation(fields: [rep_id], references: [rep_id])
+  invoiceSettlement InvoiceSettlement @relation("CommissionToInvoiceSettlement", fields: [settlement_id], references: [settlement_id])
 
   @@index([settlement_id])
   @@map("COMMISSION")
 }
 
 model CommissionConfig {
-  config_id        Int      @id @default(autoincrement())
-  same_day_rate    Decimal  @db.Decimal(5, 4)
-  range_min_days   Int
-  range_max_days   Int
-  range_rate       Decimal  @db.Decimal(5, 4)
-  over_range_rate  Decimal  @db.Decimal(5, 4)
-  is_active        Boolean  @default(true)
-  created_at       DateTime @default(now())
-  updated_at       DateTime @default(now()) @updatedAt
+  config_id       Int      @id @default(autoincrement())
+  same_day_rate   Decimal  @db.Decimal(5, 4)
+  range_min_days  Int
+  range_max_days  Int
+  range_rate      Decimal  @db.Decimal(5, 4)
+  over_range_rate Decimal  @db.Decimal(5, 4)
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @default(now()) @updatedAt
 
   @@map("COMMISSION_CONFIG")
 }
@@ -483,7 +483,6 @@ model StockMovement {
   @@index([stock_id, movement_type])
   @@map("STOCK_MOVEMENT")
 }
-
 
 enum InvoiceStatus {
   PAID

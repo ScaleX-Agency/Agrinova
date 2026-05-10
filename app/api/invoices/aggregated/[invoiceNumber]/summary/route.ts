@@ -15,8 +15,8 @@ export async function GET(
       );
     }
 
-    const invoice = await prisma.invoice.findUnique({
-      where: { invoice_number: invoiceNumber },
+    const invoice = await prisma.invoice.findFirst({
+      where: { invoice_number: invoiceNumber, is_active: true },
       select: {
         invoice_id: true,
         is_active: true,
@@ -70,7 +70,7 @@ export async function GET(
       },
     });
 
-    if (!invoice || !invoice.is_active) {
+    if (!invoice) {
       return NextResponse.json(
         { error: "Invoice not found." },
         { status: 404 },

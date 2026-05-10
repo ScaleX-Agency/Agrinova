@@ -252,7 +252,7 @@ export async function DELETE(
       });
 
       return gin;
-    });
+    }, { timeout: 20000, maxWait: 10000 });
 
     return NextResponse.json({
       data: {

@@ -357,7 +357,7 @@ export async function DELETE(
         returnId: srn.return_id,
         returnNumber: srn.return_number,
       };
-    });
+    }, { timeout: 20000, maxWait: 10000 });
 
     return NextResponse.json({
       data: {

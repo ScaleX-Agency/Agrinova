@@ -343,8 +343,8 @@ const RecordPaymentModalButton = ({
                 <span className="text-[12px] font-medium text-stone-700">
                   Amount Received
                 </span>
-                <div className="flex items-center rounded-lg border border-stone-300 focus-within:border-[#1a5c2e]">
-                  <span className="border-r border-stone-300 px-3 text-[12px] font-semibold text-stone-600">
+                <div className="flex items-center rounded-lg border border-stone-300 bg-stone-100">
+                  <span className="border-r border-stone-300 px-3 text-[12px] font-semibold text-stone-500">
                     LKR
                   </span>
                   <input
@@ -357,25 +357,8 @@ const RecordPaymentModalButton = ({
                           : formatCurrencyInput(resolvedAmountReceived)
                         : amountDraft
                     }
-                    onChange={(event) => {
-                      const nextValue = event.target.value;
-                      const parsedValue = parseCurrencyInput(nextValue);
-
-                      if (
-                        snapshot &&
-                        parsedValue !== null &&
-                        parsedValue > snapshot.outstandingAmount
-                      ) {
-                        setError("Amount cannot exceed outstanding amount.");
-                        return;
-                      }
-
-                      if (error === "Amount cannot exceed outstanding amount.") {
-                        setError("");
-                      }
-                      setAmountDraft(nextValue);
-                    }}
-                    className="w-full rounded-r-lg px-3 py-2 text-[13px] outline-none"
+                    disabled
+                    className="w-full cursor-not-allowed rounded-r-lg bg-stone-100 px-3 py-2 text-[13px] text-stone-600 outline-none"
                     placeholder={
                       snapshot
                         ? `Max ${formatCurrencyInput(snapshot.outstandingAmount)}`

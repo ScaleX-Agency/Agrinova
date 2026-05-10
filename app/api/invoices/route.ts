@@ -383,6 +383,20 @@ export async function POST(request: Request) {
         throw new Error("Selected inventory location was not found.");
       }
 
+      const activeDuplicateInvoice = await tx.invoice.findFirst({
+        where: {
+          invoice_number: invoiceNumber,
+          is_active: true,
+        },
+        select: {
+          invoice_id: true,
+        },
+      });
+
+      if (activeDuplicateInvoice) {
+        throw new Error("An invoice with this number already exists. Please use a unique invoice number.");
+      }
+
       // Validate stock: quantity + free_quantity must not exceed quantity_on_hand
       for (let i = 0; i < normalizedLines.length; i++) {
         const line = normalizedLines[i];
@@ -474,6 +488,13 @@ export async function POST(request: Request) {
     if (error instanceof Error) {
       // Avoid matching Prisma's auto-generated message blocks which include comments from code
       const msg = error.message;
+      if (msg.includes("An invoice with this number already exists")) {
+        return NextResponse.json(
+          { error: "An invoice with this number already exists. Please use a unique invoice number." },
+          { status: 409 },
+        );
+      }
+
       const isValidationError =
         msg.startsWith("Line ") ||
         msg.startsWith("Stock record not found") ||

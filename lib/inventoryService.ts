@@ -70,7 +70,7 @@ export async function getAllStock(
     }
   }
 
-  const [total, stocksRaw] = await prisma.$transaction([
+  const [total, stocksRaw] = await Promise.all([
     prisma.stock.count({ where }),
     prisma.stock.findMany({
       where,
@@ -158,7 +158,7 @@ export async function getAllStockByLocation(
     }
   }
 
-  const [total, stocksRaw] = await prisma.$transaction([
+  const [total, stocksRaw] = await Promise.all([
     prisma.stock.count({ where }),
     prisma.stock.findMany({
       where,
@@ -274,7 +274,7 @@ export async function getAllMovements(
     ];
   }
 
-  const [total, movs] = await prisma.$transaction([
+  const [total, movs] = await Promise.all([
     prisma.stockMovement.count({ where }),
     prisma.stockMovement.findMany({
       where,
@@ -404,7 +404,7 @@ export async function getAllProducts(
     ];
   }
 
-  const [total, products] = await prisma.$transaction([
+  const [total, products] = await Promise.all([
     prisma.product.count({ where }),
     prisma.product.findMany({
       where,

@@ -148,6 +148,22 @@ export async function POST(request: Request) {
 
     const createdGin = await prisma.$transaction(
       async (tx) => {
+        const existingActiveGin = await tx.goodsIssueNote.findFirst({
+          where: {
+            gin_number: ginNumber,
+            is_active: true,
+          },
+          select: {
+            gin_id: true,
+          },
+        });
+
+        if (existingActiveGin) {
+          throw new Error(
+            "An active GIN with this number already exists. Please use a unique GIN number.",
+          );
+        }
+
         const invoice = await tx.invoice.findUnique({
         where: { invoice_id: invoiceId },
         select: {
@@ -351,7 +367,10 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: error.message }, { status: 422 });
       }
 
-      if (error.message.includes("unique GIN number")) {
+      if (
+        error.message.includes("unique GIN number") ||
+        error.message.includes("active GIN with this number")
+      ) {
         return NextResponse.json({ error: error.message }, { status: 409 });
       }
     }
