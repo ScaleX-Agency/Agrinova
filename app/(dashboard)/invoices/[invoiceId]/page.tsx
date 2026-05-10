@@ -6,19 +6,19 @@ import {
   FileText,
   DollarSign,
   Package,
-  // eslint-disable-next-line
-  Plus,
   CheckCircle,
   Clock,
   AlertCircle,
   Receipt,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import BackNavigationLink from "@/components/ui/BackNavigationLink";
 import InvoicePrintButton from "./InvoicePrintButton";
 import IssueStocksModalButton from "../IssueStocksModalButton";
 import RecordPaymentModalButton from "../RecordPaymentModalButton";
 import RecordReturnsModalButton from "../RecordReturnsModalButton";
+import DeleteSalesReturnButton from "../DeleteSalesReturnButton";
 
 const formatDate = (value: Date) =>
   value.toLocaleDateString("en-GB", {
@@ -112,6 +112,9 @@ const InvoiceDetailPage = async ({
     notFound();
   }
 
+  const currentUser = await getCurrentUser();
+  const canDeleteReturns = isAdminUser(currentUser);
+
   const invoice = await prisma.invoice.findUnique({
     where: { invoice_id: invoiceId },
     select: {
@@ -145,6 +148,7 @@ const InvoiceDetailPage = async ({
         },
       },
       goods_issue_notes: {
+        where: { is_active: true },
         orderBy: { gin_date: "desc" },
         select: {
           gin_id: true,
@@ -159,11 +163,27 @@ const InvoiceDetailPage = async ({
         },
       },
       receipts: {
+        where: { is_active: true },
         orderBy: [{ receipt_date: "desc" }, { receipt_id: "desc" }],
         select: {
           receipt_id: true,
           receipt_date: true,
           amount: true,
+        },
+      },
+      salesReturnNotes: {
+        where: { is_active: true },
+        orderBy: [{ return_date: "desc" }, { return_id: "desc" }],
+        select: {
+          return_id: true,
+          return_number: true,
+          return_date: true,
+          total_amount: true,
+          creator: {
+            select: {
+              full_name: true,
+            },
+          },
         },
       },
       invoice_lines: {
@@ -570,6 +590,45 @@ const InvoiceDetailPage = async ({
           </div>
         ) : (
           <p className="text-[12px] text-stone-500">No receipts linked yet.</p>
+        )}
+      </section>
+
+      {/* ── Sales Return Notes ── */}
+      <section className="rounded-2xl border border-stone-200 bg-white p-4">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700">
+            <FileText size={14} />
+          </span>
+          <h2 className="text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
+            Sales Return Notes ({invoice.salesReturnNotes.length})
+          </h2>
+        </div>
+        {invoice.salesReturnNotes.length > 0 ? (
+          <div className="space-y-2">
+            {invoice.salesReturnNotes.map((srn) => (
+              <div
+                key={srn.return_id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <p className="text-[12px] font-semibold text-stone-900">
+                    {srn.return_number}
+                  </p>
+                  <p className="text-[11px] text-stone-600">
+                    {formatDate(srn.return_date)} | {formatCurrency(Number(srn.total_amount))} | {srn.creator.full_name}
+                  </p>
+                </div>
+                {canDeleteReturns ? (
+                  <DeleteSalesReturnButton
+                    returnId={srn.return_id}
+                    returnNumber={srn.return_number}
+                  />
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[12px] text-stone-500">No sales return notes linked yet.</p>
         )}
       </section>
 

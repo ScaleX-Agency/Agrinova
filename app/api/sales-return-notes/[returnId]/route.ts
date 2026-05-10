@@ -1,0 +1,383 @@
+import { NextResponse } from "next/server";
+import { InvoiceStatus } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { getCurrentUser, isAdminUser } from "@/lib/auth";
+
+const parsePositiveInt = (value: string) => {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) return null;
+  return parsed;
+};
+
+const toInvoiceStatus = (balanceAmount: number, paidAmount: number, creditedAmount: number): InvoiceStatus => {
+  if (balanceAmount <= 0) return "PAID";
+  if (paidAmount > 0 || creditedAmount > 0) return "PARTIAL";
+  return "UNPAID";
+};
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ returnId: string }> },
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!isAdminUser(user)) {
+      return NextResponse.json({ error: "Forbidden. Admin access required." }, { status: 403 });
+    }
+
+    const returnId = parsePositiveInt((await params).returnId);
+    if (!returnId) {
+      return NextResponse.json({ error: "Invalid return id." }, { status: 400 });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const srn = await tx.salesReturnNote.findUnique({
+        where: { return_id: returnId },
+        select: {
+          return_id: true,
+          return_number: true,
+          return_date: true,
+          location_id: true,
+          invoice_id: true,
+          is_active: true,
+          lines: {
+            select: {
+              product_id: true,
+              quantity_usable: true,
+              quantity_unusable: true,
+              line_total: true,
+            },
+          },
+          goodsReturnNotes: {
+            where: { is_active: true },
+            select: {
+              return_id: true,
+              location_id: true,
+              lines: {
+                select: {
+                  product_id: true,
+                  quantity: true,
+                },
+              },
+            },
+          },
+          creditNotes: {
+            where: { is_active: true },
+            select: {
+              credit_note_id: true,
+              amount: true,
+              invoiceSettlements: {
+                where: { is_active: true },
+                select: {
+                  settlement_id: true,
+                },
+              },
+            },
+          },
+          invoice: {
+            select: {
+              invoice_id: true,
+              total_amount: true,
+              paid_amount: true,
+              credited_amount: true,
+              invoice_lines: {
+                select: {
+                  line_id: true,
+                  product_id: true,
+                  issued_qty: true,
+                  returned_qty: true,
+                  balance_qty: true,
+                  credited_amount: true,
+                  balance_amount: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!srn || !srn.is_active) {
+        throw new Error("Sales return note not found or already inactive.");
+      }
+
+      if (srn.goodsReturnNotes.length === 0) {
+        throw new Error("No active goods return note is linked to this SRN.");
+      }
+
+      if (srn.creditNotes.length === 0) {
+        throw new Error("No active credit note is linked to this SRN.");
+      }
+
+      const goodsReturn = srn.goodsReturnNotes[0];
+
+      const returnedByProduct = new Map<number, { returnedQty: number; creditedAmount: number; unusableQty: number }>();
+      for (const line of srn.lines) {
+        const current = returnedByProduct.get(line.product_id) ?? {
+          returnedQty: 0,
+          creditedAmount: 0,
+          unusableQty: 0,
+        };
+        current.returnedQty += line.quantity_usable + line.quantity_unusable;
+        current.creditedAmount += Number(line.line_total);
+        current.unusableQty += line.quantity_unusable;
+        returnedByProduct.set(line.product_id, current);
+      }
+
+      const invoiceLinesByProduct = new Map<number, (typeof srn.invoice.invoice_lines)[number][]>();
+      for (const line of srn.invoice.invoice_lines) {
+        const lines = invoiceLinesByProduct.get(line.product_id) ?? [];
+        lines.push(line);
+        invoiceLinesByProduct.set(line.product_id, lines);
+      }
+
+      for (const [productId, aggregate] of returnedByProduct.entries()) {
+        const invoiceLines = invoiceLinesByProduct.get(productId) ?? [];
+        if (invoiceLines.length !== 1) {
+          throw new Error(
+            `Expected exactly one invoice line for product ${productId}, found ${invoiceLines.length}.`,
+          );
+        }
+
+        const invoiceLine = invoiceLines[0];
+        if (invoiceLine.returned_qty < aggregate.returnedQty) {
+          throw new Error(`Cannot reverse returns for product ${productId}; returned quantity mismatch.`);
+        }
+
+        const currentCredited = Number(invoiceLine.credited_amount);
+        if (currentCredited + 0.0001 < aggregate.creditedAmount) {
+          throw new Error(`Cannot reverse credits for product ${productId}; credited amount mismatch.`);
+        }
+      }
+
+      const goodsReturnQtyByProduct = new Map<number, number>();
+      for (const line of goodsReturn.lines) {
+        goodsReturnQtyByProduct.set(
+          line.product_id,
+          (goodsReturnQtyByProduct.get(line.product_id) ?? 0) + line.quantity,
+        );
+      }
+
+      const stockProductIds = Array.from(goodsReturnQtyByProduct.keys());
+      const stocks = stockProductIds.length
+        ? await tx.stock.findMany({
+            where: {
+              location_id: goodsReturn.location_id,
+              product_id: { in: stockProductIds },
+            },
+            select: {
+              stock_id: true,
+              product_id: true,
+              quantity_on_hand: true,
+            },
+          })
+        : [];
+      const stockByProduct = new Map(stocks.map((stock) => [stock.product_id, stock]));
+
+      for (const [productId, qty] of goodsReturnQtyByProduct.entries()) {
+        if (qty <= 0) continue;
+        const stock = stockByProduct.get(productId);
+        if (!stock) {
+          throw new Error(`Stock record not found for product ${productId} to reverse goods return.`);
+        }
+        if (stock.quantity_on_hand < qty) {
+          throw new Error(
+            `Cannot delete SRN because stock would go negative for product ${productId}.`,
+          );
+        }
+      }
+
+      const now = new Date();
+
+      for (const [productId, qty] of goodsReturnQtyByProduct.entries()) {
+        if (qty <= 0) continue;
+        const stock = stockByProduct.get(productId)!;
+
+        await tx.stock.update({
+          where: { stock_id: stock.stock_id },
+          data: {
+            quantity_on_hand: { decrement: qty },
+          },
+        });
+
+        await tx.stockMovement.create({
+          data: {
+            stock_id: stock.stock_id,
+            product_id: productId,
+            created_by: user.user_id,
+            movement_type: "RETURN_REVERSAL",
+            quantity: qty,
+            movement_date: now,
+          },
+        });
+      }
+
+      for (const [productId, aggregate] of returnedByProduct.entries()) {
+        if (aggregate.unusableQty <= 0) continue;
+
+        const stockForAudit =
+          stockByProduct.get(productId) ??
+          (await tx.stock.upsert({
+            where: {
+              product_id_location_id: {
+                product_id: productId,
+                location_id: srn.location_id,
+              },
+            },
+            update: {},
+            create: {
+              product_id: productId,
+              location_id: srn.location_id,
+              quantity_on_hand: 0,
+            },
+            select: {
+              stock_id: true,
+            },
+          }));
+
+        await tx.stockMovement.create({
+          data: {
+            stock_id: stockForAudit.stock_id,
+            product_id: productId,
+            created_by: user.user_id,
+            movement_type: "RETURN_UNUSABLE_REVERSAL",
+            quantity: aggregate.unusableQty,
+            movement_date: now,
+          },
+        });
+      }
+
+      for (const [productId, aggregate] of returnedByProduct.entries()) {
+        const invoiceLine = (invoiceLinesByProduct.get(productId) ?? [])[0];
+        const nextReturnedQty = invoiceLine.returned_qty - aggregate.returnedQty;
+        const nextCreditedAmount = Math.max(
+          0,
+          Number(invoiceLine.credited_amount) - aggregate.creditedAmount,
+        );
+        const nextBalanceAmount = Number(invoiceLine.balance_amount) + aggregate.creditedAmount;
+        const nextBalanceQty = Math.max(0, invoiceLine.issued_qty - nextReturnedQty);
+
+        await tx.invoiceLine.update({
+          where: { line_id: invoiceLine.line_id },
+          data: {
+            returned_qty: nextReturnedQty,
+            balance_qty: nextBalanceQty,
+            credited_amount: nextCreditedAmount,
+            balance_amount: nextBalanceAmount,
+          },
+        });
+      }
+
+      let totalCreditAmountToReverse = 0;
+      for (const creditNote of srn.creditNotes) {
+        totalCreditAmountToReverse += Number(creditNote.amount);
+
+        for (const settlement of creditNote.invoiceSettlements) {
+          await tx.commission.updateMany({
+            where: {
+              settlement_id: settlement.settlement_id,
+              is_active: true,
+            },
+            data: {
+              is_active: false,
+              status: "CANCELLED",
+            },
+          });
+
+          await tx.invoiceSettlement.update({
+            where: { settlement_id: settlement.settlement_id },
+            data: {
+              is_active: false,
+              commission_issued: false,
+            },
+          });
+        }
+
+        await tx.creditNote.update({
+          where: { credit_note_id: creditNote.credit_note_id },
+          data: {
+            is_active: false,
+            deleted_by: user.user_id,
+          },
+        });
+      }
+
+      const currentInvoiceCreditedAmount = Number(srn.invoice.credited_amount);
+      if (currentInvoiceCreditedAmount + 0.0001 < totalCreditAmountToReverse) {
+        throw new Error("Cannot reverse invoice credits; credited amount mismatch.");
+      }
+
+      const nextInvoiceCreditedAmount = Math.max(
+        0,
+        currentInvoiceCreditedAmount - totalCreditAmountToReverse,
+      );
+      const totalAmount = Number(srn.invoice.total_amount);
+      const paidAmount = Number(srn.invoice.paid_amount);
+      const nextInvoiceBalanceAmount = Math.max(
+        0,
+        totalAmount - paidAmount - nextInvoiceCreditedAmount,
+      );
+      const nextInvoiceStatus = toInvoiceStatus(
+        nextInvoiceBalanceAmount,
+        paidAmount,
+        nextInvoiceCreditedAmount,
+      );
+
+      await tx.invoice.update({
+        where: { invoice_id: srn.invoice_id },
+        data: {
+          credited_amount: nextInvoiceCreditedAmount,
+          balance_amount: nextInvoiceBalanceAmount,
+          payment_status: nextInvoiceStatus,
+        },
+      });
+
+      await tx.goodsReturnNote.updateMany({
+        where: {
+          srn_id: srn.return_id,
+          is_active: true,
+        },
+        data: {
+          is_active: false,
+          deleted_by: user.user_id,
+        },
+      });
+
+      await tx.salesReturnNote.update({
+        where: { return_id: srn.return_id },
+        data: {
+          is_active: false,
+          deleted_by: user.user_id,
+        },
+      });
+
+      return {
+        returnId: srn.return_id,
+        returnNumber: srn.return_number,
+      };
+    });
+
+    return NextResponse.json({
+      data: {
+        success: true,
+        returnId: result.returnId,
+        returnNumber: result.returnNumber,
+      },
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to delete sales return note.";
+    const status =
+      message.includes("not found") || message.includes("already inactive")
+        ? 404
+        : message.includes("Forbidden")
+          ? 403
+          : message.includes("Unauthorized")
+            ? 401
+            : 422;
+    console.error("Failed to delete sales return note", error);
+    return NextResponse.json({ error: message }, { status });
+  }
+}

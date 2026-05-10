@@ -69,6 +69,7 @@ export async function GET(
           },
         },
         invoiceSettlements: {
+          where: { is_active: true },
           select: {
             settlement_id: true,
             amount: true,
