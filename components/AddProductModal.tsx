@@ -4,17 +4,16 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
   // eslint-disable-next-line
-import { X, Package, Info, ChevronDown } from "lucide-react";
+import { X, Info, ChevronDown } from "lucide-react";
 import { CreateProductDto } from "../types/inventory";
-import { useCategories, useLocations } from "@/hooks/useInventory";
+import { useCategories } from "@/hooks/useInventory";
 
 interface FormState {
   product_name: string;
   pack_size: string;
   category_id: string;
   selling_price: string;
-  location_id: string;
-  initial_qty: string;
+  reorder_threshold: string;
 }
 
 interface Props {
@@ -101,14 +100,12 @@ export default function AddProductModal({
     pack_size: initialValues?.pack_size || "",
     category_id: initialValues?.category_id?.toString() || "",
     selling_price: initialValues?.selling_price?.toString() || "",
-    location_id: "1",
-    initial_qty: "0",
+    reorder_threshold: initialValues?.reorder_threshold?.toString() || "0",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   const { data: categories = [] } = useCategories();
-  const { data: locations = [] } = useLocations();
 
   // Preview the auto-generated product code
   const categoryTag = categories.find(
@@ -132,6 +129,13 @@ export default function AddProductModal({
     if (!form.category_id) e.category_id = "Please select a category";
     if (!form.selling_price || parseFloat(form.selling_price) <= 0)
       e.selling_price = "Enter a valid price";
+    if (
+      form.reorder_threshold &&
+      (!Number.isInteger(Number(form.reorder_threshold)) ||
+        Number(form.reorder_threshold) < 0)
+    ) {
+      e.reorder_threshold = "Reorder threshold must be a non-negative integer";
+    }
     return e;
   };
 
@@ -148,15 +152,10 @@ export default function AddProductModal({
         pack_size: form.pack_size,
         category_id: parseInt(form.category_id),
         selling_price: parseFloat(form.selling_price),
+        reorder_threshold: parseInt(form.reorder_threshold || "0", 10),
       };
 
       if (mode === "add") {
-        if (form.initial_qty && parseInt(form.initial_qty) > 0) {
-          payload.initial_qty = parseInt(form.initial_qty);
-          if (form.location_id) {
-            payload.location_id = parseInt(form.location_id);
-          }
-        }
         const res = await fetch("/api/products", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -291,8 +290,8 @@ export default function AddProductModal({
             </div>
           </div>
 
-          {/* Price */}
-          <div>
+          {/* Price + Reorder threshold */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <FieldLabel label="Selling Price (LKR)" required />
               <div className="relative">
@@ -311,54 +310,21 @@ export default function AddProductModal({
               </div>
               <FieldError msg={errors.selling_price} />
             </div>
+
+            <div>
+              <FieldLabel label="Reorder Threshold" />
+              <input
+                type="number"
+                min="0"
+                step="1"
+                className={inputCls(!!errors.reorder_threshold)}
+                placeholder="0"
+                value={form.reorder_threshold}
+                onChange={(e) => set("reorder_threshold", e.target.value)}
+              />
+              <FieldError msg={errors.reorder_threshold} />
+            </div>
           </div>
-
-          {/* Section: Initial stock */}
-          {mode === "add" && (
-            <>
-              <p className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-stone-400 pb-2 border-b border-stone-100 [font-family:var(--font-dmsans)] pt-1">
-                Initial stock{" "}
-                <span className="normal-case font-normal text-stone-300">
-                  (optional)
-                </span>
-              </p>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <FieldLabel label="Location" />
-                  <div className="relative">
-                    <select
-                      className={selectCls()}
-                      value={form.location_id}
-                      onChange={(e) => set("location_id", e.target.value)}
-                    >
-                      {locations.map((l) => (
-                        <option key={l.id} value={l.id}>
-                          {l.label}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown
-                      size={13}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <FieldLabel label="Initial Qty" />
-                  <input
-                    type="number"
-                    min="0"
-                    className={inputCls()}
-                    value={form.initial_qty}
-                    onChange={(e) => set("initial_qty", e.target.value)}
-                  />
-                  <FieldHint>Leave 0 to add stock via Stock Entry</FieldHint>
-                </div>
-              </div>
-            </>
-          )}
 
           {/* Global error */}
           <AnimatePresence>
