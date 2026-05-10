@@ -1,15 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  Calendar,
-  User,
-  FileText,
-  DollarSign,
-  Package,
   CheckCircle,
   Clock,
   AlertCircle,
   Receipt,
+  FileText,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, isAdminUser } from "@/lib/auth";
@@ -54,7 +50,10 @@ const STATUS_LABEL: Record<"PAID" | "PARTIAL" | "UNPAID" | "OVERDUE", string> = 
   OVERDUE: "Overdue",
 };
 
-const STATUS_BADGE_STYLE: Record<"PAID" | "PARTIAL" | "UNPAID" | "OVERDUE", { bg: string; text: string; icon: React.ReactNode }> = {
+const STATUS_BADGE_STYLE: Record<
+  "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE",
+  { bg: string; text: string; icon: React.ReactNode }
+> = {
   PAID: {
     bg: "bg-emerald-50",
     text: "text-emerald-700",
@@ -66,8 +65,8 @@ const STATUS_BADGE_STYLE: Record<"PAID" | "PARTIAL" | "UNPAID" | "OVERDUE", { bg
     icon: <Clock size={14} className="shrink-0" />,
   },
   UNPAID: {
-    bg: "bg-slate-50",
-    text: "text-slate-600",
+    bg: "bg-stone-100",
+    text: "text-stone-700",
     icon: <AlertCircle size={14} className="shrink-0" />,
   },
   OVERDUE: {
@@ -88,18 +87,18 @@ const GIN_STATUS_BADGE_STYLE: Record<
   { bg: string; text: string; icon: React.ReactNode }
 > = {
   PENDING: {
-    bg: "bg-slate-50",
-    text: "text-slate-700",
+    bg: "bg-amber-50",
+    text: "text-amber-700",
     icon: <Clock size={14} className="shrink-0" />,
   },
   ISSUED: {
-    bg: "bg-blue-50",
-    text: "text-blue-700",
+    bg: "bg-[#eeeffe]",
+    text: "text-[#2b2d7e]",
     icon: <CheckCircle size={14} className="shrink-0" />,
   },
   PARTIAL: {
-    bg: "bg-amber-50",
-    text: "text-amber-700",
+    bg: "bg-blue-50",
+    text: "text-blue-700",
     icon: <AlertCircle size={14} className="shrink-0" />,
   },
 };
@@ -225,8 +224,6 @@ const InvoiceDetailPage = async ({
     (sum: number, line: InvoiceLine) => sum + Number(line.line_total),
     0,
   );
-  // eslint-disable-next-line
-  const latestGin = invoice.goods_issue_notes[0] ?? null;
   const ginStatus = invoice.gin_status;
   const paymentStatus = invoice.payment_status;
   const total = Number(invoice.total_amount);
@@ -234,6 +231,7 @@ const InvoiceDetailPage = async ({
   const creditedAmount = Number(invoice.credited_amount);
   const balanceAmount = Number(invoice.balance_amount);
   const discountTotal = Math.max(0, subtotal - total);
+  const grandTotalAfterReturns = Math.max(0, subtotal - discountTotal - creditedAmount);
   const issueStocksLines = invoice.invoice_lines.map((line) => ({
     productName: line.product.product_name,
     packSize: line.product.pack_size,
@@ -254,8 +252,8 @@ const InvoiceDetailPage = async ({
     (sum, line) => sum + Math.max(0, line.issued_qty - line.returned_qty),
     0,
   );
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const receiptsWithNumber = invoice.receipts.map((receipt: any) => {
+
+  const receiptsWithNumber = invoice.receipts.map((receipt) => {
     const year = receipt.receipt_date.getFullYear();
     const month = String(receipt.receipt_date.getMonth() + 1).padStart(2, "0");
     return {
@@ -264,253 +262,219 @@ const InvoiceDetailPage = async ({
       amount: receipt.amount,
     };
   });
+  const returnedLines = invoice.invoice_lines.filter((line) => line.returned_qty > 0);
 
   return (
     <section className="space-y-5">
-      {/* ── Header ── */}
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <BackNavigationLink
-              href="/invoices"
-              label="Back to Invoices"
-              className="mb-1 inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 transition-colors hover:text-stone-700 [font-family:var(--font-dmsans)]"
-            />
-            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-stone-500">
-              Sales Document
-            </p>
-            <div className="flex flex-wrap items-end gap-2">
-              <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)] font-semibold">
-                Invoice {invoice.invoice_number}
-              </h1>
-              <div
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium ${
-                  STATUS_BADGE_STYLE[paymentStatus].bg
-                } ${STATUS_BADGE_STYLE[paymentStatus].text}`}
-              >
-                {STATUS_BADGE_STYLE[paymentStatus].icon}
-                {STATUS_LABEL[paymentStatus]}
-              </div>
-              <div
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium ${
-                  GIN_STATUS_BADGE_STYLE[ginStatus as "PENDING" | "ISSUED" | "PARTIAL"].bg
-                } ${GIN_STATUS_BADGE_STYLE[ginStatus as "PENDING" | "ISSUED" | "PARTIAL"].text}`}
-              >
-                {GIN_STATUS_BADGE_STYLE[ginStatus as "PENDING" | "ISSUED" | "PARTIAL"].icon}
-                GIN: {GIN_STATUS_LABEL[ginStatus as "PENDING" | "ISSUED" | "PARTIAL"]}
+      <header className="rounded-2xl border border-stone-200 bg-white p-4 sm:p-5">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-2">
+              <BackNavigationLink
+                href="/invoices"
+                label="Back to Invoices"
+                className="inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 transition-colors hover:text-stone-700 [font-family:var(--font-dmsans)]"
+              />
+              <div className="flex flex-wrap items-end gap-2">
+                <h1 className="text-[26px] font-semibold leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)]">
+                  Invoice {invoice.invoice_number}
+                </h1>
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${STATUS_BADGE_STYLE[paymentStatus].bg} ${STATUS_BADGE_STYLE[paymentStatus].text}`}
+                >
+                  {STATUS_BADGE_STYLE[paymentStatus].icon}
+                  {STATUS_LABEL[paymentStatus]}
+                </span>
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${GIN_STATUS_BADGE_STYLE[ginStatus].bg} ${GIN_STATUS_BADGE_STYLE[ginStatus].text}`}
+                >
+                  {GIN_STATUS_BADGE_STYLE[ginStatus].icon}
+                  GIN: {GIN_STATUS_LABEL[ginStatus]}
+                </span>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* ── Quick Actions ── */}
-        <div className="flex flex-wrap items-center gap-2">
-          <InvoicePrintButton
-            invoiceNo={invoice.invoice_number}
-            invoiceDate={invoice.invoice_date.toISOString()}
-            customerName={invoice.customer.name}
-            customerPhone={invoice.customer.phone ?? null}
-            customerAddress={invoice.customer.address ?? null}
-            repName={invoice.rep.full_name}
-            statusLabel={STATUS_LABEL[paymentStatus]}
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            lines={invoice.invoice_lines.map((line: any) => ({
-              lineId: line.line_id,
-              productName: line.product.product_name,
-              packSize: line.product.pack_size,
-              quantity: line.quantity,
-              unitPrice: Number(line.unit_price),
-              discount: Number(line.discount),
-              lineTotal: Number(line.line_total),
-            }))}
-            subtotal={subtotal}
-            discountTotal={discountTotal}
-            grandTotal={total}
-          />
-
-          {ginStatus === "ISSUED" ? (
-            <IssueStocksModalButton
-              invoiceId={invoice.invoice_id}
-              disabled
-              disabledTitle={`GIN already ${GIN_STATUS_LABEL[ginStatus as "PENDING" | "ISSUED" | "PARTIAL"].toLowerCase()}`}
-              buttonClassName="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
-              preloadedLines={issueStocksLines}
-            />
-          ) : (
-            <IssueStocksModalButton
-              invoiceId={invoice.invoice_id}
-              disabled={false}
-              buttonClassName="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
-              preloadedLines={issueStocksLines}
-            />
-          )}
-
-          {paymentStatus === "PAID" ? (
-            <RecordPaymentModalButton
-              invoiceId={invoice.invoice_id}
-              disabled
-              disabledTitle="Invoice is fully paid"
-              buttonClassName="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
-              preloadedSnapshot={paymentSnapshot}
-            />
-          ) : (
-            <RecordPaymentModalButton
-              invoiceId={invoice.invoice_id}
-              disabled={false}
-              buttonClassName="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
-              preloadedSnapshot={paymentSnapshot}
-            />
-          )}
-          {totalReturnableQty <= 0 ? (
-            <RecordReturnsModalButton
-              invoiceId={invoice.invoice_id}
-              disabled
-              disabledTitle="No returnable quantities available"
-              buttonClassName="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
-            />
-          ) : (
-            <RecordReturnsModalButton
-              invoiceId={invoice.invoice_id}
-              disabled={false}
-              buttonClassName="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
-            />
-          )}
-          {canDeleteReturns ? (
-            <DeleteInvoiceButton
-              invoiceId={invoice.invoice_id}
+          <div className="flex flex-wrap items-center gap-2">
+            <InvoicePrintButton
               invoiceNo={invoice.invoice_number}
+              invoiceDate={invoice.invoice_date.toISOString()}
+              customerName={invoice.customer.name}
+              customerPhone={invoice.customer.phone ?? null}
+              customerAddress={invoice.customer.address ?? null}
+              repName={invoice.rep.full_name}
+              statusLabel={STATUS_LABEL[paymentStatus]}
+              lines={invoice.invoice_lines.map((line) => ({
+                lineId: line.line_id,
+                productName: line.product.product_name,
+                packSize: line.product.pack_size,
+                quantity: line.quantity,
+                unitPrice: Number(line.unit_price),
+                discount: Number(line.discount),
+                lineTotal: Number(line.line_total),
+              }))}
+              subtotal={subtotal}
+              discountTotal={discountTotal}
+              grandTotal={total}
             />
-          ) : null}
-        </div>
-      </div>
 
-      {/* ── Key Info Cards ── */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Invoice Date */}
-        <div className="rounded-2xl border border-stone-200 bg-white p-3.5 transition-shadow hover:shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-700 border border-blue-100 flex items-center justify-center shrink-0">
-              <Calendar size={18} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Invoice Date</p>
-              <p className="mt-1 text-[15px] font-semibold text-stone-900">{formatDate(invoice.invoice_date)}</p>
-            </div>
+            {ginStatus === "ISSUED" ? (
+              <IssueStocksModalButton
+                invoiceId={invoice.invoice_id}
+                disabled
+                disabledTitle={`GIN already ${GIN_STATUS_LABEL[ginStatus].toLowerCase()}`}
+                buttonClassName="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
+                preloadedLines={issueStocksLines}
+              />
+            ) : (
+              <IssueStocksModalButton
+                invoiceId={invoice.invoice_id}
+                disabled={false}
+                buttonClassName="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
+                preloadedLines={issueStocksLines}
+              />
+            )}
+
+            {paymentStatus === "PAID" ? (
+              <RecordPaymentModalButton
+                invoiceId={invoice.invoice_id}
+                disabled
+                disabledTitle="Invoice is fully paid"
+                buttonClassName="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
+                preloadedSnapshot={paymentSnapshot}
+              />
+            ) : (
+              <RecordPaymentModalButton
+                invoiceId={invoice.invoice_id}
+                disabled={false}
+                buttonClassName="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
+                preloadedSnapshot={paymentSnapshot}
+              />
+            )}
+
+            {totalReturnableQty <= 0 ? (
+              <RecordReturnsModalButton
+                invoiceId={invoice.invoice_id}
+                disabled
+                disabledTitle="No returnable quantities available"
+                buttonClassName="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
+              />
+            ) : (
+              <RecordReturnsModalButton
+                invoiceId={invoice.invoice_id}
+                disabled={false}
+                buttonClassName="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
+              />
+            )}
+
+            {canDeleteReturns ? (
+              <DeleteInvoiceButton
+                invoiceId={invoice.invoice_id}
+                invoiceNo={invoice.invoice_number}
+              />
+            ) : null}
           </div>
         </div>
+      </header>
 
-        {/* Customer */}
-        <div className="rounded-2xl border border-stone-200 bg-white p-3.5 transition-shadow hover:shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-700 border border-purple-100 flex items-center justify-center shrink-0">
-              <User size={18} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Customer</p>
-              <p className="mt-1 truncate text-[14px] font-semibold text-stone-900">{invoice.customer.name}</p>
-              {invoice.customer.phone && (
-                <p className="mt-0.5 text-[11px] text-stone-500">{invoice.customer.phone}</p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Sales Rep */}
-        <div className="rounded-2xl border border-stone-200 bg-white p-3.5 transition-shadow hover:shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-700 border border-amber-100 flex items-center justify-center shrink-0">
-              <User size={18} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Sales Rep</p>
-              <p className="mt-1 truncate text-[14px] font-semibold text-stone-900">{invoice.rep.full_name}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Total Amount */}
-        <div className="rounded-2xl border border-stone-200 bg-white p-3.5 transition-shadow hover:shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-green-50 text-green-700 border border-green-100 flex items-center justify-center shrink-0">
-              <DollarSign size={18} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Grand Total</p>
-              <p className="mt-1 text-[14px] font-semibold text-[#1a5c2e]">{formatCurrency(total)}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Line Items Table ── */}
-      <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white">
+      <section className="overflow-hidden rounded-2xl border border-stone-200 bg-white">
         <div className="border-b border-stone-200 px-5 py-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
-              <Package size={16} />
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Agrinova IMS</p>
+              <h2 className="mt-1 text-[20px] font-semibold text-[#2b2d7e] [font-family:var(--font-dmsans)]">
+                Invoice
+              </h2>
+              <p className="mt-0.5 text-[12px] text-stone-600">
+                205D, Kalapaluwawa Road, Koswatta, Battaramulla
+              </p>
             </div>
-            <h2 className="text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
-              Products
-            </h2>
+            <div className="text-right text-[12px] text-stone-600">
+              <p>
+                <span className="font-medium text-stone-800">Invoice No:</span> {invoice.invoice_number}
+              </p>
+              <p>
+                <span className="font-medium text-stone-800">Invoice Date:</span> {formatDate(invoice.invoice_date)}
+              </p>
+              <p>
+                <span className="font-medium text-stone-800">Status:</span> {STATUS_LABEL[paymentStatus]}
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] border-collapse text-[13px]">
-            <thead className="bg-stone-50 text-[11px] uppercase tracking-[0.1em] text-stone-600 font-semibold">
+        <div className="grid gap-5 border-b border-stone-200 px-5 py-4 md:grid-cols-2">
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-stone-500">Bill To</p>
+            <p className="mt-1 text-[14px] font-semibold text-stone-900">{invoice.customer.name}</p>
+            {invoice.customer.phone ? (
+              <p className="text-[13px] text-stone-700">{invoice.customer.phone}</p>
+            ) : null}
+            {invoice.customer.address ? (
+              <p className="text-[13px] text-stone-700">{invoice.customer.address}</p>
+            ) : null}
+          </div>
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-stone-500">Sales Representative</p>
+            <p className="mt-1 text-[14px] font-semibold text-stone-900">{invoice.rep.full_name}</p>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto border-b border-stone-200">
+          <table className="w-full min-w-[1020px] table-fixed border-collapse text-[13px]">
+            <colgroup>
+              <col className="w-[30%]" />
+              <col className="w-[12%]" />
+              <col className="w-[10%]" />
+              <col className="w-[12%]" />
+              <col className="w-[12%]" />
+              <col className="w-[12%]" />
+              <col className="w-[12%]" />
+            </colgroup>
+            <thead className="bg-stone-50 text-[11px] font-medium uppercase tracking-[0.1em] text-stone-600">
               <tr>
-                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-left">Product</th>
-                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-left">Pack Size</th>
-                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-center">Qty</th>
-                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-center">Balance Qty</th>
-                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-right">Unit Price</th>
-                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-center">Promotion</th>
-                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-right">Line Total</th>
-                <th className="border-b border-stone-200 px-5 py-3.5 text-right">Net Total</th>
+                <th className="border-b border-r border-stone-200 px-4 py-3 text-left">Product</th>
+                <th className="border-b border-r border-stone-200 px-4 py-3 text-left">Pack Size</th>
+                <th className="border-b border-r border-stone-200 px-4 py-3 text-center">Qty</th>
+                <th className="border-b border-r border-stone-200 px-4 py-3 text-right">Unit Price</th>
+                <th className="border-b border-r border-stone-200 px-4 py-3 text-center">Promotion</th>
+                <th className="border-b border-r border-stone-200 px-4 py-3 text-right">Gross Total</th>
+                <th className="border-b border-stone-200 px-4 py-3 text-right">Net Total</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-stone-100">
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              {invoice.invoice_lines.map((line: any) => (
-                <tr key={line.line_id} className="hover:bg-stone-50 transition-colors">
-                  <td className="border-r border-stone-200 px-5 py-3.5 text-left font-medium text-stone-900">
+            <tbody>
+              {invoice.invoice_lines.map((line) => (
+                <tr key={line.line_id} className="border-b border-stone-100 hover:bg-stone-50">
+                  <td className="border-r border-stone-200 px-4 py-3 font-medium text-stone-900">
                     {line.product.product_name}
                   </td>
-                  <td className="border-r border-stone-200 px-5 py-3.5 text-left text-stone-700">{line.product.pack_size}</td>
-                  <td className="border-r border-stone-200 px-5 py-3.5 text-center text-stone-700 font-medium whitespace-nowrap">
-                    {line.quantity}
-                    {line.free_quantity > 0 && (
-                      <div className="text-[11px] text-green-600 mt-0.5">+{line.free_quantity} Free</div>
-                    )}
+                  <td className="border-r border-stone-200 px-4 py-3 text-stone-700">{line.product.pack_size}</td>
+                  <td className="border-r border-stone-200 px-4 py-3 text-center text-stone-700">
+                    <span>{line.quantity}</span>
+                    {line.free_quantity > 0 ? (
+                      <span className="ml-1 text-[11px] text-green-700">+{line.free_quantity} free</span>
+                    ) : null}
                   </td>
-                  <td className="border-r border-stone-200 px-5 py-3.5 text-center text-stone-700 font-medium whitespace-nowrap">
-                    {line.balance_qty}
-                    {(line.issued_qty > 0 || line.returned_qty > 0) && (
-                      <div className="mt-0.5 text-[11px] text-stone-500">
-                        {line.issued_qty} issued / {line.returned_qty} returned
-                      </div>
-                    )}
-                  </td>
-                  <td className="border-r border-stone-200 px-5 py-3.5 text-right text-stone-700">
+                  <td className="border-r border-stone-200 px-4 py-3 text-right text-stone-700">
                     {formatCurrency(Number(line.unit_price))}
                   </td>
-                  <td className="border-r border-stone-200 px-5 py-3.5 text-center text-stone-700">
+                  <td className="border-r border-stone-200 px-4 py-3 text-center text-stone-700">
                     {line.promotion_type === "DISCOUNT" && Number(line.discount) > 0 ? (
-                      <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                      <span className="inline-flex rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
                         {Number(line.discount)}% OFF
                       </span>
                     ) : line.promotion_type === "FREE_QTY" && Number(line.free_quantity) > 0 ? (
-                      <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-[11px] font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                      <span className="inline-flex rounded-md bg-green-50 px-2 py-0.5 text-[11px] font-medium text-green-700">
                         FREE QTY
                       </span>
                     ) : (
                       "-"
                     )}
                   </td>
-                  <td className="border-r border-stone-200 px-5 py-3.5 text-right text-stone-500">
+                  <td className="border-r border-stone-200 px-4 py-3 text-right text-stone-600">
                     {formatCurrency(Number(line.line_total))}
                   </td>
-                  <td className="px-5 py-3.5 text-right font-semibold text-stone-900">
+                  <td className="px-4 py-3 text-right font-semibold text-stone-900">
                     {formatCurrency(Number(line.net_line_total))}
                   </td>
                 </tr>
@@ -518,62 +482,98 @@ const InvoiceDetailPage = async ({
             </tbody>
           </table>
         </div>
-      </div>
 
-      {/* ── Totals Summary ── */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-stone-200 bg-white p-4">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Subtotal</p>
-          <p className="mt-1.5 text-[20px] font-semibold text-stone-900">{formatCurrency(subtotal)}</p>
+        <div className="border-b border-stone-200 py-4">
+          <h3 className="px-5 text-[11px] font-medium uppercase tracking-[0.1em] text-stone-500">Returns</h3>
+          {returnedLines.length > 0 ? (
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full min-w-[1020px] table-fixed border-collapse text-[13px]">
+                <colgroup>
+                  <col className="w-[30%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[12%]" />
+                </colgroup>
+                <thead className="bg-stone-50 text-[11px] font-medium uppercase tracking-[0.1em] text-stone-600">
+                  <tr>
+                    <th className="border-b border-r border-stone-200 px-4 py-3 text-left">Product</th>
+                    <th className="border-b border-r border-stone-200 px-4 py-3 text-left">Pack Size</th>
+                    <th className="border-b border-r border-stone-200 px-4 py-3 text-center">Qty</th>
+                    <th className="border-b border-r border-stone-200 px-4 py-3 text-right">Unit Price</th>
+                    <th className="border-b border-r border-stone-200 px-4 py-3 text-center">Promotion</th>
+                    <th className="border-b border-r border-stone-200 px-4 py-3 text-right">Gross Total</th>
+                    <th className="border-b border-stone-200 px-4 py-3 text-right">Net Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {returnedLines.map((line) => (
+                    <tr key={`return-${line.line_id}`} className="border-b border-stone-100">
+                      <td className="border-r border-stone-200 px-4 py-3 text-stone-900">
+                        {line.product.product_name}
+                      </td>
+                      <td className="border-r border-stone-200 px-4 py-3 text-stone-700">
+                        {line.product.pack_size}
+                      </td>
+                      <td className="border-r border-stone-200 px-4 py-3 text-center text-stone-700">
+                        {line.returned_qty}
+                      </td>
+                      <td className="border-r border-stone-200 px-4 py-3 text-right text-stone-700">
+                        {formatCurrency(Number(line.unit_price))}
+                      </td>
+                      <td className="border-r border-stone-200 px-4 py-3 text-center text-stone-700">
+                        {line.promotion_type === "DISCOUNT" && Number(line.discount) > 0 ? (
+                          <span className="inline-flex rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                            {Number(line.discount)}% OFF
+                          </span>
+                        ) : line.promotion_type === "FREE_QTY" && Number(line.free_quantity) > 0 ? (
+                          <span className="inline-flex rounded-md bg-green-50 px-2 py-0.5 text-[11px] font-medium text-green-700">
+                            FREE QTY
+                          </span>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                      <td className="border-r border-stone-200 px-4 py-3 text-right text-red-700">
+                        - {formatCurrency(Number(line.line_total))}
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold text-red-700">
+                        - {formatCurrency(Number(line.net_line_total))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="mt-2 px-5 text-[12px] text-stone-500">No returned quantities recorded.</p>
+          )}
         </div>
 
-        <div
-          className={`rounded-2xl border p-4 ${
-            discountTotal > 0
-              ? "border-amber-200 bg-amber-50"
-              : "border-stone-200 bg-white"
-          }`}
-        >
-          <p
-            className={`text-[11px] font-medium uppercase tracking-wide ${
-              discountTotal > 0 ? "text-amber-700" : "text-stone-500"
-            }`}
-          >
-            Discount
-          </p>
-          <p
-            className={`mt-1.5 text-[20px] font-semibold ${
-              discountTotal > 0 ? "text-amber-700" : "text-stone-700"
-            }`}
-          >
-            - {formatCurrency(discountTotal)}
-          </p>
+        <div className="flex justify-end px-5 py-4">
+          <div className="w-full max-w-[360px] space-y-2 rounded-xl border border-stone-200 bg-stone-50 p-4 text-[13px]">
+            <div className="flex items-center justify-between border-b border-stone-200 pb-1.5 text-stone-700">
+              <span>subtotal</span>
+              <span>{formatCurrency(subtotal)}</span>
+            </div>
+            <div className="flex items-center justify-between border-b border-stone-200 pb-1.5 text-stone-700">
+              <span>discount</span>
+              <span>- {formatCurrency(discountTotal)}</span>
+            </div>
+            <div className="flex items-center justify-between border-b border-stone-200 pb-1.5 text-red-700">
+              <span>returns</span>
+              <span>- {formatCurrency(creditedAmount)}</span>
+            </div>
+            <div className="flex items-center justify-between border-b border-stone-200 pb-1.5 text-[15px] font-semibold text-[#1a5c2e]">
+              <span>grand total</span>
+              <span>{formatCurrency(grandTotalAfterReturns)}</span>
+            </div>
+          </div>
         </div>
+      </section>
 
-        <div className="rounded-2xl border border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-4">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-green-700">Grand Total</p>
-          <p className="mt-1.5 text-[22px] font-bold text-[#1a5c2e]">{formatCurrency(total)}</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-700">Paid</p>
-          <p className="mt-1.5 text-[20px] font-semibold text-emerald-800">{formatCurrency(paidAmount)}</p>
-        </div>
-
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-blue-700">Credited</p>
-          <p className="mt-1.5 text-[20px] font-semibold text-blue-800">{formatCurrency(creditedAmount)}</p>
-        </div>
-
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-red-700">Balance</p>
-          <p className="mt-1.5 text-[20px] font-semibold text-red-800">{formatCurrency(balanceAmount)}</p>
-        </div>
-      </div>
-
-      {/* ── Receipts ── */}
       <section className="rounded-2xl border border-stone-200 bg-white p-4">
         <div className="mb-2 flex items-center gap-2">
           <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700">
@@ -585,8 +585,7 @@ const InvoiceDetailPage = async ({
         </div>
         {receiptsWithNumber.length > 0 ? (
           <div className="flex flex-wrap gap-2">
-            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {receiptsWithNumber.map((receipt: any) => (
+            {receiptsWithNumber.map((receipt) => (
               <div key={receipt.receipt_id} className="inline-flex items-center gap-1.5">
                 <Link
                   href={`/receipts/${receipt.receipt_id}`}
@@ -612,46 +611,6 @@ const InvoiceDetailPage = async ({
         )}
       </section>
 
-      {/* ── Sales Return Notes ── */}
-      <section className="rounded-2xl border border-stone-200 bg-white p-4">
-        <div className="mb-2 flex items-center gap-2">
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700">
-            <FileText size={14} />
-          </span>
-          <h2 className="text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
-            Sales Return Notes ({invoice.salesReturnNotes.length})
-          </h2>
-        </div>
-        {invoice.salesReturnNotes.length > 0 ? (
-          <div className="space-y-2">
-            {invoice.salesReturnNotes.map((srn) => (
-              <div
-                key={srn.return_id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2"
-              >
-                <div className="min-w-0">
-                  <p className="text-[12px] font-semibold text-stone-900">
-                    {srn.return_number}
-                  </p>
-                  <p className="text-[11px] text-stone-600">
-                    {formatDate(srn.return_date)} | {formatCurrency(Number(srn.total_amount))} | {srn.creator.full_name}
-                  </p>
-                </div>
-                {canDeleteReturns ? (
-                  <DeleteSalesReturnButton
-                    returnId={srn.return_id}
-                    returnNumber={srn.return_number}
-                  />
-                ) : null}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-[12px] text-stone-500">No sales return notes linked yet.</p>
-        )}
-      </section>
-
-      {/* ── Goods Issue Notes ── */}
       <section className="rounded-2xl border border-stone-200 bg-white p-4">
         <div className="mb-2 flex items-center gap-2">
           <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700">
@@ -663,8 +622,7 @@ const InvoiceDetailPage = async ({
         </div>
         {invoice.goods_issue_notes.length > 0 ? (
           <div className="flex flex-wrap gap-2">
-            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {invoice.goods_issue_notes.map((gin: any) => (
+            {invoice.goods_issue_notes.map((gin) => (
               <div key={gin.gin_id} className="inline-flex items-center gap-1.5">
                 <Link
                   href={`/goods-issue-notes/${gin.gin_id}`}
@@ -690,10 +648,46 @@ const InvoiceDetailPage = async ({
         )}
       </section>
 
-      {/* ── Record Metadata ── */}
       <section className="rounded-2xl border border-stone-200 bg-white p-4">
         <div className="mb-2 flex items-center gap-2">
           <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700">
+            <FileText size={14} />
+          </span>
+          <h2 className="text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
+            Sales Return Notes ({invoice.salesReturnNotes.length})
+          </h2>
+        </div>
+        {invoice.salesReturnNotes.length > 0 ? (
+          <div className="space-y-2">
+            {invoice.salesReturnNotes.map((srn) => (
+              <div
+                key={srn.return_id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <p className="text-[12px] font-semibold text-stone-900">{srn.return_number}</p>
+                  <p className="text-[11px] text-stone-600">
+                    {formatDate(srn.return_date)} | {formatCurrency(Number(srn.total_amount))} |{" "}
+                    {srn.creator.full_name}
+                  </p>
+                </div>
+                {canDeleteReturns ? (
+                  <DeleteSalesReturnButton
+                    returnId={srn.return_id}
+                    returnNumber={srn.return_number}
+                  />
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[12px] text-stone-500">No sales return notes linked yet.</p>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-stone-200 bg-white p-4">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-stone-200 bg-stone-100 text-stone-700">
             <FileText size={14} />
           </span>
           <h2 className="text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
@@ -709,7 +703,7 @@ const InvoiceDetailPage = async ({
         <h2 className="mb-3 text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
           Record Metadata
         </h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 text-sm">
+        <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
           <div>
             <p className="text-[11px] text-stone-500">Created By</p>
             <p className="mt-0.5 text-[13px] font-medium text-stone-900">{invoice.creator.full_name}</p>
