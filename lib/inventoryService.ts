@@ -25,7 +25,9 @@ function computeStatus(
 
 function computeQtyDelta(type: string, qty: number): number {
   if (type === "ISSUE" || type === "ADJUSTMENT") return -qty;
-  if (type === "NON_SALEABLE") return 0;
+  if (type === "ISSUE_REVERSAL") return qty;
+  if (type === "RETURN_REVERSAL" || type === "PURCHASE_REVERSAL") return -qty;
+  if (type === "RETURN_UNUSABLE" || type === "RETURN_UNUSABLE_REVERSAL") return 0;
   return qty;
 }
 
@@ -295,7 +297,6 @@ export async function getAllMovements(
     product_code: m.product.product_code,
     location_code: m.stock.location.code,
     qty_delta: computeQtyDelta(m.movement_type, m.quantity),
-    notes: m.notes,
     created_by_name: m.creator.full_name,
   }));
 
@@ -366,7 +367,6 @@ export async function createMovement(
         movement_type: dto.movement_type,
         quantity: dto.quantity,
         movement_date: new Date(),
-        notes: dto.notes ?? null,
       },
     }),
   ]);
@@ -489,7 +489,6 @@ export async function createProduct(dto: CreateProductDto, userId?: number) {
           movement_type: "PURCHASE",
           quantity: dto.initial_qty,
           movement_date: new Date(),
-          notes: "Initial stock addition",
         },
       });
     }
@@ -733,7 +732,6 @@ export async function createStockEntry(
           movement_type: "PURCHASE",
           quantity: qty,
           movement_date: entryDate,
-          notes: movementNote || "Stock received via GRN.",
         },
       });
 
@@ -858,7 +856,6 @@ export async function importStock(data: any[], userId: number) {
         movement_type: row.entry_type || "PURCHASE",
         quantity: qty,
         movement_date: row.date ? new Date(row.date) : new Date(),
-        notes: row.notes || "Imported stock",
       },
     });
 

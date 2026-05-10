@@ -68,9 +68,21 @@ export async function POST(req: Request, { params }: Props) {
       );
     }
 
-    if (!["ISSUE", "RETURN", "PURCHASE", "ADJUSTMENT"].includes(dto.movement_type)) {
+    if (
+      ![
+        "ISSUE",
+        "RETURN",
+        "RETURN_UNUSABLE",
+        "PURCHASE",
+        "ADJUSTMENT",
+        "ISSUE_REVERSAL",
+        "RETURN_REVERSAL",
+        "PURCHASE_REVERSAL",
+        "RETURN_UNUSABLE_REVERSAL",
+      ].includes(dto.movement_type)
+    ) {
       return NextResponse.json(
-        { error: "movement_type must be ISSUE, RETURN, PURCHASE, or ADJUSTMENT" },
+        { error: "Invalid movement_type." },
         { status: 400 }
       );
     }

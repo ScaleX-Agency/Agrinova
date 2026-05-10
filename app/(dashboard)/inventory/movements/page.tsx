@@ -6,15 +6,9 @@ import { useMemo, useState } from "react";
 import { Activity, Download, Search, Clock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAllMovements } from "@/hooks/useInventory";
-import type { MovementRow } from "@/types/inventory";
+import type { MovementRow, MovementType } from "@/types/inventory";
 import type { UnusableStockSummaryResponse } from "@/types/api";
 
-type MovementType =
-  | "ISSUE"
-  | "RETURN"
-  | "PURCHASE"
-  | "ADJUSTMENT"
-  | "NON_SALEABLE";
 type FilterType   = MovementType | "ALL";
 
 const TYPE_BADGE: Record<MovementType, string> = {
@@ -22,7 +16,11 @@ const TYPE_BADGE: Record<MovementType, string> = {
   RETURN:     "bg-teal-50   text-teal-700",
   PURCHASE:   "bg-green-50  text-green-700",
   ADJUSTMENT: "bg-amber-50  text-amber-800",
-  NON_SALEABLE: "bg-stone-100 text-stone-700",
+  RETURN_UNUSABLE: "bg-rose-50 text-rose-700",
+  ISSUE_REVERSAL: "bg-indigo-50 text-indigo-700",
+  RETURN_REVERSAL: "bg-orange-50 text-orange-700",
+  PURCHASE_REVERSAL: "bg-yellow-50 text-yellow-700",
+  RETURN_UNUSABLE_REVERSAL: "bg-pink-50 text-pink-700",
 };
 const TYPE_LABELS: Record<FilterType, string> = {
   ALL: "All",
@@ -30,7 +28,11 @@ const TYPE_LABELS: Record<FilterType, string> = {
   RETURN: "Return",
   PURCHASE: "Purchase",
   ADJUSTMENT: "Adjustment",
-  NON_SALEABLE: "Non Saleable",
+  RETURN_UNUSABLE: "Return Unusable",
+  ISSUE_REVERSAL: "Issue Reversal",
+  RETURN_REVERSAL: "Return Reversal",
+  PURCHASE_REVERSAL: "Purchase Reversal",
+  RETURN_UNUSABLE_REVERSAL: "Return Unusable Reversal",
 };
 const TYPES: FilterType[] = [
   "ALL",
@@ -38,7 +40,11 @@ const TYPES: FilterType[] = [
   "RETURN",
   "PURCHASE",
   "ADJUSTMENT",
-  "NON_SALEABLE",
+  "RETURN_UNUSABLE",
+  "ISSUE_REVERSAL",
+  "RETURN_REVERSAL",
+  "PURCHASE_REVERSAL",
+  "RETURN_UNUSABLE_REVERSAL",
 ];
 
 function fmtDate(iso: string) {
@@ -173,7 +179,7 @@ export default function MovementsPage() {
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-stone-100">
-              {["Date", "Type", "Product", "Location", "Qty", "Notes", "By"].map((h, i) => (
+              {["Date", "Type", "Product", "Location", "Qty", "By"].map((h, i) => (
                 <th
                   key={h}
                   className={`px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-stone-400 bg-white [font-family:var(--font-dmsans)] ${i === 4 ? "text-right" : "text-left"}`}
@@ -188,7 +194,7 @@ export default function MovementsPage() {
               // Loading rows — consistent height prevents layout shift
               [...Array(6)].map((_, i) => (
                 <tr key={i} className="border-b border-stone-50">
-                  {[...Array(7)].map((_, j) => (
+                  {[...Array(6)].map((_, j) => (
                     <td key={j} className="px-4 py-3">
                       <div className="h-3 bg-stone-100 rounded animate-pulse" />
                     </td>
@@ -197,7 +203,7 @@ export default function MovementsPage() {
               ))
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center">
+                <td colSpan={6} className="px-4 py-12 text-center">
                   <p className="text-[14px] font-medium text-stone-400 [font-family:var(--font-dmsans)]">No movements found</p>
                   <p className="text-[12px] text-stone-300 mt-1 [font-family:var(--font-dmsans)]">Try a different filter</p>
                 </td>
@@ -228,9 +234,6 @@ export default function MovementsPage() {
                     </td>
                     <td className="px-4 py-3 text-right [font-family:var(--font-jetbrains)] text-[14px] font-bold" style={{ color: isNeg ? "#991b1b" : "#166534" }}>
                       {isNeg ? `−${Math.abs(m.qty_delta)}` : `+${m.qty_delta}`}
-                    </td>
-                    <td className="px-4 py-3 text-[12px] text-stone-400 max-w-[160px] truncate [font-family:var(--font-dmsans)]">
-                      {m.notes ?? "—"}
                     </td>
                     <td className="px-4 py-3 text-[12px] text-stone-500 [font-family:var(--font-dmsans)]">
                       {m.created_by_name}

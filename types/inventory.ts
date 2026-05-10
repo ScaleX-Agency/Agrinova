@@ -1,10 +1,15 @@
 export type StockStatus = "ok" | "low" | "out";
+
 export type MovementType =
   | "ISSUE"
   | "RETURN"
+  | "RETURN_UNUSABLE"
   | "PURCHASE"
   | "ADJUSTMENT"
-  | "NON_SALEABLE";
+  | "ISSUE_REVERSAL"
+  | "RETURN_REVERSAL"
+  | "PURCHASE_REVERSAL"
+  | "RETURN_UNUSABLE_REVERSAL";
 
 export interface StockOverviewRow {
   stock_id: number;
@@ -15,8 +20,8 @@ export interface StockOverviewRow {
   pack_size: string;
   selling_price: number;
   quantity_on_hand: number;
-  reorder_threshold: number; // derive: use 20% of max stock or a fixed business rule
-  status: StockStatus; // "ok" | "low" | "out" — computed, not stored
+  reorder_threshold: number;
+  status: StockStatus;
   location_id: number;
   location_code: string;
   location_name: string;
@@ -44,13 +49,13 @@ export interface PaginatedResult<T> {
 
 export interface MovementRow {
   movement_id: number;
-  movement_date: string; // ISO string
+  movement_date: string;
   movement_type: MovementType;
   product_name: string;
   product_code: string;
   location_code: string;
-  qty_delta: number; // negative for ISSUE/ADJUSTMENT, positive for PURCHASE/RETURN, zero for non-stock-impact movements
-  notes: string | null;
+  qty_delta: number;
+  notes?: string | null;
   created_by_name: string;
 }
 
@@ -73,8 +78,8 @@ export interface CreateProductDto {
 export interface CreateMovementDto {
   stock_id: number;
   movement_type: MovementType;
-  quantity: number; // always positive — sign is derived from type
-  resulting_quantity?: number; // for ADJUSTMENT, sets stock to this value
+  quantity: number;
+  resulting_quantity?: number;
   notes?: string;
 }
 

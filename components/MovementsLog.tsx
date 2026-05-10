@@ -25,7 +25,11 @@ const TYPES: FilterType[] = [
   "RETURN",
   "PURCHASE",
   "ADJUSTMENT",
-  "NON_SALEABLE",
+  "RETURN_UNUSABLE",
+  "ISSUE_REVERSAL",
+  "RETURN_REVERSAL",
+  "PURCHASE_REVERSAL",
+  "RETURN_UNUSABLE_REVERSAL",
 ];
 
 const TYPE_LABELS: Record<FilterType, string> = {
@@ -34,7 +38,11 @@ const TYPE_LABELS: Record<FilterType, string> = {
   RETURN: "Return",
   PURCHASE: "Purchase",
   ADJUSTMENT: "Adjustment",
-  NON_SALEABLE: "Non Saleable",
+  RETURN_UNUSABLE: "Return Unusable",
+  ISSUE_REVERSAL: "Issue Reversal",
+  RETURN_REVERSAL: "Return Reversal",
+  PURCHASE_REVERSAL: "Purchase Reversal",
+  RETURN_UNUSABLE_REVERSAL: "Return Unusable Reversal",
 };
 
 const TYPE_BADGE: Record<MovementType, string> = {
@@ -42,7 +50,11 @@ const TYPE_BADGE: Record<MovementType, string> = {
   RETURN:     "bg-teal-50   text-teal-700",
   PURCHASE:   "bg-green-50  text-green-700",
   ADJUSTMENT: "bg-amber-50  text-amber-800",
-  NON_SALEABLE: "bg-stone-100 text-stone-700",
+  RETURN_UNUSABLE: "bg-rose-50 text-rose-700",
+  ISSUE_REVERSAL: "bg-indigo-50 text-indigo-700",
+  RETURN_REVERSAL: "bg-orange-50 text-orange-700",
+  PURCHASE_REVERSAL: "bg-yellow-50 text-yellow-700",
+  RETURN_UNUSABLE_REVERSAL: "bg-pink-50 text-pink-700",
 };
 
 function fmtDate(iso: string) {

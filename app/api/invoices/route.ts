@@ -442,6 +442,8 @@ export async function POST(request: Request) {
           discount: line.discount,
           free_quantity: line.free_quantity,
           net_line_total: line.net_line_total,
+          credited_amount: 0,
+          balance_amount: line.net_line_total,
         })),
       });
 

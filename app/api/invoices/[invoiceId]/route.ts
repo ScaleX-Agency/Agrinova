@@ -53,6 +53,8 @@ export async function GET(
             free_quantity: true,
             line_total: true,
             net_line_total: true,
+            credited_amount: true,
+            balance_amount: true,
             product: {
               select: {
                 product_name: true,
@@ -110,6 +112,8 @@ export async function GET(
           freeQuantity: line.free_quantity,
           lineTotal: Number(line.line_total),
           netLineTotal: Number(line.net_line_total),
+          creditedAmount: Number(line.credited_amount),
+          balanceAmount: Number(line.balance_amount),
         })),
       },
     };

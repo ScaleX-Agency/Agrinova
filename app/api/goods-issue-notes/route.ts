@@ -281,7 +281,6 @@ export async function POST(request: Request) {
                 movement_type: "ISSUE",
                 quantity: issueQty,
                 movement_date: ginDate,
-                notes: `Issued via GIN ${gin.gin_number}`,
               },
             });
           }),

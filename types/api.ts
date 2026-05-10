@@ -82,6 +82,8 @@ export type InvoiceLineDto = {
   freeQuantity: number;
   lineTotal: number;
   netLineTotal: number;
+  creditedAmount: number;
+  balanceAmount: number;
 };
 
 export type InvoiceDetailDto = {
@@ -381,9 +383,8 @@ export type InvoiceOptionDto = {
 export type CreateSalesReturnLineDto = {
   lineId: number;
   productId: number;
-  returnQty: number;
-  stockAddableQty: number;
-  unusableQty: number;
+  quantityUsable: number;
+  quantityUnusable: number;
   condition: string;
   reasonForReturn: string;
   lineTotal: number;

@@ -81,9 +81,9 @@ export async function POST(request: Request) {
       const lineNumber = index + 1;
       const lineId = toPositiveInt(line.lineId);
       const productId = toPositiveInt(line.productId);
-      const returnQty = toPositiveInt(line.returnQty);
-      const stockAddableQty = toPositiveInt(line.stockAddableQty);
-      const unusableQty = toPositiveInt(line.unusableQty);
+      const quantityUsable = toPositiveInt(line.quantityUsable);
+      const quantityUnusable = toPositiveInt(line.quantityUnusable);
+      const returnQty = quantityUsable + quantityUnusable;
       const lineTotal = toNonNegativeNumber(line.lineTotal, -1);
       const condition = (line.condition ?? "").trim();
       const reasonForReturn = (line.reasonForReturn ?? "").trim();
@@ -93,11 +93,6 @@ export async function POST(request: Request) {
       }
       if (!returnQty) {
         throw new Error(`Line ${lineNumber}: return quantity must be greater than 0.`);
-      }
-      if (stockAddableQty + unusableQty !== returnQty) {
-        throw new Error(
-          `Line ${lineNumber}: stock-addable qty plus unusable qty must equal return qty.`,
-        );
       }
       if (lineTotal < 0) {
         throw new Error(`Line ${lineNumber}: line total must be 0 or greater.`);
@@ -113,8 +108,8 @@ export async function POST(request: Request) {
         lineId,
         productId,
         returnQty,
-        stockAddableQty,
-        unusableQty,
+        quantityUsable,
+        quantityUnusable,
         lineTotal,
         condition,
         reasonForReturn,
@@ -177,12 +172,12 @@ export async function POST(request: Request) {
           stockAddableByProduct.set(
             inputLine.productId,
             (stockAddableByProduct.get(inputLine.productId) ?? 0) +
-              inputLine.stockAddableQty,
+              inputLine.quantityUsable,
           );
           unusableByProduct.set(
             inputLine.productId,
             (unusableByProduct.get(inputLine.productId) ?? 0) +
-              inputLine.unusableQty,
+              inputLine.quantityUnusable,
           );
         }
 
@@ -207,7 +202,8 @@ export async function POST(request: Request) {
             lines: {
               create: normalizedLines.map((line) => ({
                 product_id: line.productId,
-                quantity: line.returnQty,
+                quantity_usable: line.quantityUsable,
+                quantity_unusable: line.quantityUnusable,
                 condition: line.condition,
                 reason_for_return: line.reasonForReturn,
                 line_total: line.lineTotal,
@@ -255,6 +251,8 @@ export async function POST(request: Request) {
               data: {
                 returned_qty: nextReturnedQty,
                 balance_qty: nextBalanceQty,
+                credited_amount: { increment: line.lineTotal },
+                balance_amount: { decrement: line.lineTotal },
               },
             });
           }),
@@ -310,25 +308,32 @@ export async function POST(request: Request) {
               movement_type: "RETURN",
               quantity: addQty,
               movement_date: returnDate,
-              notes: `Usable return via SRN ${srn.return_number}`,
             },
           });
         }
 
         for (const [productId, unusableQty] of unusableByProduct.entries()) {
           if (unusableQty <= 0) continue;
+          const existingStock = stockByProduct.get(productId);
+          const stockForAudit = existingStock
+            ? { stock_id: existingStock.stock_id }
+            : await tx.stock.create({
+                data: {
+                  product_id: productId,
+                  location_id: invoice.location_id,
+                  quantity_on_hand: 0,
+                },
+                select: { stock_id: true },
+              });
 
-          await tx.unusableStockMovement.create({
+          await tx.stockMovement.create({
             data: {
+              stock_id: stockForAudit.stock_id,
               product_id: productId,
-              location_id: invoice.location_id,
               created_by: currentUser.user_id,
               movement_type: "RETURN_UNUSABLE",
               quantity: unusableQty,
               movement_date: returnDate,
-              reference_type: "SRN",
-              reference_id: srn.return_id,
-              notes: `Unusable return via SRN ${srn.return_number}`,
             },
           });
         }
