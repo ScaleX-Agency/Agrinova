@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import BackNavigationLink from "@/components/ui/BackNavigationLink";
 import type {
   CreateGoodsIssueNoteRequestDto,
   CreateGoodsIssueNoteResponse,
+  GinNumberAvailabilityResponse,
   InvoiceDetailResponse,
 } from "@/types/api";
 
@@ -35,6 +36,30 @@ const NewGoodsIssueNotePage = () => {
     ginNumber?: string;
     ginDate?: string;
   }>({});
+  const [debouncedGinNumber, setDebouncedGinNumber] = useState("");
+
+  const checkGinNumberAvailability = async (value: string) => {
+    const params = new URLSearchParams({
+      checkGinNo: "true",
+      ginNumber: value,
+    });
+    const response = await fetch(`/api/goods-issue-notes?${params.toString()}`);
+    const result = (await response.json()) as GinNumberAvailabilityResponse;
+    if (!response.ok) {
+      throw new Error(result.error ?? "Failed to check GIN number.");
+    }
+    if (!result.data) {
+      throw new Error("GIN number check response is missing.");
+    }
+    return result.data;
+  };
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedGinNumber(ginNumber.trim());
+    }, 350);
+    return () => window.clearTimeout(timeout);
+  }, [ginNumber]);
 
   const invoiceQuery = useQuery({
     queryKey: ["gin-create-invoice-detail", invoiceId],
@@ -70,9 +95,23 @@ const NewGoodsIssueNotePage = () => {
     },
   });
 
+  const ginNoAvailabilityQuery = useQuery({
+    queryKey: ["gin-number-availability", debouncedGinNumber],
+    enabled: debouncedGinNumber.length > 0,
+    queryFn: () => checkGinNumberAvailability(debouncedGinNumber),
+    staleTime: 0,
+  });
+
   const validate = () => {
     const nextErrors: { ginNumber?: string; ginDate?: string } = {};
     if (!ginNumber.trim()) nextErrors.ginNumber = "GIN number is required.";
+    if (
+      ginNumber.trim().length > 0 &&
+      ginNoAvailabilityQuery.data &&
+      !ginNoAvailabilityQuery.data.isUnique
+    ) {
+      nextErrors.ginNumber = "An active GIN with this number already exists.";
+    }
     if (!ginDate.trim()) nextErrors.ginDate = "Date is required.";
     if (ginDate && Number.isNaN(new Date(ginDate).getTime())) {
       nextErrors.ginDate = "Date is invalid.";
@@ -90,6 +129,15 @@ const NewGoodsIssueNotePage = () => {
     if (!validate()) return;
 
     try {
+      const availability = await checkGinNumberAvailability(ginNumber.trim());
+      if (!availability.isUnique) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          ginNumber: "An active GIN with this number already exists.",
+        }));
+        return;
+      }
+
       const payload: CreateGoodsIssueNoteRequestDto = {
         ginNumber: ginNumber.trim(),
         ginDate,
@@ -215,6 +263,13 @@ const NewGoodsIssueNotePage = () => {
                     {fieldErrors.ginNumber}
                   </p>
                 )}
+                {!fieldErrors.ginNumber &&
+                  ginNumber.trim().length > 0 &&
+                  (ginNoAvailabilityQuery.isFetching ? (
+                    <p className="text-[12px] text-stone-500">Checking GIN number...</p>
+                  ) : ginNoAvailabilityQuery.data?.isUnique ? (
+                    <p className="text-[12px] text-stone-500">GIN number is available.</p>
+                  ) : null)}
               </label>
 
               <label className="flex flex-col gap-1">

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import type {
   CreateGoodsIssueNoteRequestDto,
   CreateGoodsIssueNoteResponse,
+  GinNumberAvailabilityResponse,
   GoodsIssueNotesResponse,
 } from "@/types/api";
 import { getCurrentUser } from "@/lib/auth";
@@ -19,6 +20,36 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const invoiceIdParam = url.searchParams.get("invoiceId");
     const includeLines = url.searchParams.get("includeLines") === "true";
+    const checkGinNo = url.searchParams.get("checkGinNo") === "true";
+    const ginNumber = url.searchParams.get("ginNumber")?.trim();
+
+    if (checkGinNo) {
+      if (!ginNumber) {
+        return NextResponse.json(
+          { error: "GIN number is required." },
+          { status: 400 },
+        );
+      }
+
+      const existingGin = await prisma.goodsIssueNote.findFirst({
+        where: {
+          gin_number: ginNumber,
+          is_active: true,
+        },
+        select: {
+          gin_id: true,
+        },
+      });
+
+      const responseBody: GinNumberAvailabilityResponse = {
+        data: {
+          ginNumber,
+          isUnique: existingGin === null,
+        },
+      };
+
+      return NextResponse.json(responseBody);
+    }
 
     const invoiceId = invoiceIdParam ? Number(invoiceIdParam) : null;
     if (

@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { Package } from "lucide-react";
 import type {
   CreateGoodsIssueNoteRequestDto,
   CreateGoodsIssueNoteResponse,
+  GinNumberAvailabilityResponse,
   InvoiceDetailResponse,
 } from "@/types/api";
 
@@ -40,6 +41,14 @@ const IssueStocksModalButton = ({
   const [ginDate, setGinDate] = useState(getTodayDateInputValue);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
+  const [debouncedGinNumber, setDebouncedGinNumber] = useState("");
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedGinNumber(ginNumber.trim());
+    }, 350);
+    return () => window.clearTimeout(timeout);
+  }, [ginNumber]);
 
   const invoiceDetailQuery = useQuery({
     queryKey: ["issue-stocks-modal-invoice", invoiceId],
@@ -74,6 +83,29 @@ const IssueStocksModalButton = ({
       }
       return result.data;
     },
+  });
+
+  const checkGinNumberAvailability = async (value: string) => {
+    const params = new URLSearchParams({
+      checkGinNo: "true",
+      ginNumber: value,
+    });
+    const response = await fetch(`/api/goods-issue-notes?${params.toString()}`);
+    const result = (await response.json()) as GinNumberAvailabilityResponse;
+    if (!response.ok) {
+      throw new Error(result.error ?? "Failed to check GIN number.");
+    }
+    if (!result.data) {
+      throw new Error("GIN number check response is missing.");
+    }
+    return result.data;
+  };
+
+  const ginNoAvailabilityQuery = useQuery({
+    queryKey: ["issue-stocks-modal-gin-number-availability", debouncedGinNumber],
+    enabled: isOpen && debouncedGinNumber.length > 0,
+    queryFn: () => checkGinNumberAvailability(debouncedGinNumber),
+    staleTime: 0,
   });
 
   const displayLines = useMemo<InvoiceLinePreview[]>(() => {
@@ -112,6 +144,12 @@ const IssueStocksModalButton = ({
     }
 
     try {
+      const availability = await checkGinNumberAvailability(ginNumber.trim());
+      if (!availability.isUnique) {
+        setError("An active GIN with this number already exists.");
+        return;
+      }
+
       const payload: CreateGoodsIssueNoteRequestDto = {
         ginNumber: ginNumber.trim(),
         ginDate,
@@ -172,10 +210,21 @@ const IssueStocksModalButton = ({
                 </span>
                 <input
                   value={ginNumber}
-                  onChange={(event) => setGinNumber(event.target.value)}
+                  onChange={(event) => {
+                    setGinNumber(event.target.value);
+                    setError("");
+                  }}
                   className="rounded-lg border border-stone-300 px-3 py-2 text-[13px] outline-none focus:border-[#1a5c2e]"
                   placeholder="GIN-YYYYMM-001"
                 />
+                {ginNumber.trim().length > 0 &&
+                  (ginNoAvailabilityQuery.isFetching ? (
+                    <p className="text-[12px] text-stone-500">Checking GIN number...</p>
+                  ) : ginNoAvailabilityQuery.data?.isUnique ? (
+                    <p className="text-[12px] text-stone-500">GIN number is available.</p>
+                  ) : (
+                    <p className="text-[12px] text-red-700">An active GIN with this number already exists.</p>
+                  ))}
               </label>
 
               <label className="flex flex-col gap-1">
