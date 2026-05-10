@@ -351,6 +351,7 @@ model InvoiceSettlement {
   settlement_type SettlementType
   settled_date  DateTime
   is_active     Boolean      @default(true)
+  commission_issued Boolean      @default(false)
   invoice       Invoice      @relation(fields: [invoice_id], references: [invoice_id])
   receipt       Receipt?     @relation(fields: [receipt_id], references: [receipt_id])
   creditNote    CreditNote?  @relation(fields: [credit_note_id], references: [credit_note_id])
