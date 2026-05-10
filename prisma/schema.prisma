@@ -37,7 +37,6 @@ model User {
   created_salesReturnNotes SalesReturnNote[] @relation("SalesReturnNoteCreatedBy")
   deleted_salesReturnNotes SalesReturnNote[] @relation("SalesReturnNoteDeletedBy")
   stock_movements       StockMovement[]      @relation("StockMovementCreatedBy")
-  unusable_stock_movements UnusableStockMovement[] @relation("UnusableStockMovementCreatedBy")
   role                  Role                 @relation(fields: [role_id], references: [role_id])
 
   @@map("USER")
@@ -169,7 +168,8 @@ model SalesReturnNoteLine {
   return_line_id    Int             @id @default(autoincrement())
   return_id         Int
   product_id        Int
-  quantity          Int
+  quantity_usable   Int
+  quantity_unusable Int
   condition         String
   reason_for_return String
   line_total        Decimal         @db.Decimal(10, 2)
@@ -350,6 +350,7 @@ model InvoiceSettlement {
   amount        Decimal      @db.Decimal(10, 2)
   settlement_type SettlementType
   settled_date  DateTime
+  is_active     Boolean      @default(true)
   invoice       Invoice      @relation(fields: [invoice_id], references: [invoice_id])
   receipt       Receipt?     @relation(fields: [receipt_id], references: [receipt_id])
   creditNote    CreditNote?  @relation(fields: [credit_note_id], references: [credit_note_id])
@@ -369,6 +370,7 @@ model Commission {
   created_at         DateTime            @default(now())
   settlement_id      Int
   updated_at         DateTime            @default(now()) @updatedAt
+  is_active          Boolean             @default(true)
   rep                SalesRep            @relation(fields: [rep_id], references: [rep_id])
   invoiceSettlements InvoiceSettlement[] @relation("CommissionToInvoiceSettlement")
 
@@ -412,7 +414,6 @@ model Product {
   salesReturnNoteLines       SalesReturnNoteLine[]
   stocks                     Stock[]
   stock_movements            StockMovement[]          @relation("StockMovementProduct")
-  unusable_stock_movements   UnusableStockMovement[]  @relation("UnusableStockMovementProduct")
 
   @@map("PRODUCT")
 }
@@ -431,7 +432,6 @@ model InventoryLocation {
   invoices              Invoice[]
   salesReturnNotes      SalesReturnNote[]
   stocks                Stock[]
-  unusable_stock_movements UnusableStockMovement[] @relation("UnusableStockMovementLocation")
 
   @@index([status])
   @@map("INVENTORY_LOCATION")
@@ -459,9 +459,7 @@ model StockMovement {
   movement_type MovementType
   quantity      Int
   movement_date DateTime
-  notes         String?
   product_id    Int
-  is_active     Boolean      @default(true)
   creator       User         @relation("StockMovementCreatedBy", fields: [created_by], references: [user_id])
   product       Product      @relation("StockMovementProduct", fields: [product_id], references: [product_id])
   stock         Stock        @relation(fields: [stock_id], references: [stock_id])
@@ -470,26 +468,6 @@ model StockMovement {
   @@map("STOCK_MOVEMENT")
 }
 
-model UnusableStockMovement {
-  movement_id      Int                       @id @default(autoincrement())
-  product_id       Int
-  location_id      Int
-  created_by       Int
-  movement_type    UnusableStockMovementType
-  quantity         Int
-  movement_date    DateTime
-  reference_type   String?
-  reference_id     Int?
-  notes            String?
-  product          Product                   @relation("UnusableStockMovementProduct", fields: [product_id], references: [product_id])
-  location         InventoryLocation         @relation("UnusableStockMovementLocation", fields: [location_id], references: [location_id])
-  creator          User                      @relation("UnusableStockMovementCreatedBy", fields: [created_by], references: [user_id])
-
-  @@index([product_id])
-  @@index([location_id])
-  @@index([movement_type])
-  @@map("UNUSABLE_STOCK_MOVEMENT")
-}
 
 enum InvoiceStatus {
   PAID
@@ -505,18 +483,15 @@ enum PaymentMethod {
 }
 
 enum MovementType {
-  ISSUE
-  RETURN
-  PURCHASE
-  ADJUSTMENT
-  NON_SALEABLE
-}
-
-enum UnusableStockMovementType {
-  RETURN_UNUSABLE
-  ADJUSTMENT
-  WRITE_OFF
-  RECOVERY
+  ISSUE // Goods issue
+  RETURN // Goods return
+  RETURN_UNUSABLE // Return of unusable stock (no stock movement, but for audit trail)
+  PURCHASE // Goods receiving from suppliers
+  ADJUSTMENT // Stock adjustment
+  ISSUE_REVERSAL // delete a goods issue note
+  RETURN_REVERSAL // delete a goods return note
+  PURCHASE_REVERSAL // delete a goods receiving note
+  RETURN_UNUSABLE_REVERSAL // delete a return of unusable stock (no stock movement, but for audit trail)
 }
 
 enum StockEntryType {
