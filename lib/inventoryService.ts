@@ -431,6 +431,7 @@ export async function getAllProducts(
     product_name: p.product_name,
     pack_size: p.pack_size,
     selling_price: Number(p.selling_price),
+    reorder_threshold: p.reorder_threshold,
     category: p.category,
   }));
 
@@ -477,6 +478,7 @@ export async function createProduct(dto: CreateProductDto, userId?: number) {
         pack_size: dto.pack_size,
         category_id: dto.category_id,
         selling_price: dto.selling_price,
+        reorder_threshold: dto.reorder_threshold ?? 0,
         product_code,
       },
       include: { category: true },
@@ -803,6 +805,7 @@ export async function updateProduct(
       pack_size: dto.pack_size,
       category_id: dto.category_id,
       selling_price: dto.selling_price,
+      reorder_threshold: dto.reorder_threshold,
     },
     include: { category: true },
   });
