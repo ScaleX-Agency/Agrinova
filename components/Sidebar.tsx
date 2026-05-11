@@ -80,11 +80,6 @@ const NAV_GROUPS: NavGroup[] = [
         icon: <MapPin size={16} />,
         label: "Locations",
       },
-      {
-        href: "/inventory/movements",
-        icon: <ArrowLeftRight size={16} />,
-        label: "Movements",
-      },
     ],
   },
   {
