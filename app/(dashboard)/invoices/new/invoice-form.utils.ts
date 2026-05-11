@@ -20,21 +20,38 @@ export const clamp = (value: number, min = 0) => {
   return Math.max(min, value);
 };
 
-export const calculateLineTotal = (line: InvoiceLine) => {
-  const lineSubtotal = line.qty * line.unitPrice;
-  return Math.max(0, lineSubtotal - ((line.discount / 100) * lineSubtotal));
+/**
+ * line_total (before promotions) = qty × unitPrice
+ */
+export const calculateLineTotal = (line: Pick<InvoiceLine, "qty" | "unitPrice">) => {
+  return line.qty * line.unitPrice;
+};
+
+/**
+ * net_line_total (what the customer actually pays):
+ *  - NONE:      same as line_total
+ *  - DISCOUNT:  line_total × (1 - discount/100)
+ *  - FREE_QTY:  same as line_total (customer pays for qty, receives qty + freeQty physically)
+ */
+export const calculateNetLineTotal = (line: InvoiceLine): number => {
+  const lineTotal = calculateLineTotal(line);
+  if (line.promotionType === "DISCOUNT") {
+    return Math.max(0, lineTotal * (1 - line.discount / 100));
+  }
+  return lineTotal;
 };
 
 export const getTodayDateInputValue = () => new Date().toISOString().split("T")[0];
 
+/** The invoice grand total is the sum of net line totals */
 export const calculateInvoiceTotal = (lines: InvoiceLine[]) => {
-  return lines.reduce((sum, line) => sum + line.lineTotal, 0);
+  return lines.reduce((sum, line) => sum + line.netLineTotal, 0);
 };
 
+/** Raw subtotal before any promotions (sum of qty × unitPrice) */
 export const calculateInvoiceSubtotal = (lines: InvoiceLine[]) => {
-  return lines.reduce((sum, line) => sum + (line.qty * line.unitPrice), 0);
-}
-
+  return lines.reduce((sum, line) => sum + line.lineTotal, 0);
+};
 
 export const toSalesRepSelectOptions = (
   salesRepOptions: SalesRepOptionDto[],
@@ -81,10 +98,15 @@ export const hasValidLineItems = (lines: InvoiceLine[]) => {
     const hasProduct = typeof line.productId === "number" && line.productId > 0;
     const hasValidQty = Number.isFinite(line.qty) && line.qty >= 1;
     const hasValidUnitPrice = Number.isFinite(line.unitPrice) && line.unitPrice >= 0;
-    const hasValidDiscount = Number.isFinite(line.discount) && line.discount >= 0 && line.discount <= 100;
-    const hasValidLineTotal = Number.isFinite(line.lineTotal) && line.lineTotal >= 0;
+    const hasValidDiscount =
+      line.promotionType !== "DISCOUNT" ||
+      (Number.isFinite(line.discount) && line.discount >= 0 && line.discount <= 100);
+    const hasValidFreeQty =
+      line.promotionType !== "FREE_QTY" ||
+      (Number.isFinite(line.freeQty) && line.freeQty >= 0);
+    const hasValidNetLineTotal = Number.isFinite(line.netLineTotal) && line.netLineTotal >= 0;
 
-    return hasProduct && hasValidQty && hasValidUnitPrice && hasValidDiscount && hasValidLineTotal;
+    return hasProduct && hasValidQty && hasValidUnitPrice && hasValidDiscount && hasValidFreeQty && hasValidNetLineTotal;
   });
 };
 

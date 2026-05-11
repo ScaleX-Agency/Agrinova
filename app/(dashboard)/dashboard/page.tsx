@@ -32,6 +32,7 @@ import { useSalesDashboard } from "@/hooks/useSalesDashboard";
 import type {
   StockOverviewRow,
   MovementRow,
+  MovementType,
   // eslint-disable-next-line
   LocationSummary,
 } from "@/types/inventory";
@@ -50,16 +51,27 @@ import { formatLKR }            from "@/lib/formatters";
 // ─────────────────────────────────────────────────────────────
 
 
-type MovementType = "ISSUE" | "RETURN" | "PURCHASE" | "ADJUSTMENT";
-
 const MOV_BADGE: Record<MovementType, string> = {
   ISSUE:      "bg-blue-50   text-blue-800",
   RETURN:     "bg-teal-50   text-teal-700",
   PURCHASE:   "bg-green-50  text-green-700",
   ADJUSTMENT: "bg-amber-50  text-amber-800",
+  RETURN_UNUSABLE: "bg-rose-50 text-rose-700",
+  ISSUE_REVERSAL: "bg-indigo-50 text-indigo-700",
+  RETURN_REVERSAL: "bg-orange-50 text-orange-700",
+  PURCHASE_REVERSAL: "bg-yellow-50 text-yellow-700",
+  RETURN_UNUSABLE_REVERSAL: "bg-pink-50 text-pink-700",
 };
 const MOV_LABELS: Record<MovementType, string> = {
-  ISSUE: "Issue", RETURN: "Return", PURCHASE: "Purchase", ADJUSTMENT: "Adjustment",
+  ISSUE: "Issue",
+  RETURN: "Return",
+  PURCHASE: "Purchase",
+  ADJUSTMENT: "Adjustment",
+  RETURN_UNUSABLE: "Return Unusable",
+  ISSUE_REVERSAL: "Issue Reversal",
+  RETURN_REVERSAL: "Return Reversal",
+  PURCHASE_REVERSAL: "Purchase Reversal",
+  RETURN_UNUSABLE_REVERSAL: "Return Unusable Reversal",
 };
 const MOVEMENT_TYPES: MovementType[] = ["ISSUE", "RETURN", "PURCHASE", "ADJUSTMENT"];
 
@@ -114,6 +126,7 @@ function RecordMovementModal({
         body:    JSON.stringify({ stock_id: selectedStock.stock_id, movement_type: type, quantity: qtyNum, notes: notes || undefined }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
+      const delta = isNeg ? -qtyNum : qtyNum;
       onSaved({
         movement_id:     Date.now(),
         movement_date:   new Date().toISOString(),
@@ -121,7 +134,8 @@ function RecordMovementModal({
         product_name:    selectedStock.product_name,
         product_code:    selectedStock.product_code,
         location_code:   selectedStock.location_code,
-        qty_delta:       isNeg ? -qtyNum : qtyNum,
+        movement_qty:    qtyNum,
+        qty_delta:       delta,
         notes:           notes || null,
         created_by_name: user?.firstName || "Admin",
       });
@@ -441,23 +455,23 @@ export default function DashboardPage() {
           {/* KPI row — 5 cards */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
             <KpiCard loading={salesLoading} label="Total Sales"
-              value={salesData ? formatLKR(salesData.kpis.totalSales) : "—"}
-              sub={salesData ? `↑ ${salesData.kpis.salesGrowth ?? 0}% vs last period` : undefined}
+              value={salesData?.kpis ? formatLKR(salesData.kpis.totalSales) : "—"}
+              sub={salesData?.kpis ? `↑ ${salesData.kpis.salesGrowth ?? 0}% vs last period` : undefined}
               icon={<DollarSign size={18} className="text-blue-700" />}
               iconBg="bg-blue-50 border-blue-100" badgeCls="bg-blue-50 text-blue-800" trendUp />
             <KpiCard loading={salesLoading} label="Collections"
-              value={salesData ? formatLKR(salesData.kpis.collections) : "—"}
+              value={salesData?.kpis ? formatLKR(salesData.kpis.collections) : "—"}
               sub="Cash received"
               icon={<TrendingUp size={18} className="text-green-700" />}
               iconBg="bg-green-50 border-green-100" badgeCls="bg-green-50 text-green-700" trendUp />
             <KpiCard loading={salesLoading} label="Outstanding"
-              value={salesData ? formatLKR(salesData.kpis.totalOutstanding) : "—"}
-              sub={salesData ? `${salesData.kpis.overdueCustomers} overdue` : undefined}
+              value={salesData?.kpis ? formatLKR(salesData.kpis.totalOutstanding) : "—"}
+              sub={salesData?.kpis ? `${salesData.kpis.overdueCustomers} overdue` : undefined}
               icon={<Clock size={18} className="text-amber-700" />}
               iconBg="bg-amber-50 border-amber-100" badgeCls="bg-amber-50 text-amber-800" />
             <KpiCard loading={salesLoading} label="Active Customers"
               value={salesData?.kpis.activeCustomers ?? "—"}
-              sub={salesData ? `+${salesData.kpis.newCustomers ?? 0} new` : undefined}
+              sub={salesData?.kpis ? `+${salesData.kpis.newCustomers ?? 0} new` : undefined}
               icon={<Users size={18} className="text-violet-700" />}
               iconBg="bg-violet-50 border-violet-100" badgeCls="bg-violet-50 text-violet-700" trendUp />
             <KpiCard loading={salesLoading} label="Overdue Customers"
@@ -533,8 +547,8 @@ export default function DashboardPage() {
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="border-b border-stone-50">
-                    {["Type","Product","Location","Qty","Time","By"].map((h, i) => (
-                      <th key={h} className={`px-4 py-2.5 text-[11px] font-medium uppercase tracking-wide text-stone-400 text-left [font-family:var(--font-dmsans)] ${i===3?"text-right":""}`}>{h}</th>
+                    {["Type","Product","Location","Recorded Qty","Stock Delta","Time","By"].map((h, i) => (
+                      <th key={h} className={`px-4 py-2.5 text-[11px] font-medium uppercase tracking-wide text-stone-400 text-left [font-family:var(--font-dmsans)] ${i===3 || i===4 ? "text-right" : ""}`}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -554,6 +568,9 @@ export default function DashboardPage() {
                           <td className="px-4 py-3 text-[12.5px] font-medium text-stone-700 max-w-[140px] truncate [font-family:var(--font-dmsans)]">{m.product_name}</td>
                           <td className="px-4 py-3">
                             <span className="[font-family:var(--font-jetbrains)] text-[11px] font-medium text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-md">{m.location_code}</span>
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium text-[14px] text-stone-700 [font-family:var(--font-jetbrains)]">
+                            {m.movement_qty}
                           </td>
                           <td className="px-4 py-3 text-right font-semibold text-[14px] [font-family:var(--font-jetbrains)]"
                             style={{ color: isNeg ? "#991b1b" : "#166534" }}>

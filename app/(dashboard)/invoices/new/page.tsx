@@ -7,6 +7,7 @@ import type {
   CustomersByRepResponse,
   CreateInvoiceRequestDto,
   CreateInvoiceResponse,
+  InvoiceNumberAvailabilityResponse,
   InventoryLocationsResponse,
   StockByLocationResponse,
   SalesRepOptionDto,
@@ -16,10 +17,11 @@ import InvoiceProductsSection from "./InvoiceProductsSection";
 import InvoiceDetailsSection from "./InvoiceDetailsSection";
 import InvoicePageHeader from "./InvoicePageHeader";
 import InvoiceTotalsSection from "./InvoiceTotalsSection";
-import type { AvailableProduct, FieldErrors, InvoiceLine } from "./invoice-form.types";
+import type { AvailableProduct, FieldErrors, InvoiceLine, LinePromotionType } from "./invoice-form.types";
 import {
   calculateInvoiceTotal,
   calculateLineTotal,
+  calculateNetLineTotal,
   getTodayDateInputValue,
   toCustomerSelectOptions,
   toInventoryLocationSelectOptions,
@@ -27,6 +29,9 @@ import {
   toProductSelectOptions,
   calculateInvoiceSubtotal,
 } from "./invoice-form.utils";
+import ConfirmationModal from "@/components/ConfirmationModal";
+import ErrorModal from "@/components/ErrorModal";
+
 import { getInvoiceFieldErrors } from "./invoice-form.validation";
 
 type SalesRepListResponse = {
@@ -49,6 +54,7 @@ const NewInvoicePage = () => {
   const router = useRouter();
   const [invoiceNo, setInvoiceNo] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(getTodayDateInputValue);
+  const [notes, setNotes] = useState("");
   const [customerId, setCustomerId] = useState<number | null>(null);
   const [repId, setRepId] = useState<number | null>(null);
   const [locationId, setLocationId] = useState<number | null>(null);
@@ -58,6 +64,10 @@ const NewInvoicePage = () => {
   const [productsActionError, setProductsActionError] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [debouncedInvoiceNo, setDebouncedInvoiceNo] = useState("");
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
+  const [submitPayload, setSubmitPayload] = useState<CreateInvoiceRequestDto | null>(null);
 
   const clearFieldErrors = useCallback((keys: (keyof FieldErrors)[]) => {
     setFieldErrors((prev) => {
@@ -81,6 +91,39 @@ const NewInvoicePage = () => {
     setSubmitError("");
   }, [clearFieldErrors]);
 
+  const handleNotesChange = useCallback((value: string) => {
+    setNotes(value);
+    setSubmitError("");
+  }, []);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedInvoiceNo(invoiceNo.trim());
+    }, 350);
+
+    return () => window.clearTimeout(timeout);
+  }, [invoiceNo]);
+
+  const checkInvoiceNumberAvailability = useCallback(async (value: string) => {
+    const params = new URLSearchParams({
+      checkInvoiceNo: "true",
+      invoiceNo: value,
+    });
+
+    const response = await fetch(`/api/invoices?${params.toString()}`);
+    const result = (await response.json()) as InvoiceNumberAvailabilityResponse;
+
+    if (!response.ok) {
+      throw new Error(result.error ?? "Failed to check invoice number.");
+    }
+
+    if (!result.data) {
+      throw new Error("Invoice number check response is missing.");
+    }
+
+    return result.data;
+  }, []);
+
   const handleRepChange = useCallback((value: number | null) => {
     setRepId(value);
     setCustomerId(null);
@@ -103,7 +146,7 @@ const NewInvoicePage = () => {
       setSubmitError("");
       return;
     }
-    
+
     setLocationId(value);
     setLines([]);
     setProductsActionError("");
@@ -191,6 +234,13 @@ const NewInvoicePage = () => {
     },
   });
 
+  const invoiceNoAvailabilityQuery = useQuery({
+    queryKey: ["invoice-number-availability", debouncedInvoiceNo],
+    enabled: debouncedInvoiceNo.length > 0,
+    queryFn: () => checkInvoiceNumberAvailability(debouncedInvoiceNo),
+    staleTime: 0,
+  });
+
   const createInvoiceMutation = useMutation({
     mutationFn: async (payload: CreateInvoiceRequestDto) => {
       const response = await fetch("/api/invoices", {
@@ -234,8 +284,8 @@ const NewInvoicePage = () => {
     return next;
   }, [productsQuery.data]);
 
+  // Sync unit prices when products change (unless manually overridden)
   useEffect(() => {
-  // eslint-disable-next-line
     setLines((prev) =>
       prev.map((line) => {
         if (line.unitPriceEdited) return line;
@@ -245,8 +295,12 @@ const NewInvoicePage = () => {
         const currentProduct = availableProductsById[selectedProductId];
         if (!currentProduct || currentProduct.sellingPrice === line.unitPrice) return line;
 
-        const updated = { ...line, unitPrice: currentProduct.sellingPrice };
-        return { ...updated, lineTotal: calculateLineTotal(updated) };
+        const updated = {
+          ...line,
+          unitPrice: currentProduct.sellingPrice,
+          lineTotal: calculateLineTotal({ qty: line.qty, unitPrice: currentProduct.sellingPrice }),
+        };
+        return { ...updated, netLineTotal: calculateNetLineTotal(updated) };
       }),
     );
   }, [availableProductsById]);
@@ -265,6 +319,14 @@ const NewInvoicePage = () => {
     () => Math.max(0, invoiceSubtotal - invoiceTotal),
     [invoiceSubtotal, invoiceTotal],
   );
+
+  /**
+   * Rebuild lineTotal and netLineTotal for a line after any field change.
+   */
+  const recomputeLine = (line: InvoiceLine): InvoiceLine => {
+    const lineTotal = calculateLineTotal(line);
+    return { ...line, lineTotal, netLineTotal: calculateNetLineTotal({ ...line, lineTotal }) };
+  };
 
   const addLine = useCallback(() => {
     const selectedProductIds = new Set(
@@ -286,14 +348,18 @@ const NewInvoicePage = () => {
     setLines((prev) => {
       const nextId = nextLineIdRef.current;
       nextLineIdRef.current += 1;
+      const lineTotal = firstAvailable.sellingPrice;
       const nextLine: InvoiceLine = {
         id: nextId,
         productId: firstAvailable.id,
         qty: 1,
         unitPrice: firstAvailable.sellingPrice,
         unitPriceEdited: false,
+        lineTotal,
+        promotionType: "NONE",
         discount: 0,
-        lineTotal: firstAvailable.sellingPrice,
+        freeQty: 0,
+        netLineTotal: lineTotal,
       };
       return [...prev, nextLine];
     });
@@ -323,17 +389,20 @@ const NewInvoicePage = () => {
         const selected = productId ? availableProductsById[productId] : undefined;
         const nextQty = selected ? Math.min(Math.max(1, line.qty), selected.quantityOnHand) : line.qty;
         const nextUnitPrice = selected ? selected.sellingPrice : line.unitPrice;
+        // Reset promo when product changes
         const updated: InvoiceLine = {
           ...line,
           productId,
           qty: nextQty,
           unitPrice: nextUnitPrice,
           unitPriceEdited: false,
+          promotionType: "NONE",
+          discount: 0,
+          freeQty: 0,
+          lineTotal: 0,
+          netLineTotal: 0,
         };
-        return {
-          ...updated,
-          lineTotal: calculateLineTotal(updated),
-        };
+        return recomputeLine(updated);
       }),
     );
   }, [availableProductsById, clearFieldErrors, lines]);
@@ -345,9 +414,12 @@ const NewInvoicePage = () => {
       prev.map((line) => {
         if (line.id !== lineId) return line;
         const selected = line.productId ? availableProductsById[line.productId] : undefined;
-        const boundedQty = selected ? Math.min(Math.max(1, qty), selected.quantityOnHand) : Math.max(1, qty);
-        const updated = { ...line, qty: boundedQty };
-        return { ...updated, lineTotal: calculateLineTotal(updated) };
+        const maxQty = selected ? selected.quantityOnHand - line.freeQty : Infinity;
+        const boundedQty = Math.min(Math.max(1, qty), maxQty);
+        // Also re-clamp freeQty in case new qty leaves no room
+        const maxFreeQty = selected ? Math.max(0, selected.quantityOnHand - boundedQty) : line.freeQty;
+        const nextFreeQty = Math.min(line.freeQty, maxFreeQty);
+        return recomputeLine({ ...line, qty: boundedQty, freeQty: nextFreeQty });
       }),
     );
   }, [availableProductsById, clearFieldErrors]);
@@ -358,8 +430,19 @@ const NewInvoicePage = () => {
     setLines((prev) =>
       prev.map((line) => {
         if (line.id !== lineId) return line;
-        const updated = { ...line, unitPrice: Math.max(0, unitPrice), unitPriceEdited: true };
-        return { ...updated, lineTotal: calculateLineTotal(updated) };
+        return recomputeLine({ ...line, unitPrice: Math.max(0, unitPrice), unitPriceEdited: true });
+      }),
+    );
+  }, [clearFieldErrors]);
+
+  const changePromoType = useCallback((lineId: number, promoType: LinePromotionType) => {
+    clearFieldErrors(["lines"]);
+    setSubmitError("");
+    setLines((prev) =>
+      prev.map((line) => {
+        if (line.id !== lineId) return line;
+        // Reset both promo values when switching type
+        return recomputeLine({ ...line, promotionType: promoType, discount: 0, freeQty: 0 });
       }),
     );
   }, [clearFieldErrors]);
@@ -371,11 +454,24 @@ const NewInvoicePage = () => {
       prev.map((line) => {
         if (line.id !== lineId) return line;
         const nextDiscount = Math.max(0, Math.min(100, discount));
-        const updated = { ...line, discount: nextDiscount };
-        return { ...updated, lineTotal: calculateLineTotal(updated) };
+        return recomputeLine({ ...line, discount: nextDiscount });
       }),
     );
   }, [clearFieldErrors]);
+
+  const changeFreeQty = useCallback((lineId: number, freeQty: number) => {
+    clearFieldErrors(["lines"]);
+    setSubmitError("");
+    setLines((prev) =>
+      prev.map((line) => {
+        if (line.id !== lineId) return line;
+        const selected = line.productId ? availableProductsById[line.productId] : undefined;
+        const maxFreeQty = selected ? Math.max(0, selected.quantityOnHand - line.qty) : freeQty;
+        const bounded = Math.max(0, Math.min(maxFreeQty, freeQty));
+        return recomputeLine({ ...line, freeQty: bounded });
+      }),
+    );
+  }, [availableProductsById, clearFieldErrors]);
 
   const clearProducts = useCallback(() => {
     clearFieldErrors(["lines"]);
@@ -383,7 +479,29 @@ const NewInvoicePage = () => {
     setLines([]);
   }, [clearFieldErrors]);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const trimmedInvoiceNo = invoiceNo.trim();
+  const isWaitingForInvoiceNoCheck =
+    trimmedInvoiceNo.length > 0 &&
+    (debouncedInvoiceNo !== trimmedInvoiceNo || invoiceNoAvailabilityQuery.isFetching);
+  const invoiceNoUniquenessError =
+    trimmedInvoiceNo.length > 0 &&
+    debouncedInvoiceNo === trimmedInvoiceNo &&
+    invoiceNoAvailabilityQuery.data &&
+    !invoiceNoAvailabilityQuery.data.isUnique
+      ? "An active invoice with this number already exists."
+      : invoiceNoAvailabilityQuery.error instanceof Error
+        ? invoiceNoAvailabilityQuery.error.message
+        : undefined;
+  const invoiceNoStatus =
+    trimmedInvoiceNo.length > 0 && !invoiceNoUniquenessError
+      ? isWaitingForInvoiceNoCheck
+        ? "Checking invoice number..."
+        : invoiceNoAvailabilityQuery.data?.isUnique
+          ? "Invoice number is available."
+          : undefined
+      : undefined;
+
+  const handleValidationAndPrepare = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitError("");
     setSuccessMessage("");
@@ -407,6 +525,23 @@ const NewInvoicePage = () => {
     if (firstError) return;
     if (activeCustomerId == null || activeRepId == null || activeLocationId == null) return;
 
+    try {
+      const availability = await checkInvoiceNumberAvailability(trimmedInvoiceNo);
+      if (!availability.isUnique) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          invoiceNo: "An active invoice with this number already exists.",
+        }));
+        return;
+      }
+    } catch (error) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        invoiceNo: error instanceof Error ? error.message : "Failed to check invoice number.",
+      }));
+      return;
+    }
+
     const payloadLines = lines.map((line) => {
       const selectedProductId = line.productId;
       if (typeof selectedProductId !== "number") {
@@ -415,17 +550,17 @@ const NewInvoicePage = () => {
 
       const currentProduct = availableProductsById[selectedProductId];
       const unitPrice = line.unitPriceEdited ? line.unitPrice : (currentProduct?.sellingPrice ?? line.unitPrice);
-      const normalizedLine = {
-        ...line,
-        unitPrice,
-      };
+      const updated = { ...line, unitPrice };
 
       return {
         productId: selectedProductId,
-        quantity: line.qty,
+        quantity: updated.qty,
         unitPrice,
-        discount: line.discount,
-        lineTotal: calculateLineTotal(normalizedLine),
+        lineTotal: calculateLineTotal(updated),
+        promotionType: updated.promotionType,
+        discount: updated.discount,
+        freeQuantity: updated.freeQty,
+        netLineTotal: calculateNetLineTotal(recomputeLine(updated)),
       };
     });
 
@@ -436,20 +571,27 @@ const NewInvoicePage = () => {
       return;
     }
 
-    try {
-      const result = await createInvoiceMutation.mutateAsync({
-        invoiceNo: invoiceNo.trim(),
-        invoiceDate,
-        customerId: activeCustomerId,
-        repId: activeRepId,
-        locationId: activeLocationId,
-        lines: payloadLines,
-        createdBy: 1,
-      });
+    setSubmitPayload({
+      invoiceNo: invoiceNo.trim(),
+      invoiceDate,
+      customerId: activeCustomerId,
+      repId: activeRepId,
+      locationId: activeLocationId,
+      notes: notes.trim() || undefined,
+      lines: payloadLines,
+    });
+    setIsConfirmModalOpen(true);
+  };
 
+  const confirmSave = async () => {
+    if (!submitPayload) return;
+    try {
+      const result = await createInvoiceMutation.mutateAsync(submitPayload);
       router.push(`/invoices/${result.invoiceId}`);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Unable to save invoice.");
+      setIsConfirmModalOpen(false);
+      setIsErrorModalOpen(true);
     }
   };
 
@@ -457,11 +599,13 @@ const NewInvoicePage = () => {
     <section className="space-y-5">
       <InvoicePageHeader />
 
-      <form className="space-y-4" onSubmit={handleSubmit}>
+      <form className="space-y-4" onSubmit={handleValidationAndPrepare}>
         <InvoiceDetailsSection
           invoiceNo={invoiceNo}
           invoiceDate={invoiceDate}
-          invoiceNoError={fieldErrors.invoiceNo}
+          notes={notes}
+          invoiceNoError={fieldErrors.invoiceNo ?? invoiceNoUniquenessError}
+          invoiceNoStatus={invoiceNoStatus}
           invoiceDateError={fieldErrors.invoiceDate}
           salesRepError={
             fieldErrors.salesRep ??
@@ -484,6 +628,7 @@ const NewInvoicePage = () => {
           hasRepSelected={repId !== null}
           onInvoiceNoChange={handleInvoiceNoChange}
           onInvoiceDateChange={handleInvoiceDateChange}
+          onNotesChange={handleNotesChange}
           onRepChange={handleRepChange}
           onCustomerChange={handleCustomerChange}
           onLocationChange={handleLocationChange}
@@ -501,7 +646,9 @@ const NewInvoicePage = () => {
           onChangeProduct={changeProduct}
           onChangeQty={changeQty}
           onChangeUnitPrice={changeUnitPrice}
+          onChangePromoType={changePromoType}
           onChangeDiscount={changeDiscount}
+          onChangeFreeQty={changeFreeQty}
           onRemoveLine={removeLine}
           onAddLine={addLine}
           onClearProducts={clearProducts}
@@ -516,6 +663,29 @@ const NewInvoicePage = () => {
           isSaving={createInvoiceMutation.isPending}
         />
       </form>
+
+      <ConfirmationModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={confirmSave}
+        title="Confirm New Invoice"
+        description={
+          <>
+            Are you sure you want to create invoice <strong>{invoiceNo}</strong>? 
+            <br />
+            double check before confirm
+          </>
+        }
+        confirmLabel="Create Invoice"
+        isLoading={createInvoiceMutation.isPending}
+      />
+
+      <ErrorModal
+        isOpen={isErrorModalOpen}
+        onClose={() => setIsErrorModalOpen(false)}
+        title="Oops, something went wrong"
+        message={submitError}
+      />
     </section>
   );
 };

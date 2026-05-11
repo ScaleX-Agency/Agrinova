@@ -19,10 +19,30 @@ interface Props {
 
 type FilterType = MovementType | "ALL";
 
-const TYPES: FilterType[] = ["ALL", "ISSUE", "RETURN", "PURCHASE", "ADJUSTMENT"];
+const TYPES: FilterType[] = [
+  "ALL",
+  "ISSUE",
+  "RETURN",
+  "PURCHASE",
+  "ADJUSTMENT",
+  "RETURN_UNUSABLE",
+  "ISSUE_REVERSAL",
+  "RETURN_REVERSAL",
+  "PURCHASE_REVERSAL",
+  "RETURN_UNUSABLE_REVERSAL",
+];
 
 const TYPE_LABELS: Record<FilterType, string> = {
-  ALL: "All", ISSUE: "Issue", RETURN: "Return", PURCHASE: "Purchase", ADJUSTMENT: "Adjustment",
+  ALL: "All",
+  ISSUE: "Issue",
+  RETURN: "Return",
+  PURCHASE: "Purchase",
+  ADJUSTMENT: "Adjustment",
+  RETURN_UNUSABLE: "Return Unusable",
+  ISSUE_REVERSAL: "Issue Reversal",
+  RETURN_REVERSAL: "Return Reversal",
+  PURCHASE_REVERSAL: "Purchase Reversal",
+  RETURN_UNUSABLE_REVERSAL: "Return Unusable Reversal",
 };
 
 const TYPE_BADGE: Record<MovementType, string> = {
@@ -30,6 +50,11 @@ const TYPE_BADGE: Record<MovementType, string> = {
   RETURN:     "bg-teal-50   text-teal-700",
   PURCHASE:   "bg-green-50  text-green-700",
   ADJUSTMENT: "bg-amber-50  text-amber-800",
+  RETURN_UNUSABLE: "bg-rose-50 text-rose-700",
+  ISSUE_REVERSAL: "bg-indigo-50 text-indigo-700",
+  RETURN_REVERSAL: "bg-orange-50 text-orange-700",
+  PURCHASE_REVERSAL: "bg-yellow-50 text-yellow-700",
+  RETURN_UNUSABLE_REVERSAL: "bg-pink-50 text-pink-700",
 };
 
 function fmtDate(iso: string) {
@@ -79,10 +104,10 @@ export default function MovementsLog({ movements, pagination, filterType, onFilt
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-stone-100">
-              {["Date", "Type", "Product", "Location", "Qty Change", "Reference / Notes", "By"].map((h, i) => (
+              {["Date", "Type", "Product", "Location", "Recorded Qty", "Stock Delta", "Reference / Notes", "By"].map((h, i) => (
                 <th
                   key={h}
-                  className={`px-3.5 py-2.5 text-[11px] font-medium uppercase tracking-wide text-stone-400 bg-white ${i === 4 ? "text-right" : "text-left"}`}
+                  className={`px-3.5 py-2.5 text-[11px] font-medium uppercase tracking-wide text-stone-400 bg-white ${i === 4 || i === 5 ? "text-right" : "text-left"}`}
                 >
                   {h}
                 </th>
@@ -111,6 +136,9 @@ export default function MovementsLog({ movements, pagination, filterType, onFilt
                       {m.location_code}
                     </span>
                   </td>
+                  <td className="px-3.5 py-3 text-right [font-family:var(--font-jetbrains)] text-[14px] font-medium text-stone-700">
+                    {m.movement_qty}
+                  </td>
                   <td className="px-3.5 py-3 text-right [font-family:var(--font-jetbrains)] text-[14px] font-bold" style={{ color: isNeg ? "#991b1b" : "#166534" }}>
                     {display}
                   </td>
@@ -125,7 +153,7 @@ export default function MovementsLog({ movements, pagination, filterType, onFilt
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center">
+                <td colSpan={8} className="px-4 py-10 text-center">
                   <p className="text-[14px] font-medium text-stone-400">No movements found</p>
                   <p className="text-[12px] text-stone-300 mt-1">Try a different filter</p>
                 </td>

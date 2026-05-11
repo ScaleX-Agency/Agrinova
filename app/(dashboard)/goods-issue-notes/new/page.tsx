@@ -1,32 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { FileText } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
+import BackNavigationLink from "@/components/ui/BackNavigationLink";
 import type {
   CreateGoodsIssueNoteRequestDto,
   CreateGoodsIssueNoteResponse,
-  GoodsIssueNotesResponse,
-  InventoryLocationsResponse,
+  GinNumberAvailabilityResponse,
   InvoiceDetailResponse,
-  StockByLocationResponse,
 } from "@/types/api";
-import type { GinFieldErrors, GinLine, ProductOption } from "./gin-form.types";
-import {
-  clamp,
-  getLineAvailableQuantity,
-  getTodayDateInputValue,
-  hasValidLineItems,
-  normalizeGinLines,
-  toLocationSelectOptions,
-} from "./gin-form.utils";
-import { getFirstGoodsIssueNoteFieldError, getGoodsIssueNoteFieldErrors } from "./gin-form.validation";
-import GinDetailsSection from "./GinDetailsSection";
-import GinProductsSection from "./GinProductsSection";
-import GinSubmitSection from "./GinSubmitSection";
-import BackNavigationLink from "@/components/ui/BackNavigationLink";
 
 const parsePositiveInt = (value: string | null) => {
   if (!value) return null;
@@ -34,442 +17,319 @@ const parsePositiveInt = (value: string | null) => {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 };
 
-const getNextGinNumber = (notes: GoodsIssueNotesResponse["data"], dateValue: string) => {
-  const current = new Date(dateValue);
-  if (Number.isNaN(current.getTime())) return "";
-
-  const year = current.getFullYear();
-  const month = String(current.getMonth() + 1).padStart(2, "0");
-  const prefix = `GIN-${year}${month}-`;
-
-  const latestSequence = (notes ?? [])
-    .map((note) => note.ginNumber)
-    .filter((ginNumber) => ginNumber.startsWith(prefix))
-    .map((ginNumber) => Number(ginNumber.split("-").at(-1)))
-    .filter((sequence) => Number.isFinite(sequence))
-    .reduce((max, sequence) => Math.max(max, sequence), 0);
-
-  return `${prefix}${String(latestSequence + 1).padStart(3, "0")}`;
-};
-
-const getQuantityByProduct = (lines: { productId: number; quantity: number }[]) => {
-  const next: Record<number, number> = {};
-  for (const line of lines) {
-    next[line.productId] = (next[line.productId] ?? 0) + line.quantity;
-  }
-  return next;
-};
+const getTodayDateInputValue = () => new Date().toISOString().split("T")[0];
 
 const NewGoodsIssueNotePage = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialInvoiceId = useMemo(() => parsePositiveInt(searchParams.get("invoiceId")), [searchParams]);
+  const invoiceId = useMemo(
+    () => parsePositiveInt(searchParams.get("invoiceId")),
+    [searchParams],
+  );
 
+  const [isModalOpen, setIsModalOpen] = useState(true);
   const [ginNumber, setGinNumber] = useState("");
   const [ginDate, setGinDate] = useState(getTodayDateInputValue);
-  const [invoiceId, setInvoiceId] = useState<number | null>(initialInvoiceId);
-  const [locationId, setLocationId] = useState<number | null>(null);
-  const [preparedBy, setPreparedBy] = useState("");
-  const [receivedBy, setReceivedBy] = useState("");
-  const [lines, setLines] = useState<GinLine[]>([]);
-  const [fieldErrors, setFieldErrors] = useState<GinFieldErrors>({});
+  const [notes, setNotes] = useState("");
   const [submitError, setSubmitError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
-  const initializedInvoiceIdRef = useRef<number | null>(null);
-  const maxDefaultAppliedInvoiceIdRef = useRef<number | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{
+    ginNumber?: string;
+    ginDate?: string;
+  }>({});
+  const [debouncedGinNumber, setDebouncedGinNumber] = useState("");
+
+  const checkGinNumberAvailability = async (value: string) => {
+    const params = new URLSearchParams({
+      checkGinNo: "true",
+      ginNumber: value,
+    });
+    const response = await fetch(`/api/goods-issue-notes?${params.toString()}`);
+    const result = (await response.json()) as GinNumberAvailabilityResponse;
+    if (!response.ok) {
+      throw new Error(result.error ?? "Failed to check GIN number.");
+    }
+    if (!result.data) {
+      throw new Error("GIN number check response is missing.");
+    }
+    return result.data;
+  };
 
   useEffect(() => {
-    setInvoiceId(initialInvoiceId);
-  }, [initialInvoiceId]);
+    const timeout = window.setTimeout(() => {
+      setDebouncedGinNumber(ginNumber.trim());
+    }, 350);
+    return () => window.clearTimeout(timeout);
+  }, [ginNumber]);
 
-  const notesQuery = useQuery<GoodsIssueNotesResponse["data"], Error>({
-    queryKey: ["goods-issue-notes"],
-    queryFn: async () => {
-      const response = await fetch("/api/goods-issue-notes");
-      const result = (await response.json()) as GoodsIssueNotesResponse;
-      if (!response.ok) throw new Error(result.error ?? "Failed to load goods issue notes.");
-      return Array.isArray(result.data) ? result.data : [];
-    },
-  });
-
-  const invoicesQuery = useQuery({
-    queryKey: ["invoice-options"],
-    queryFn: async () => {
-      const response = await fetch("/api/invoices?issuableOnly=true");
-      const result = (await response.json()) as { data?: { id: number; invoiceNo: string; customerName: string; repName: string }[]; error?: string };
-      if (!response.ok) throw new Error(result.error ?? "Failed to load invoices.");
-      return Array.isArray(result.data) ? result.data : [];
-    },
-  });
-
-  const invoiceDetailQuery = useQuery({
-    queryKey: ["invoice-detail", invoiceId],
+  const invoiceQuery = useQuery({
+    queryKey: ["gin-create-invoice-detail", invoiceId],
     enabled: invoiceId !== null,
     queryFn: async () => {
       const response = await fetch(`/api/invoices/${invoiceId}`);
       const result = (await response.json()) as InvoiceDetailResponse;
-      if (!response.ok) throw new Error(result.error ?? "Failed to load invoice details.");
+      if (!response.ok) {
+        throw new Error(result.error ?? "Failed to load invoice details.");
+      }
+      if (!result.data) {
+        throw new Error("Invoice payload is missing.");
+      }
       return result.data;
     },
   });
 
-  const relatedInvoiceGinsQuery = useQuery<GoodsIssueNotesResponse["data"], Error>({
-    queryKey: ["invoice-gins", invoiceId],
-    enabled: invoiceId !== null,
-    queryFn: async () => {
-      const response = await fetch(`/api/goods-issue-notes?invoiceId=${invoiceId}&includeLines=true`);
-      const result = (await response.json()) as GoodsIssueNotesResponse;
-      if (!response.ok) throw new Error(result.error ?? "Failed to load related goods issue notes.");
-      return Array.isArray(result.data) ? result.data : [];
-    },
-  });
-
-  const locationsQuery = useQuery({
-    queryKey: ["inventory-locations"],
-    queryFn: async () => {
-      const response = await fetch("/api/inventory/locations");
-      const result = (await response.json()) as InventoryLocationsResponse;
-      if (!response.ok) throw new Error(result.error ?? "Failed to load inventory locations.");
-      return Array.isArray(result.data) ? result.data : [];
-    },
-  });
-
-  const locationProductsQuery = useQuery<StockByLocationResponse["data"], Error>({
-    queryKey: ["gin-products", locationId],
-    enabled: locationId !== null,
-    queryFn: async () => {
-      const response = await fetch(`/api/inventory/${locationId}?all=true`);
-      const result = (await response.json()) as { stock?: StockByLocationResponse["data"]; error?: string };
-      if (!response.ok) throw new Error(result.error ?? "Failed to load products for selected location.");
-      return Array.isArray(result.stock) ? result.stock : [];
-    },
-  });
-
-  const saveMutation = useMutation({
+  const createGinMutation = useMutation({
     mutationFn: async (payload: CreateGoodsIssueNoteRequestDto) => {
       const response = await fetch("/api/goods-issue-notes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       const result = (await response.json()) as CreateGoodsIssueNoteResponse;
-      if (!response.ok) throw new Error(result.error ?? "Failed to save goods issue note.");
-      if (!result.data) throw new Error("Goods issue note response payload is missing.");
+      if (!response.ok) {
+        throw new Error(result.error ?? "Failed to create goods issue note.");
+      }
+      if (!result.data) {
+        throw new Error("Create goods issue note response payload is missing.");
+      }
       return result.data;
     },
   });
 
-  const invoiceOptions = useMemo(
-    () => (invoicesQuery.data ?? []).map((invoice) => ({ id: invoice.id, label: `${invoice.invoiceNo} • ${invoice.customerName} • ${invoice.repName}` })),
-    [invoicesQuery.data],
-  );
+  const ginNoAvailabilityQuery = useQuery({
+    queryKey: ["gin-number-availability", debouncedGinNumber],
+    enabled: debouncedGinNumber.length > 0,
+    queryFn: () => checkGinNumberAvailability(debouncedGinNumber),
+    staleTime: 0,
+  });
 
-  const locationOptions = useMemo(
-    () => toLocationSelectOptions(locationsQuery.data ?? []),
-    [locationsQuery.data],
-  );
-
-  const invoiceQtyByProduct = useMemo(
-    () => getQuantityByProduct(invoiceDetailQuery.data?.lines ?? []),
-    [invoiceDetailQuery.data],
-  );
-
-  const savedIssuedQtyByProduct = useMemo(() => {
-    const savedLines = (relatedInvoiceGinsQuery.data ?? []).flatMap((note) => note.lines ?? []);
-    return getQuantityByProduct(savedLines);
-  }, [relatedInvoiceGinsQuery.data]);
-
-  const remainingInvoiceQtyByProduct = useMemo(() => {
-    const next: Record<number, number> = {};
-    for (const [productIdText, invoiceQty] of Object.entries(invoiceQtyByProduct)) {
-      const productId = Number(productIdText);
-      const alreadyIssued = savedIssuedQtyByProduct[productId] ?? 0;
-      next[productId] = Math.max(0, invoiceQty - alreadyIssued);
+  const validate = () => {
+    const nextErrors: { ginNumber?: string; ginDate?: string } = {};
+    if (!ginNumber.trim()) nextErrors.ginNumber = "GIN number is required.";
+    if (
+      ginNumber.trim().length > 0 &&
+      ginNoAvailabilityQuery.data &&
+      !ginNoAvailabilityQuery.data.isUnique
+    ) {
+      nextErrors.ginNumber = "An active GIN with this number already exists.";
     }
-    return next;
-  }, [invoiceQtyByProduct, savedIssuedQtyByProduct]);
-
-  const productStockById = useMemo(() => {
-    const next: Record<number, number> = {};
-    for (const row of locationProductsQuery.data ?? []) {
-      next[row.product_id] = row.quantity_on_hand;
+    if (!ginDate.trim()) nextErrors.ginDate = "Date is required.";
+    if (ginDate && Number.isNaN(new Date(ginDate).getTime())) {
+      nextErrors.ginDate = "Date is invalid.";
     }
-    return next;
-  }, [locationProductsQuery.data]);
+    setFieldErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
 
-  const productOptions = useMemo<ProductOption[]>(
-    () =>
-      (locationProductsQuery.data ?? []).map((row) => {
-        const remainingInvoiceQty = remainingInvoiceQtyByProduct[row.product_id] ?? 0;
-        const availableQty = Math.min(row.quantity_on_hand, remainingInvoiceQty);
-
-        return {
-          id: row.product_id,
-          label: `${row.product_name} [${row.pack_size}]`,
-          stock: row.quantity_on_hand,
-          description: `Stock: ${row.quantity_on_hand} • Invoice left: ${remainingInvoiceQty}`,
-          searchText: `${row.product_name} ${row.pack_size}`,
-          disabled: availableQty <= 0,
-        };
-      }),
-    [locationProductsQuery.data, remainingInvoiceQtyByProduct],
-  );
-
-  const getCalculatedMaxQtyForProduct = useCallback((productId: number) => {
-    const stockQty = productStockById[productId] ?? 0;
-    const remainingInvoiceQty = remainingInvoiceQtyByProduct[productId] ?? 0;
-    return Math.max(0, Math.min(stockQty, remainingInvoiceQty));
-  }, [productStockById, remainingInvoiceQtyByProduct]);
-
-  const invoiceCustomerName = invoiceDetailQuery.data?.customerName ?? "";
-  const invoiceRepName = invoiceDetailQuery.data?.repName ?? "";
-
-  useEffect(() => {
-    if (notesQuery.data) {
-      setGinNumber((current) => current || getNextGinNumber(notesQuery.data, ginDate));
-    }
-  }, [ginDate, notesQuery.data]);
-
-  useEffect(() => {
-    if (!invoiceDetailQuery.data || invoiceId === null) return;
-    if (initializedInvoiceIdRef.current === invoiceId) return;
-
-    setGinDate(invoiceDetailQuery.data.invoiceDate.slice(0, 10));
-    setLocationId(invoiceDetailQuery.data.locationId);
-    const initialLines = normalizeGinLines(
-      invoiceDetailQuery.data.lines
-        .map((line, index) => ({
-          id: index + 1,
-          productId: line.productId,
-          quantity: getCalculatedMaxQtyForProduct(line.productId),
-        }))
-        .filter((line) => line.quantity >= 0),
-      productStockById,
-      remainingInvoiceQtyByProduct,
-    );
-    setLines(initialLines);
-    initializedInvoiceIdRef.current = invoiceId;
-  }, [invoiceDetailQuery.data, invoiceId, productStockById, remainingInvoiceQtyByProduct, getCalculatedMaxQtyForProduct]);
-
-  useEffect(() => {
-    if (!invoiceDetailQuery.data || invoiceId === null) return;
-    if (initializedInvoiceIdRef.current !== invoiceId) return;
-
-    setLines((prev) => normalizeGinLines(prev, productStockById, remainingInvoiceQtyByProduct));
-  }, [invoiceDetailQuery.data, invoiceId, productStockById, remainingInvoiceQtyByProduct]);
-
-  useEffect(() => {
-    if (invoiceId === null) return;
-    if (!invoiceDetailQuery.data) return;
-    if (initializedInvoiceIdRef.current !== invoiceId) return;
-    if (!locationProductsQuery.data || locationProductsQuery.data.length === 0) return;
-    if (maxDefaultAppliedInvoiceIdRef.current === invoiceId) return;
-
-    setLines((prev) => {
-      const withMaxDefaults = prev.map((line) => {
-        if (typeof line.productId !== "number") return line;
-        const maxQty = getLineAvailableQuantity(line.id, line.productId, prev, productStockById, remainingInvoiceQtyByProduct);
-        return {
-          ...line,
-          quantity: maxQty ?? 0,
-        };
-      });
-
-      return normalizeGinLines(withMaxDefaults, productStockById, remainingInvoiceQtyByProduct);
-    });
-
-    maxDefaultAppliedInvoiceIdRef.current = invoiceId;
-  }, [
-    invoiceDetailQuery.data,
-    invoiceId,
-    locationProductsQuery.data,
-    productStockById,
-    remainingInvoiceQtyByProduct,
-  ]);
-
-  useEffect(() => {
-    if (invoiceId !== null) return;
-    initializedInvoiceIdRef.current = null;
-    maxDefaultAppliedInvoiceIdRef.current = null;
-    setLocationId(null);
-    setLines([]);
-  }, [invoiceId]);
-
-  const clearFieldErrors = useCallback((keys: (keyof GinFieldErrors)[]) => {
-    setFieldErrors((prev) => {
-      const next = { ...prev };
-      for (const key of keys) delete next[key];
-      return next;
-    });
-  }, []);
-
-  const handleInvoiceChange = useCallback((value: number | null) => {
-    initializedInvoiceIdRef.current = null;
-    maxDefaultAppliedInvoiceIdRef.current = null;
-    setInvoiceId(value);
-    clearFieldErrors(["invoice", "lines"]);
+  const handleCreate = async () => {
     setSubmitError("");
-  }, [clearFieldErrors]);
-
-  const handleLocationChange = useCallback((value: number | null) => {
-    setLocationId(value);
-    clearFieldErrors(["location", "lines"]);
-    setSubmitError("");
-  }, [clearFieldErrors]);
-
-  const handleUpdateLine = useCallback((lineId: number, key: "productId" | "quantity", value: number | null) => {
-    setLines((prev) => {
-      const updated = prev.map((line) => {
-        if (line.id !== lineId) return line;
-
-        if (key === "productId") {
-          const nextMax = getLineAvailableQuantity(lineId, value, prev, productStockById, remainingInvoiceQtyByProduct);
-          return {
-            ...line,
-            productId: value,
-            quantity: typeof value === "number" ? (nextMax ?? 0) : 0,
-          };
-        }
-
-        const max = getLineAvailableQuantity(lineId, line.productId, prev, productStockById, remainingInvoiceQtyByProduct);
-        const nextQuantity = clamp(typeof value === "number" ? value : line.quantity, 0, max);
-        return { ...line, quantity: nextQuantity };
-      });
-
-      return normalizeGinLines(updated, productStockById, remainingInvoiceQtyByProduct);
-    });
-    clearFieldErrors(["lines"]);
-    setSubmitError("");
-  }, [clearFieldErrors, productStockById, remainingInvoiceQtyByProduct]);
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setSubmitError("");
-    setSuccessMessage("");
-
-    const nextFieldErrors = getGoodsIssueNoteFieldErrors({
-      ginNumber,
-      ginDate,
-      invoiceId,
-      locationId,
-      preparedBy,
-      receivedBy,
-      lines,
-    });
-
-    setFieldErrors(nextFieldErrors);
-    const firstError = getFirstGoodsIssueNoteFieldError(nextFieldErrors);
-    if (firstError) return;
-    if (invoiceId == null || locationId == null) return;
-    if (!hasValidLineItems(lines)) return;
-
-    const payloadLines = lines
-      .filter((line) => typeof line.productId === "number" && line.quantity > 0)
-      .map((line) => ({
-        productId: line.productId as number,
-        quantity: line.quantity,
-      }));
-
-    if (payloadLines.length === 0) {
-      setSubmitError("Enter quantity for at least one product before saving.");
+    if (!invoiceId) {
+      setSubmitError("Invoice context is missing. Open this from an invoice.");
       return;
     }
-
-    const payload: CreateGoodsIssueNoteRequestDto = {
-      ginNumber: ginNumber.trim(),
-      ginDate,
-      invoiceId,
-      locationId,
-      preparedBy: preparedBy.trim(),
-      receivedBy: receivedBy.trim(),
-      createdBy: 1,
-      lines: payloadLines,
-    };
+    if (!validate()) return;
 
     try {
-      const result = await saveMutation.mutateAsync(payload);
-      setSuccessMessage(`Goods Issue Note saved successfully (ID: ${result.ginId}).`);
-      router.push(`/invoices/${invoiceId}`);
+      const availability = await checkGinNumberAvailability(ginNumber.trim());
+      if (!availability.isUnique) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          ginNumber: "An active GIN with this number already exists.",
+        }));
+        return;
+      }
+
+      const payload: CreateGoodsIssueNoteRequestDto = {
+        ginNumber: ginNumber.trim(),
+        ginDate,
+        invoiceId,
+        notes: notes.trim() || undefined,
+      };
+      const created = await createGinMutation.mutateAsync(payload);
+      router.push(`/goods-issue-notes/${created.ginId}`);
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Unable to save goods issue note.");
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Unable to create goods issue note.",
+      );
     }
   };
 
   return (
-    <section className="space-y-5">
-      <header className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <div className="mb-2">
-            <BackNavigationLink
-              href="/goods-issue-notes"
-              label="Back to Goods Issue Notes"
-            />
-          </div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">Operations</p>
-          <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)] font-semibold">
-            Goods Issue Note
-          </h1>
-        </div>
+    <section className="space-y-4">
+      <div>
+        <BackNavigationLink
+          href={invoiceId ? `/invoices/${invoiceId}` : "/goods-issue-notes"}
+          label="Back"
+        />
+      </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/invoices/new"
-            className="inline-flex items-center gap-2 rounded-xl bg-[#1a5c2e] px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
-          >
-            <FileText size={14} />
-            New Invoice
-          </Link>
-        </div>
+      <header>
+        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">
+          Operations
+        </p>
+        <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)] font-semibold">
+          New Goods Issue Note
+        </h1>
       </header>
 
-      <form className="space-y-4" onSubmit={handleSubmit}>
-        <GinDetailsSection
-          ginNumber={ginNumber}
-          ginDate={ginDate}
-          invoiceId={invoiceId}
-          invoiceCustomerName={invoiceCustomerName}
-          invoiceRepName={invoiceRepName}
-          locationId={locationId}
-          preparedBy={preparedBy}
-          receivedBy={receivedBy}
-          ginNumberError={fieldErrors.ginNumber}
-          ginDateError={fieldErrors.ginDate}
-          invoiceError={fieldErrors.invoice}
-          locationError={fieldErrors.location}
-          preparedByError={fieldErrors.preparedBy}
-          receivedByError={fieldErrors.receivedBy}
-          invoiceOptions={invoiceOptions}
-          locationOptions={locationOptions}
-          invoicesLoading={invoicesQuery.isLoading}
-          locationsLoading={locationsQuery.isLoading}
-          onGinNumberChange={setGinNumber}
-          onGinDateChange={setGinDate}
-          onInvoiceChange={handleInvoiceChange}
-          onLocationChange={handleLocationChange}
-          onPreparedByChange={setPreparedBy}
-          onReceivedByChange={setReceivedBy}
-        />
+      <div className="rounded-xl border border-stone-200 bg-white p-4 text-[13px] text-stone-700">
+        {!invoiceId && (
+          <p className="text-red-700">
+            Missing invoice id. Open this from an invoice action.
+          </p>
+        )}
+        {invoiceId && invoiceQuery.isLoading && <p>Loading invoice details...</p>}
+        {invoiceId && invoiceQuery.error instanceof Error && (
+          <p className="text-red-700">{invoiceQuery.error.message}</p>
+        )}
+        {invoiceId && invoiceQuery.data && (
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+            <p>
+              <span className="text-stone-500">Invoice:</span>{" "}
+              {invoiceQuery.data.invoiceNo}
+            </p>
+            <p>
+              <span className="text-stone-500">Customer:</span>{" "}
+              {invoiceQuery.data.customerName}
+            </p>
+            <p>
+              <span className="text-stone-500">Sales Rep:</span>{" "}
+              {invoiceQuery.data.repName}
+            </p>
+            <p>
+              <span className="text-stone-500">Date:</span>{" "}
+              {new Date(invoiceQuery.data.invoiceDate).toLocaleDateString(
+                "en-GB",
+                {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                },
+              )}
+            </p>
+          </div>
+        )}
+      </div>
 
-        <GinProductsSection
-          lines={lines}
-          locationId={locationId}
-          productOptions={productOptions}
-          productStockById={productStockById}
-          invoiceQtyByProduct={invoiceQtyByProduct}
-          issuedQtyByProduct={savedIssuedQtyByProduct}
-          remainingInvoiceQtyByProduct={remainingInvoiceQtyByProduct}
-          isProductsLoading={locationProductsQuery.isLoading}
-          productsError={locationProductsQuery.error instanceof Error ? locationProductsQuery.error.message : ""}
-          onUpdateLine={handleUpdateLine}
-        />
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setIsModalOpen(true)}
+          className="rounded-xl bg-[#1a5c2e] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42]"
+        >
+          Open GIN Form
+        </button>
+      </div>
 
-        <GinSubmitSection
-          submitError={submitError}
-          successMessage={successMessage}
-          isSaving={saveMutation.isPending}
-        />
-      </form>
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-xl border border-stone-200 bg-white p-5">
+            <div className="mb-4 flex items-start justify-between">
+              <div>
+                <h2 className="text-[18px] font-semibold text-stone-900">
+                  Create Goods Issue Note
+                </h2>
+                <p className="text-[13px] text-stone-500">
+                  Enter GIN number, date, and notes.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="rounded-md px-2 py-1 text-stone-500 hover:bg-stone-100"
+              >
+                x
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <label className="flex flex-col gap-1">
+                <span className="text-[12px] font-medium text-stone-700">
+                  GIN Number
+                </span>
+                <input
+                  value={ginNumber}
+                  onChange={(event) => {
+                    setGinNumber(event.target.value);
+                    setFieldErrors((prev) => ({ ...prev, ginNumber: undefined }));
+                    setSubmitError("");
+                  }}
+                  className="rounded-lg border border-stone-300 px-3 py-2 text-[13px] outline-none focus:border-[#1a5c2e]"
+                  placeholder="GIN-YYYYMM-001"
+                />
+                {fieldErrors.ginNumber && (
+                  <p className="text-[12px] text-red-700">
+                    {fieldErrors.ginNumber}
+                  </p>
+                )}
+                {!fieldErrors.ginNumber &&
+                  ginNumber.trim().length > 0 &&
+                  (ginNoAvailabilityQuery.isFetching ? (
+                    <p className="text-[12px] text-stone-500">Checking GIN number...</p>
+                  ) : ginNoAvailabilityQuery.data?.isUnique ? (
+                    <p className="text-[12px] text-stone-500">GIN number is available.</p>
+                  ) : null)}
+              </label>
+
+              <label className="flex flex-col gap-1">
+                <span className="text-[12px] font-medium text-stone-700">
+                  Date
+                </span>
+                <input
+                  type="date"
+                  value={ginDate}
+                  onChange={(event) => {
+                    setGinDate(event.target.value);
+                    setFieldErrors((prev) => ({ ...prev, ginDate: undefined }));
+                    setSubmitError("");
+                  }}
+                  className="rounded-lg border border-stone-300 px-3 py-2 text-[13px] outline-none focus:border-[#1a5c2e]"
+                />
+                {fieldErrors.ginDate && (
+                  <p className="text-[12px] text-red-700">{fieldErrors.ginDate}</p>
+                )}
+              </label>
+
+              <label className="flex flex-col gap-1">
+                <span className="text-[12px] font-medium text-stone-700">
+                  Notes
+                </span>
+                <textarea
+                  value={notes}
+                  onChange={(event) => {
+                    setNotes(event.target.value);
+                    setSubmitError("");
+                  }}
+                  rows={3}
+                  className="rounded-lg border border-stone-300 px-3 py-2 text-[13px] outline-none focus:border-[#1a5c2e]"
+                  placeholder="Optional notes"
+                />
+              </label>
+
+              {submitError && <p className="text-[12px] text-red-700">{submitError}</p>}
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="rounded-lg border border-stone-300 px-3 py-2 text-[13px] font-medium text-stone-700 hover:bg-stone-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCreate}
+                disabled={createGinMutation.isPending || !invoiceId}
+                className="rounded-lg bg-[#1a5c2e] px-3 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {createGinMutation.isPending ? "Saving..." : "Create GIN"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };

@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Eye, PackagePlus } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
 import type { GoodsReceivingNotesResponse } from "@/types/api";
+import DataTable from "@/components/ui/DataTable";
 
 const ENTRY_TYPE_STYLE: Record<"LOCAL_PURCHASE" | "FOREIGN_IMPORT", string> = {
   LOCAL_PURCHASE: "bg-green-50 text-green-700 border-green-100",
@@ -22,11 +25,29 @@ const formatDate = (value: string) =>
     year: "numeric",
   });
 
+type GoodsReceivingRow = NonNullable<GoodsReceivingNotesResponse["data"]>[number];
+
 const GoodsReceivingNotesPage = () => {
+  const [rangeFilter, setRangeFilter] = useState("month");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+  const [appliedRange, setAppliedRange] = useState("month");
+  const [appliedStart, setAppliedStart] = useState("");
+  const [appliedEnd, setAppliedEnd] = useState("");
+
   const notesQuery = useQuery({
-    queryKey: ["goods-receiving-notes"],
+    queryKey: ["goods-receiving-notes", appliedRange, appliedStart, appliedEnd],
     queryFn: async () => {
-      const response = await fetch("/api/goods-receiving-notes");
+      const params = new URLSearchParams();
+      if (appliedRange !== "all") {
+        params.set("range", appliedRange);
+        if (appliedRange === "custom") {
+          if (appliedStart) params.set("startDate", appliedStart);
+          if (appliedEnd) params.set("endDate", appliedEnd);
+        }
+      }
+      const query = params.toString();
+      const response = await fetch(`/api/goods-receiving-notes${query ? `?${query}` : ""}`);
       const result = (await response.json()) as GoodsReceivingNotesResponse;
       if (!response.ok) {
         throw new Error(
@@ -38,6 +59,70 @@ const GoodsReceivingNotesPage = () => {
   });
 
   const rows = notesQuery.data ?? [];
+  const tableColumns = useMemo<ColumnDef<GoodsReceivingRow>[]>(
+    () => [
+      {
+        accessorKey: "grnNumber",
+        header: "GRN #",
+        cell: ({ row }) => (
+          <span className="font-medium text-[#2b2d7e] [font-family:var(--font-jetbrains)]">
+            {row.original.grnNumber}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "date",
+        header: "Date",
+        cell: ({ row }) => <span className="text-stone-700">{formatDate(row.original.date)}</span>,
+      },
+      {
+        accessorKey: "entryType",
+        header: "Entry Type",
+        cell: ({ row }) => (
+          <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium ${ENTRY_TYPE_STYLE[row.original.entryType]}`}>
+            {ENTRY_TYPE_LABEL[row.original.entryType]}
+          </span>
+        ),
+      },
+      {
+        id: "location",
+        header: "Location",
+        cell: ({ row }) => (
+          <span className="text-stone-700">{row.original.locationCode} - {row.original.locationName}</span>
+        ),
+      },
+      {
+        accessorKey: "referenceNo",
+        header: "Reference",
+        cell: ({ row }) => <span className="text-stone-700">{row.original.referenceNo ?? "-"}</span>,
+      },
+      {
+        accessorKey: "lineCount",
+        header: "Lines",
+        cell: ({ row }) => <span className="text-stone-700">{row.original.lineCount}</span>,
+      },
+      {
+        accessorKey: "createdByName",
+        header: "Created By",
+        cell: ({ row }) => <span className="text-stone-700">{row.original.createdByName}</span>,
+      },
+      {
+        id: "actions",
+        header: "Action",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <Link
+            href={`/goods-receiving-notes/${row.original.id}`}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] hover:bg-[#eeeffe]"
+          >
+            <Eye size={12} />
+            View
+          </Link>
+        ),
+      },
+    ],
+    [],
+  );
 
   return (
     <section className="space-y-5">
@@ -63,86 +148,56 @@ const GoodsReceivingNotesPage = () => {
         </Link>
       </header>
 
-      <div className="overflow-x-auto rounded-2xl border border-stone-200 bg-white">
-        <table className="w-full min-w-[960px] border-collapse text-left text-[14px]">
-          <thead className="bg-stone-50 text-[11px] uppercase tracking-[0.1em] text-stone-500">
-            <tr>
-              <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">
-                GRN #
-              </th>
-              <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">
-                Date
-              </th>
-              <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">
-                Entry Type
-              </th>
-              <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">
-                Location
-              </th>
-              <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">
-                Reference
-              </th>
-              <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">
-                Lines
-              </th>
-              <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">
-                Created By
-              </th>
-              <th className="sticky top-0 border-b border-stone-200 px-4 py-3 font-medium">
-                Action
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr
-                key={row.id}
-                className="border-b border-stone-100 hover:bg-stone-50"
-              >
-                <td className="px-4 py-3 font-medium text-[#2b2d7e] [font-family:var(--font-jetbrains)]">
-                  {row.grnNumber}
-                </td>
-                <td className="px-4 py-3 text-stone-700">
-                  {formatDate(row.date)}
-                </td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium ${ENTRY_TYPE_STYLE[row.entryType]}`}
-                  >
-                    {ENTRY_TYPE_LABEL[row.entryType]}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-stone-700">
-                  {row.locationCode} - {row.locationName}
-                </td>
-                <td className="px-4 py-3 text-stone-700">
-                  {row.referenceNo ?? "—"}
-                </td>
-                <td className="px-4 py-3 text-stone-700">{row.lineCount}</td>
-                <td className="px-4 py-3 text-stone-700">
-                  {row.createdByName}
-                </td>
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/goods-receiving-notes/${row.id}`}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] hover:bg-[#eeeffe]"
-                  >
-                    <Eye size={12} />
-                    View
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {!notesQuery.isLoading && rows.length === 0 && (
-          <div className="px-4 py-8 text-center text-[13px] text-stone-500">
-            No goods receiving notes found yet. Save a new stock entry to create
-            the first one.
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          value={rangeFilter}
+          onChange={(event) => setRangeFilter(event.target.value)}
+          className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+        >
+          <option value="all">All Time</option>
+          <option value="day">Today</option>
+          <option value="week">This Week</option>
+          <option value="month">This Month</option>
+          <option value="year">This Year</option>
+          <option value="custom">Custom Range</option>
+        </select>
+        {rangeFilter === "custom" && (
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={customStart}
+              onChange={(event) => setCustomStart(event.target.value)}
+              className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+            />
+            <span className="text-[12px] text-stone-400">to</span>
+            <input
+              type="date"
+              value={customEnd}
+              onChange={(event) => setCustomEnd(event.target.value)}
+              className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+            />
           </div>
         )}
+        <button
+          onClick={() => {
+            setAppliedRange(rangeFilter);
+            setAppliedStart(customStart);
+            setAppliedEnd(customEnd);
+          }}
+          className="rounded-xl bg-[#1a5c2e] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42]"
+        >
+          Apply Filter
+        </button>
       </div>
+
+      <DataTable
+        data={rows}
+        columns={tableColumns}
+        minWidth={980}
+        isLoading={notesQuery.isLoading}
+        searchPlaceholder="Search GRN no, location, reference, or creator"
+        emptyMessage="No goods receiving notes found yet. Save a new stock entry to create the first one."
+      />
 
       {notesQuery.error instanceof Error && (
         <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">

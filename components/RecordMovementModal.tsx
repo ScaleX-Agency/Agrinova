@@ -100,6 +100,7 @@ export default function RecordMovementModal({ row, onClose, onSaved }: Props) {
         product_code: row.product_code,
         location_code: row.location_code,
         created_by_name: user?.firstName || "Admin",
+        movement_qty: qty,
         qty_delta: resolvedDelta,
       };
 
