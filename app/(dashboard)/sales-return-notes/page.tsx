@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { FileText, RotateCcw, Search } from "lucide-react";
+import { FileText, Search } from "lucide-react";
 import DataTable from "@/components/ui/DataTable";
 
 type SalesReturnListRow = {
@@ -82,8 +82,6 @@ export default function SalesReturnNotesPage() {
       header: "SRN #",
       cell: ({ row }) => <span className="font-semibold text-stone-800">{row.original.srnNumber}</span>,
     },
-    { accessorKey: "grnNumber", header: "GRN #" },
-    { accessorKey: "creditNoteNumber", header: "Credit Note #" },
     { accessorKey: "invoiceNumber", header: "Invoice #" },
     { accessorKey: "customerName", header: "Customer" },
     {
@@ -101,10 +99,6 @@ export default function SalesReturnNotesPage() {
       header: "Return Amount",
       cell: ({ row }) => formatCurrency(row.original.returnAmount),
       meta: { align: "right" },
-    },
-    {
-      accessorKey: "createdBy",
-      header: "Created By",
     },
     {
       id: "view",
@@ -128,10 +122,6 @@ export default function SalesReturnNotesPage() {
           <p className="text-[11px] uppercase tracking-[0.12em] text-stone-400 font-semibold">Sales</p>
           <h1 className="mt-1 text-[28px] leading-tight text-stone-900 font-semibold">Sales Return Notes</h1>
           <p className="mt-1 text-[13px] text-stone-500">Track each SRN with linked GRN and Credit Note package.</p>
-        </div>
-        <div className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-700">
-          <RotateCcw size={13} />
-          SRN-GRN-CN Package View
         </div>
       </header>
 
@@ -176,7 +166,7 @@ export default function SalesReturnNotesPage() {
         <DataTable
           data={listQuery.data ?? []}
           columns={columns}
-          minWidth={1500}
+          minWidth={0}
           hideSearch
           isLoading={listQuery.isLoading}
           emptyMessage="No sales return notes found."
@@ -191,4 +181,3 @@ export default function SalesReturnNotesPage() {
     </div>
   );
 }
-
