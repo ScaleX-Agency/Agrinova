@@ -352,8 +352,12 @@ const getNextTransferNumber = async (
 export async function getStockTransfers(
   page: number = 1,
   pageSize: number = 20,
+  filters?: { dateFilter?: Prisma.DateTimeFilter },
 ): Promise<PaginatedResult<StockTransferRecord>> {
-  const where = { is_active: true };
+  const where = {
+    is_active: true,
+    ...(filters?.dateFilter ? { transfer_date: filters.dateFilter } : {}),
+  };
   const [total, transfers] = await Promise.all([
     prisma.stockTransfer.count({ where }),
     prisma.stockTransfer.findMany({

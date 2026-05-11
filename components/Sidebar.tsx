@@ -113,6 +113,12 @@ const NAV_GROUPS: NavGroup[] = [
         shortLabel: "GINs",
       },
       {
+        href: "/stock-transfers",
+        icon: <ArrowLeftRight size={16} />,
+        label: "Stock Transfers",
+        shortLabel: "Transfers",
+      },
+      {
         href: "/sales-return-notes",
         icon: <RotateCcw size={16} />,
         label: "Sales Return Notes",
