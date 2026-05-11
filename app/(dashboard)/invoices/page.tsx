@@ -9,9 +9,6 @@ import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { InvoiceOptionDto, InvoicesResponse } from "@/types/api";
 import DataTable from "@/components/ui/DataTable";
-import IssueStocksModalButton from "./IssueStocksModalButton";
-import RecordPaymentModalButton from "./RecordPaymentModalButton";
-import RecordReturnsModalButton from "./RecordReturnsModalButton";
 
 type StatusFilter = "ALL" | InvoiceOptionDto["status"];
 type GinStatusFilter = "ALL" | InvoiceOptionDto["ginStatus"];
@@ -174,48 +171,6 @@ const InvoicesPage = () => {
           const invoice = row.original;
           return (
             <div className="flex items-center justify-center gap-2">
-              {invoice.ginStatus === "ISSUED" ? (
-                <IssueStocksModalButton
-                  invoiceId={invoice.id}
-                  disabled
-                  disabledTitle="GIN already issued"
-                  buttonClassName="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
-                />
-              ) : (
-                <IssueStocksModalButton
-                  invoiceId={invoice.id}
-                  disabled={false}
-                  buttonClassName="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
-                />
-              )}
-              {invoice.status === "PAID" ? (
-                <RecordPaymentModalButton
-                  invoiceId={invoice.id}
-                  disabled
-                  disabledTitle="Invoice is fully paid"
-                  buttonClassName="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
-                />
-              ) : (
-                <RecordPaymentModalButton
-                  invoiceId={invoice.id}
-                  disabled={false}
-                  buttonClassName="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
-                />
-              )}
-              {invoice.totalReturnableQty <= 0 ? (
-                <RecordReturnsModalButton
-                  invoiceId={invoice.id}
-                  disabled
-                  disabledTitle="No returnable quantities available"
-                  buttonClassName="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
-                />
-              ) : (
-                <RecordReturnsModalButton
-                  invoiceId={invoice.id}
-                  disabled={false}
-                  buttonClassName="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
-                />
-              )}
               <Link
                 href={`/invoices/${invoice.id}`}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] hover:bg-[#eeeffe]"
