@@ -310,13 +310,16 @@ const InvoiceDetailPage = async ({
                 productName: line.product.product_name,
                 packSize: line.product.pack_size,
                 quantity: line.quantity,
+                freeQuantity: line.free_quantity,
                 unitPrice: Number(line.unit_price),
                 discount: Number(line.discount),
                 lineTotal: Number(line.line_total),
+                returnedAmount: Number(line.credited_amount),
               }))}
               subtotal={subtotal}
               discountTotal={discountTotal}
-              grandTotal={total}
+              returnsTotal={creditedAmount}
+              grandTotalAfterReturns={grandTotalAfterReturns}
             />
 
             {ginStatus === "ISSUED" ? (

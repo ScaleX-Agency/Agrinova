@@ -4,31 +4,30 @@ import { useRef } from "react";
 import PrintButton from "@/components/print/PrintButton";
 import { PrintPage } from "@/components/print/PrintDocuments";
 
-type GrnPrintLine = {
+type SalesReturnPrintLine = {
   lineId: number;
   productCode: string;
   productName: string;
   packSize: string;
-  quantity: number;
+  usableQty: number;
+  unusableQty: number;
+  totalQty: number;
+  condition: string;
+  reasonForReturn: string;
+  lineTotal: number;
 };
 
-type GrnPrintButtonProps = {
-  grnNumber: string;
-  grnDate: string;
-  entryType: "LOCAL_PURCHASE" | "FOREIGN_IMPORT";
+type SalesReturnPrintButtonProps = {
+  srnNumber: string;
+  srnDate: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  customerName: string;
   locationCode: string;
   locationName: string;
-  referenceNo: string | null;
-  notes: string | null;
   createdBy: string;
-  createdByUsername: string;
-  lines: GrnPrintLine[];
-  totalQuantity: number;
-};
-
-const ENTRY_TYPE_LABEL: Record<"LOCAL_PURCHASE" | "FOREIGN_IMPORT", string> = {
-  LOCAL_PURCHASE: "Local Purchase",
-  FOREIGN_IMPORT: "Foreign Import",
+  notes: string | null;
+  lines: SalesReturnPrintLine[];
 };
 
 const formatDate = (value: string) =>
@@ -38,7 +37,6 @@ const formatDate = (value: string) =>
     year: "numeric",
   });
 
-  // eslint-disable-next-line
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-LK", {
     style: "currency",
@@ -47,45 +45,40 @@ const formatCurrency = (value: number) =>
     maximumFractionDigits: 2,
   }).format(value);
 
-const GrnPrintButton = ({
-  grnNumber,
-  grnDate,
-  entryType,
+const SalesReturnPrintButton = ({
+  srnNumber,
+  srnDate,
+  invoiceNumber,
+  invoiceDate,
+  customerName,
   locationCode,
   locationName,
-  referenceNo,
-  notes,
   createdBy,
-  createdByUsername,
+  notes,
   lines,
-  totalQuantity,
-}: GrnPrintButtonProps) => {
+}: SalesReturnPrintButtonProps) => {
   const contentRef = useRef<HTMLDivElement>(null);
 
   return (
     <>
-      <PrintButton
-        contentRef={contentRef}
-        documentTitle={grnNumber}
-        label="Print GRN"
-      />
-
+      <PrintButton contentRef={contentRef} documentTitle={srnNumber} label="Print" />
       <div className="hidden" aria-hidden>
         <div ref={contentRef}>
           <PrintPage
-            title={`Goods Receiving Note ${grnNumber}`}
-            subtitle="Stock receiving document"
+            title={`Sales Return Note ${srnNumber}`}
+            subtitle="Return adjustment document"
             rightHeader={
               <>
-                <p>Date: {formatDate(grnDate)}</p>
-                <p>Entry Type: {ENTRY_TYPE_LABEL[entryType]}</p>
-                <p>Reference: {referenceNo ?? "-"}</p>
+                <p>SRN Date: {formatDate(srnDate)}</p>
+                <p>Invoice: {invoiceNumber}</p>
               </>
             }
           >
             <section className="mt-6 grid grid-cols-2 gap-4 text-[13px]">
               <div>
-                <p className="font-semibold text-stone-800">Location</p>
+                <p className="font-semibold text-stone-800">Customer</p>
+                <p>{customerName}</p>
+                <p className="mt-3 font-semibold text-stone-800">Location</p>
                 <p>
                   {locationCode} - {locationName}
                 </p>
@@ -93,9 +86,8 @@ const GrnPrintButton = ({
               <div className="text-right">
                 <p className="font-semibold text-stone-800">Created By</p>
                 <p>{createdBy}</p>
-                <p className="text-[12px] text-stone-500">
-                  {createdByUsername}
-                </p>
+                <p className="mt-3 font-semibold text-stone-800">Invoice Date</p>
+                <p>{formatDate(invoiceDate)}</p>
               </div>
             </section>
 
@@ -106,7 +98,12 @@ const GrnPrintButton = ({
                     <th>Product Code</th>
                     <th>Product</th>
                     <th>Pack Size</th>
-                    <th className="text-center">Qty</th>
+                    <th className="text-right">Usable Qty</th>
+                    <th className="text-right">Unusable Qty</th>
+                    <th className="text-right">Total Qty</th>
+                    <th>Condition</th>
+                    <th>Reason</th>
+                    <th className="text-right">Line Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -115,26 +112,22 @@ const GrnPrintButton = ({
                       <td>{line.productCode}</td>
                       <td>{line.productName}</td>
                       <td>{line.packSize}</td>
-                      <td className="text-center">{line.quantity}</td>
+                      <td className="text-right">{line.usableQty}</td>
+                      <td className="text-right">{line.unusableQty}</td>
+                      <td className="text-right">{line.totalQty}</td>
+                      <td>{line.condition}</td>
+                      <td>{line.reasonForReturn}</td>
+                      <td className="text-right text-red-700">- {formatCurrency(line.lineTotal)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </section>
 
-            <section className="mt-6 ml-auto w-[320px] text-[14px] font-semibold">
-              <div className="flex items-center justify-between border-t border-stone-300 pt-2 text-[#1a5c2e]">
-                <span>Total Quantity</span>
-                <span>{totalQuantity} units</span>
-              </div>
+            <section className="mt-6 text-[13px]">
+              <p className="font-semibold text-stone-800">Notes</p>
+              <p className="mt-1 whitespace-pre-wrap">{notes?.trim() ? notes : "No notes added."}</p>
             </section>
-
-            {notes && (
-              <section className="mt-6 text-[13px]">
-                <p className="font-semibold text-stone-800">Notes</p>
-                <p className="mt-1 whitespace-pre-wrap">{notes}</p>
-              </section>
-            )}
           </PrintPage>
         </div>
       </div>
@@ -142,4 +135,5 @@ const GrnPrintButton = ({
   );
 };
 
-export default GrnPrintButton;
+export default SalesReturnPrintButton;
+

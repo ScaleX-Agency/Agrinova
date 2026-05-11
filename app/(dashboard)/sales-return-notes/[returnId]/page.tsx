@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Printer } from "lucide-react";
+import { FileText } from "lucide-react";
 import BackNavigationLink from "@/components/ui/BackNavigationLink";
 import DeleteSalesReturnButton from "@/app/(dashboard)/invoices/DeleteSalesReturnButton";
+import SalesReturnPrintButton from "./SalesReturnPrintButton";
 
 type DetailResponse = {
   data: {
@@ -113,7 +114,7 @@ export default function SalesReturnNoteDetailPage() {
 
   return (
     <section className="space-y-5">
-      <header className="rounded-2xl border border-stone-200 bg-white p-4 sm:p-5">
+      <header className="no-print rounded-2xl border border-stone-200 bg-white p-4 sm:p-5">
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-2">
@@ -130,14 +131,18 @@ export default function SalesReturnNoteDetailPage() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[#c0c3f0] bg-white px-3 py-2 text-[12px] font-medium text-[#2b2d7e] transition-colors hover:bg-[#eeeffe]"
-            >
-              <Printer size={13} />
-              Print
-            </button>
+            <SalesReturnPrintButton
+              srnNumber={detail.srnNumber}
+              srnDate={detail.srnDate}
+              invoiceNumber={detail.invoice.invoiceNumber}
+              invoiceDate={detail.invoice.invoiceDate}
+              customerName={detail.customer.name}
+              locationCode={detail.location.code}
+              locationName={detail.location.name}
+              createdBy={detail.createdBy}
+              notes={detail.notes}
+              lines={detail.lines}
+            />
             <DeleteSalesReturnButton returnId={detail.returnId} returnNumber={detail.srnNumber} />
           </div>
         </div>
