@@ -60,6 +60,7 @@ export default function StockOverview({
   const [movementsPage, setMovementsPage] = useState(1);
   const movementsPageSize = 20;
   const [movTypeFilter, setMovTypeFilter] = useState<any>("ALL");
+  const movementsEnabled = activeTab === "movements";
   const { data: movements = { items: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 1 } } } =
     useAllMovements(
       {
@@ -68,6 +69,7 @@ export default function StockOverview({
         movement_type: movTypeFilter !== "ALL" ? movTypeFilter : undefined,
       },
       initialMovements,
+      movementsEnabled,
     );
 
   const [movementTarget, setMovementTarget] = useState<StockOverviewRow | null>(null);
@@ -160,11 +162,13 @@ export default function StockOverview({
           label="Total Units"
           value={stats.totalUnits.toLocaleString()}
           delta={
-            movements.pagination.total > 0
+            movementsEnabled && movements.pagination.total > 0
               ? `${movements.pagination.total} stock movements recorded`
-              : "No stock movements recorded"
+              : movementsEnabled
+                ? "No stock movements recorded"
+                : "Open Movements Log to load"
           }
-          deltaVariant={movements.pagination.total > 0 ? "up" : "neutral"}
+          deltaVariant={movementsEnabled && movements.pagination.total > 0 ? "up" : "neutral"}
           icon={<TrendingUp size={18} className="text-blue-800" />}
           iconBg="bg-blue-50"
         />

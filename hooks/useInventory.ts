@@ -152,7 +152,8 @@ import type { PaginatedResult } from "@/types/inventory";
  */
 export function useAllMovements(
   params: { page?: number; pageSize?: number; movement_type?: string; search?: string } = {},
-  initialData?: PaginatedResult<MovementRow>
+  initialData?: PaginatedResult<MovementRow>,
+  enabled = true,
 ) {
   return useQuery({
     queryKey: KEYS.allMovements(params),
@@ -167,6 +168,7 @@ export function useAllMovements(
     },
     initialData,
     staleTime: 30_000,
+    enabled,
   });
 }
 
