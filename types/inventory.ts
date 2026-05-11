@@ -11,6 +11,8 @@ export type MovementType =
   | "ISSUE_REVERSAL"
   | "RETURN_REVERSAL"
   | "PURCHASE_REVERSAL"
+  | "TRANSFER_OUT_REVERSAL"
+  | "TRANSFER_IN_REVERSAL"
   | "RETURN_UNUSABLE_REVERSAL";
 
 export interface StockOverviewRow {

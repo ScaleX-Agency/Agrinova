@@ -37,6 +37,7 @@ model User {
   created_salesReturnNotes    SalesReturnNote[]    @relation("SalesReturnNoteCreatedBy")
   deleted_salesReturnNotes    SalesReturnNote[]    @relation("SalesReturnNoteDeletedBy")
   created_stock_transfers     StockTransfer[]      @relation("StockTransferCreatedBy")
+  deleted_stock_transfers     StockTransfer[]      @relation("StockTransferDeletedBy")
   stock_movements             StockMovement[]      @relation("StockMovementCreatedBy")
   role                        Role                 @relation(fields: [role_id], references: [role_id])
 
@@ -500,7 +501,9 @@ model StockTransfer {
   created_at        DateTime          @default(now())
   updated_at        DateTime          @default(now()) @updatedAt
   is_active         Boolean           @default(true)
+  deleted_by        Int?
   creator           User              @relation("StockTransferCreatedBy", fields: [created_by], references: [user_id])
+  deleter           User?             @relation("StockTransferDeletedBy", fields: [deleted_by], references: [user_id])
   from_location     InventoryLocation @relation("StockTransferFromLocation", fields: [from_location_id], references: [location_id])
   to_location       InventoryLocation @relation("StockTransferToLocation", fields: [to_location_id], references: [location_id])
   lines             StockTransferLine[]
@@ -548,6 +551,8 @@ enum MovementType {
   ISSUE_REVERSAL // delete a goods issue note
   RETURN_REVERSAL // delete a goods return note
   PURCHASE_REVERSAL // delete a goods receiving note
+  TRANSFER_OUT_REVERSAL // reverse a transfer-out from source location
+  TRANSFER_IN_REVERSAL // reverse a transfer-in to destination location
   RETURN_UNUSABLE_REVERSAL // delete a return of unusable stock (no stock movement, but for audit trail)
 }
 

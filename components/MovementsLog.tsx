@@ -31,6 +31,8 @@ const TYPES: FilterType[] = [
   "ISSUE_REVERSAL",
   "RETURN_REVERSAL",
   "PURCHASE_REVERSAL",
+  "TRANSFER_OUT_REVERSAL",
+  "TRANSFER_IN_REVERSAL",
   "RETURN_UNUSABLE_REVERSAL",
 ];
 
@@ -46,6 +48,8 @@ const TYPE_LABELS: Record<FilterType, string> = {
   ISSUE_REVERSAL: "Issue Reversal",
   RETURN_REVERSAL: "Return Reversal",
   PURCHASE_REVERSAL: "Purchase Reversal",
+  TRANSFER_OUT_REVERSAL: "Transfer Out Reversal",
+  TRANSFER_IN_REVERSAL: "Transfer In Reversal",
   RETURN_UNUSABLE_REVERSAL: "Return Unusable Reversal",
 };
 
@@ -60,6 +64,8 @@ const TYPE_BADGE: Record<MovementType, string> = {
   ISSUE_REVERSAL: "bg-indigo-50 text-indigo-700",
   RETURN_REVERSAL: "bg-orange-50 text-orange-700",
   PURCHASE_REVERSAL: "bg-yellow-50 text-yellow-700",
+  TRANSFER_OUT_REVERSAL: "bg-emerald-50 text-emerald-700",
+  TRANSFER_IN_REVERSAL: "bg-fuchsia-50 text-fuchsia-700",
   RETURN_UNUSABLE_REVERSAL: "bg-pink-50 text-pink-700",
 };
 

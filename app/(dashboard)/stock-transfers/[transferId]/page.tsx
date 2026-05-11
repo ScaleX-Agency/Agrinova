@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { FileText } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import BackNavigationLink from "@/components/ui/BackNavigationLink";
+import DeleteStockTransferButton from "../DeleteStockTransferButton";
 
 const formatDate = (value: Date) =>
   value.toLocaleDateString("en-GB", {
@@ -28,6 +30,8 @@ const StockTransferDetailPage = async ({
   if (!Number.isInteger(transferId) || transferId <= 0) {
     notFound();
   }
+  const currentUser = await getCurrentUser();
+  const canDeleteTransfer = isAdminUser(currentUser);
 
   const transfer = await prisma.stockTransfer.findUnique({
     where: { transfer_id: transferId },
@@ -94,6 +98,9 @@ const StockTransferDetailPage = async ({
               Stock Transfer {transfer.transfer_no}
             </h1>
           </div>
+          {canDeleteTransfer ? (
+            <DeleteStockTransferButton transferId={transfer.transfer_id} transferNo={transfer.transfer_no} />
+          ) : null}
         </div>
       </header>
 

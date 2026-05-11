@@ -29,6 +29,8 @@ function computeQtyDelta(type: string, qty: number): number {
   if (type === "ISSUE" || type === "ADJUSTMENT") return -qty;
   if (type === "TRANSFER_OUT") return -qty;
   if (type === "TRANSFER_IN") return qty;
+  if (type === "TRANSFER_OUT_REVERSAL") return qty;
+  if (type === "TRANSFER_IN_REVERSAL") return -qty;
   if (type === "ISSUE_REVERSAL") return qty;
   if (type === "RETURN_REVERSAL" || type === "PURCHASE_REVERSAL") return -qty;
   if (type === "RETURN_UNUSABLE" || type === "RETURN_UNUSABLE_REVERSAL") return 0;
