@@ -36,6 +36,8 @@ model User {
   deleted_receipts            Receipt[]            @relation("ReceiptDeletedBy")
   created_salesReturnNotes    SalesReturnNote[]    @relation("SalesReturnNoteCreatedBy")
   deleted_salesReturnNotes    SalesReturnNote[]    @relation("SalesReturnNoteDeletedBy")
+  created_stock_transfers     StockTransfer[]      @relation("StockTransferCreatedBy")
+  deleted_stock_transfers     StockTransfer[]      @relation("StockTransferDeletedBy")
   stock_movements             StockMovement[]      @relation("StockMovementCreatedBy")
   role                        Role                 @relation(fields: [role_id], references: [role_id])
 
@@ -429,6 +431,7 @@ model Product {
   category                   Category                 @relation(fields: [category_id], references: [category_id])
   salesReturnNoteLines       SalesReturnNoteLine[]
   stocks                     Stock[]
+  stock_transfer_lines       StockTransferLine[]
   stock_movements            StockMovement[]          @relation("StockMovementProduct")
 
   @@map("PRODUCT")
@@ -447,6 +450,8 @@ model InventoryLocation {
   goodsReturnNotes      GoodsReturnNote[]
   invoices              Invoice[]
   salesReturnNotes      SalesReturnNote[]
+  stock_transfers_from  StockTransfer[]        @relation("StockTransferFromLocation")
+  stock_transfers_to    StockTransfer[]        @relation("StockTransferToLocation")
   stocks                Stock[]
 
   @@index([status])
@@ -476,12 +481,50 @@ model StockMovement {
   quantity      Int
   movement_date DateTime
   product_id    Int
+  notes         String?
   creator       User         @relation("StockMovementCreatedBy", fields: [created_by], references: [user_id])
   product       Product      @relation("StockMovementProduct", fields: [product_id], references: [product_id])
   stock         Stock        @relation(fields: [stock_id], references: [stock_id])
 
   @@index([stock_id, movement_type])
   @@map("STOCK_MOVEMENT")
+}
+
+model StockTransfer {
+  transfer_id       Int               @id @default(autoincrement())
+  transfer_no       String            @unique
+  transfer_date     DateTime
+  from_location_id  Int
+  to_location_id    Int
+  notes             String?
+  created_by        Int
+  created_at        DateTime          @default(now())
+  updated_at        DateTime          @default(now()) @updatedAt
+  is_active         Boolean           @default(true)
+  deleted_by        Int?
+  creator           User              @relation("StockTransferCreatedBy", fields: [created_by], references: [user_id])
+  deleter           User?             @relation("StockTransferDeletedBy", fields: [deleted_by], references: [user_id])
+  from_location     InventoryLocation @relation("StockTransferFromLocation", fields: [from_location_id], references: [location_id])
+  to_location       InventoryLocation @relation("StockTransferToLocation", fields: [to_location_id], references: [location_id])
+  lines             StockTransferLine[]
+
+  @@index([transfer_date])
+  @@index([from_location_id])
+  @@index([to_location_id])
+  @@map("STOCK_TRANSFER")
+}
+
+model StockTransferLine {
+  transfer_line_id Int           @id @default(autoincrement())
+  transfer_id      Int
+  product_id       Int
+  quantity         Int
+  transfer         StockTransfer @relation(fields: [transfer_id], references: [transfer_id])
+  product          Product       @relation(fields: [product_id], references: [product_id])
+
+  @@index([transfer_id])
+  @@index([product_id])
+  @@map("STOCK_TRANSFER_LINE")
 }
 
 enum InvoiceStatus {
@@ -503,9 +546,13 @@ enum MovementType {
   RETURN_UNUSABLE // Return of unusable stock (no stock movement, but for audit trail)
   PURCHASE // Goods receiving from suppliers
   ADJUSTMENT // Stock adjustment
+  TRANSFER_OUT // Stock transfer from source location
+  TRANSFER_IN // Stock transfer to destination location
   ISSUE_REVERSAL // delete a goods issue note
   RETURN_REVERSAL // delete a goods return note
   PURCHASE_REVERSAL // delete a goods receiving note
+  TRANSFER_OUT_REVERSAL // reverse a transfer-out from source location
+  TRANSFER_IN_REVERSAL // reverse a transfer-in to destination location
   RETURN_UNUSABLE_REVERSAL // delete a return of unusable stock (no stock movement, but for audit trail)
 }
 

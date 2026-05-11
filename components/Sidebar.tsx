@@ -80,10 +80,32 @@ const NAV_GROUPS: NavGroup[] = [
         icon: <MapPin size={16} />,
         label: "Locations",
       },
+    ],
+  },
+  {
+    title: "Analytics",
+    items: [
       {
-        href: "/inventory/movements",
-        icon: <ArrowLeftRight size={16} />,
-        label: "Movements",
+        href: "/customer-sales",
+        icon: <BarChart3 size={16} />,
+        label: "Customer Sales",
+      },
+      {
+        href: "/product-performance",
+        icon: <PackageSearch size={16} />,
+        label: "Product Performance",
+        shortLabel: "Products",
+      },
+      {
+        href: "/sales-rep-sales",
+        icon: <UserCheck size={16} />,
+        label: "Sales Rep Sales",
+        shortLabel: "Rep Sales",
+      },
+      {
+        href: "/commission",
+        icon: <BarChart3 size={16} />,
+        label: "Commission",
       },
     ],
   },
@@ -113,37 +135,16 @@ const NAV_GROUPS: NavGroup[] = [
         shortLabel: "GINs",
       },
       {
+        href: "/stock-transfers",
+        icon: <ArrowLeftRight size={16} />,
+        label: "Stock Transfers",
+        shortLabel: "Transfers",
+      },
+      {
         href: "/sales-return-notes",
         icon: <RotateCcw size={16} />,
         label: "Sales Return Notes",
         shortLabel: "Returns",
-      },
-    ],
-  },
-  {
-    title: "Analytics",
-    items: [
-      {
-        href: "/customer-sales",
-        icon: <BarChart3 size={16} />,
-        label: "Customer Sales",
-      },
-      {
-        href: "/product-performance",
-        icon: <PackageSearch size={16} />,
-        label: "Product Performance",
-        shortLabel: "Products",
-      },
-      {
-        href: "/sales-rep-sales",
-        icon: <UserCheck size={16} />,
-        label: "Sales Rep Sales",
-        shortLabel: "Rep Sales",
-      },
-      {
-        href: "/commission",
-        icon: <BarChart3 size={16} />,
-        label: "Commission",
       },
     ],
   },

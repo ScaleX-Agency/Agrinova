@@ -428,6 +428,24 @@ export type GoodsReceivingNotesResponse = ApiResult<
 >;
 export type GoodsReceivingNoteDetailResponse = ApiResult<GoodsReceivingNoteDetailDto>;
 
+export type StockTransferOptionDto = {
+  id: number;
+  transferNo: string;
+  transferDate: string;
+  fromLocationId: number;
+  fromLocationCode: string;
+  fromLocationName: string;
+  toLocationId: number;
+  toLocationCode: string;
+  toLocationName: string;
+  lineCount: number;
+  totalQty: number;
+  notes: string | null;
+  createdByName: string;
+};
+
+export type StockTransfersResponse = ApiResult<StockTransferOptionDto[]>;
+
 export type InvoiceOptionDto = {
   id: number;
   invoiceNo: string;

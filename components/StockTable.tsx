@@ -27,12 +27,6 @@ const STATUS_CONFIG: Record<
   },
 };
 
-const BAR_COLOR: Record<StockStatus, string> = {
-  ok: "bg-green-500",
-  low: "bg-amber-500",
-  out: "bg-red-500",
-};
-
 interface Props {
   rows: StockOverviewRow[];
   filter: StockFilter;
@@ -118,7 +112,6 @@ export default function StockTable({
                 "Category",
                 "Location",
                 "Qty on Hand",
-                "Threshold",
                 "Status",
               ];
               const exportRows = rows.map((r) => [
@@ -126,10 +119,10 @@ export default function StockTable({
                 r.product_name,
                 r.pack_size,
                 r.category_name,
-                LOCATIONS.find((l) => l.id === r.location_id)?.code ||
-                  "",
+                r.is_aggregate
+                  ? r.location_code
+                  : LOCATIONS.find((l) => l.id === r.location_id)?.code || r.location_code || "",
                 String(r.quantity_on_hand),
-                String(r.reorder_threshold),
                 r.status,
               ]);
               exportToCsv(
@@ -173,14 +166,12 @@ export default function StockTable({
                 "Product",
                 "Location",
                 "Qty on Hand",
-                "Threshold",
-                "Level",
                 "Status",
                 "Actions",
               ].map((h, i) => (
                 <th
                   key={h}
-                  className={`px-3.5 py-2.5 text-[11px] font-medium uppercase tracking-wide text-stone-400 bg-white ${i >= 3 && i <= 6 ? "text-right" : "text-left"} ${i === 7 ? "text-left" : ""}`}
+                  className={`px-3.5 py-2.5 text-[11px] font-medium uppercase tracking-wide text-stone-400 bg-white ${i === 3 || i === 4 ? "text-right" : "text-left"} ${i === 5 ? "text-left" : ""}`}
                 >
                   {h}
                 </th>
@@ -190,7 +181,7 @@ export default function StockTable({
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center">
+                <td colSpan={6} className="px-4 py-12 text-center">
                   <div className="text-stone-300 text-4xl mb-2">📦</div>
                   <p className="text-[14px] font-medium text-stone-500">
                     No products found
@@ -204,15 +195,12 @@ export default function StockTable({
               rows.map((row) => {
                 const s = row.status;
                 const cfg = STATUS_CONFIG[s];
-                const pct = Math.min(
-                  100,
-                  Math.round(
-                    (row.quantity_on_hand / (row.reorder_threshold * 3)) * 100,
-                  ),
-                );
                 const locObj = LOCATIONS.find(
                   (l) => l.id === row.location_id,
                 );
+                const locationLabel = row.is_aggregate
+                  ? "All Locations"
+                  : locObj?.code || row.location_code;
 
                 return (
                   <tr
@@ -232,24 +220,13 @@ export default function StockTable({
                     </td>
                     <td className="px-3.5 py-3">
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-800">
-                        {locObj?.code}
+                        {locationLabel}
                       </span>
                     </td>
                     <td className="px-3.5 py-3 text-right [font-family:var(--font-jetbrains)] text-[15px] font-bold text-stone-800">
                       {row.quantity_on_hand}
                     </td>
-                    <td className="px-3.5 py-3 text-right text-[13px] text-stone-400">
-                      {row.reorder_threshold}
-                    </td>
-                    <td className="px-3.5 py-3">
-                      <div className="w-[72px] h-1.5 bg-stone-100 rounded-full overflow-hidden ml-auto">
-                        <div
-                          className={`h-full rounded-full ${BAR_COLOR[s]}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </td>
-                    <td className="px-3.5 py-3">
+                    <td className="px-3.5 py-3 text-right">
                       <span
                         className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium ${cfg.badge}`}
                       >
@@ -259,15 +236,17 @@ export default function StockTable({
                         {cfg.label}
                       </span>
                     </td>
-                    <td className="px-3.5 py-3">
+                    <td className="px-3.5 py-3 text-left">
                       <div className="flex gap-1.5">
-                        <button
-                          title="Record movement"
-                          onClick={() => onRecordMovement(row)}
-                          className="w-7 h-7 flex items-center justify-center rounded-md border border-stone-200 hover:bg-stone-100 text-stone-500 transition-colors"
-                        >
-                          <ArrowLeftRight size={12} />
-                        </button>
+                        {!row.is_aggregate ? (
+                          <button
+                            title="Record movement"
+                            onClick={() => onRecordMovement(row)}
+                            className="w-7 h-7 flex items-center justify-center rounded-md border border-stone-200 hover:bg-stone-100 text-stone-500 transition-colors"
+                          >
+                            <ArrowLeftRight size={12} />
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
