@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { ChevronRight, HandCoins, Receipt, Users } from "lucide-react";
+import { ChevronRight, HandCoins, Plus, Receipt, Users } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { useTodayDashboard } from "@/hooks/useTodayDashboard";
 import { formatLKRFull } from "@/lib/formatters";
@@ -74,6 +74,12 @@ export default function DashboardPage() {
             Daily operations snapshot across sales, cash collections, and document activity.
           </p>
         </div>
+        <Link
+          href="/invoices/new"
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-700 hover:bg-green-800 text-white text-[13px] font-semibold rounded-xl transition-colors [font-family:var(--font-dmsans)]"
+        >
+          <Plus size={14} /> New Invoice
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
