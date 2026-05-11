@@ -8,6 +8,8 @@ import type {
   LocationSummary,
   MovementRow,
   CreateMovementDto,
+  StockTransferRecord,
+  CreateStockTransferDto,
 } from "@/types/inventory";
 
 // ── Query key registry ────────────────────────────────────────
@@ -19,6 +21,7 @@ export const KEYS = {
   summaries:         ["stock", "summaries"]   as const,
   // eslint-disable-next-line
   allMovements:      (filters?: any) => ["movements", "all", filters] as const,
+  stockTransfers:    (filters?: any) => ["stock-transfers", "all", filters] as const,
   // eslint-disable-next-line
   locationStock:     (id: number, filters?: any) => ["stock",     "location", id, filters] as const,
   // eslint-disable-next-line
@@ -167,6 +170,23 @@ export function useAllMovements(
   });
 }
 
+export function useStockTransfers(
+  params: { page?: number; pageSize?: number } = {},
+  initialData?: PaginatedResult<StockTransferRecord>,
+) {
+  return useQuery({
+    queryKey: KEYS.stockTransfers(params),
+    queryFn: () => {
+      const searchParams = new URLSearchParams();
+      if (params.page) searchParams.set("page", params.page.toString());
+      if (params.pageSize) searchParams.set("pageSize", params.pageSize.toString());
+      return fetchJSON<PaginatedResult<StockTransferRecord>>(`/api/stock-transfers?${searchParams.toString()}`);
+    },
+    initialData,
+    staleTime: 30_000,
+  });
+}
+
 /**
  * Movements for a single location.
  */
@@ -270,7 +290,33 @@ export function useInvalidateInventory() {
   return () => {
     qc.invalidateQueries({ queryKey: ["stock"] });
     qc.invalidateQueries({ queryKey: ["movements"] });
+    qc.invalidateQueries({ queryKey: ["stock-transfers"] });
   };
+}
+
+export function useCreateStockTransfer() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (dto: CreateStockTransferDto) => {
+      const res = await fetch("/api/stock-transfers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dto),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? "Failed to create stock transfer");
+      }
+      return res.json();
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["stock"] });
+      qc.invalidateQueries({ queryKey: ["movements"] });
+      qc.invalidateQueries({ queryKey: ["stock-transfers"] });
+      qc.invalidateQueries({ queryKey: ["summaries"] });
+    },
+  });
 }
 
 export function useCategories() {

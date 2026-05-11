@@ -28,7 +28,7 @@ import { z } from "zod";
 
 const createMovementSchema = z.object({
   stock_id: z.number().int().positive(),
-  movement_type: z.enum(["ISSUE", "RETURN", "PURCHASE", "ADJUSTMENT"]),
+  movement_type: z.enum(["ISSUE", "RETURN", "PURCHASE", "ADJUSTMENT", "TRANSFER_OUT", "TRANSFER_IN"]),
   quantity: z.number().int().optional(),
   resulting_quantity: z.number().int().nonnegative().optional(),
   movement_date: z.string().datetime().optional(),

@@ -6,6 +6,8 @@ export type MovementType =
   | "RETURN_UNUSABLE"
   | "PURCHASE"
   | "ADJUSTMENT"
+  | "TRANSFER_OUT"
+  | "TRANSFER_IN"
   | "ISSUE_REVERSAL"
   | "RETURN_REVERSAL"
   | "PURCHASE_REVERSAL"
@@ -82,6 +84,35 @@ export interface CreateMovementDto {
   quantity: number;
   resulting_quantity?: number;
   notes?: string;
+}
+
+export interface StockTransferRecord {
+  transfer_id: number;
+  transfer_no: string;
+  transfer_date: string;
+  from_location_id: number;
+  from_location_code: string;
+  from_location_name: string;
+  to_location_id: number;
+  to_location_code: string;
+  to_location_name: string;
+  line_count: number;
+  total_qty: number;
+  notes: string | null;
+  created_by_name: string;
+}
+
+export interface CreateStockTransferItemDto {
+  product_id: number;
+  quantity: number;
+}
+
+export interface CreateStockTransferDto {
+  transfer_date: string;
+  from_location_id: number;
+  to_location_id: number;
+  notes?: string | null;
+  items: CreateStockTransferItemDto[];
 }
 
 export type StockEntryType = "LOCAL_PURCHASE" | "FOREIGN_IMPORT";
