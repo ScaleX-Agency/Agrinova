@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowLeft, FileText, Receipt, RotateCcw, UserCircle2 } from "lucide-react";
-import DataTable from "@/components/ui/DataTable";
+import { FileText, Printer } from "lucide-react";
+import BackNavigationLink from "@/components/ui/BackNavigationLink";
 import DeleteSalesReturnButton from "@/app/(dashboard)/invoices/DeleteSalesReturnButton";
 
 type DetailResponse = {
@@ -92,23 +91,6 @@ export default function SalesReturnNoteDetailPage() {
     },
   });
 
-  const lineColumns: ColumnDef<DetailResponse["data"]["lines"][number]>[] = [
-    { accessorKey: "productCode", header: "Product Code" },
-    { accessorKey: "productName", header: "Product Name" },
-    { accessorKey: "packSize", header: "Pack Size" },
-    { accessorKey: "usableQty", header: "Usable Qty", meta: { align: "right" } },
-    { accessorKey: "unusableQty", header: "Unusable Qty", meta: { align: "right" } },
-    { accessorKey: "totalQty", header: "Total Qty", meta: { align: "right" } },
-    { accessorKey: "condition", header: "Condition" },
-    { accessorKey: "reasonForReturn", header: "Reason" },
-    {
-      accessorKey: "lineTotal",
-      header: "Line Total",
-      cell: ({ row }) => formatCurrency(row.original.lineTotal),
-      meta: { align: "right" },
-    },
-  ];
-
   if (detailQuery.error instanceof Error) {
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">
@@ -128,89 +110,181 @@ export default function SalesReturnNoteDetailPage() {
   }
 
   const detail = detailQuery.data;
+  const invoiceBalance = Math.max(0, detail.invoice.totalAmount - detail.invoice.creditedAmount);
 
   return (
-    <div className="space-y-5">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <Link href="/sales-return-notes" className="inline-flex items-center gap-1 text-[12px] text-stone-500 hover:text-stone-700">
-            <ArrowLeft size={13} /> Back to Sales Return Notes
-          </Link>
-          <h1 className="mt-1 text-[28px] leading-tight text-stone-900 font-semibold">{detail.srnNumber}</h1>
-          <p className="mt-1 text-[13px] text-stone-500">
-            {formatDate(detail.srnDate)} | {detail.customer.name} | Invoice {detail.invoice.invoiceNumber} | {detail.location.code} - {detail.location.name}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/invoices/${detail.invoice.invoiceId}`}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[12px] font-medium text-stone-700 hover:bg-stone-50"
-          >
-            <Receipt size={13} />
-            Open Invoice
-          </Link>
-          <DeleteSalesReturnButton returnId={detail.returnId} returnNumber={detail.srnNumber} />
+    <section className="space-y-5">
+      <header className="rounded-2xl border border-stone-200 bg-white p-4 sm:p-5">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-2">
+              <BackNavigationLink
+                href="/sales-return-notes"
+                label="Back to Sales Return Notes"
+                className="inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 transition-colors hover:text-stone-700 [font-family:var(--font-dmsans)]"
+              />
+              <div className="flex flex-wrap items-end gap-2">
+                <h1 className="text-[26px] leading-tight font-semibold text-[#2b2d7e] [font-family:var(--font-dmsans)]">
+                  Sales Return Note {detail.srnNumber}
+                </h1>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#c0c3f0] bg-white px-3 py-2 text-[12px] font-medium text-[#2b2d7e] transition-colors hover:bg-[#eeeffe]"
+            >
+              <Printer size={13} />
+              Print
+            </button>
+            <DeleteSalesReturnButton returnId={detail.returnId} returnNumber={detail.srnNumber} />
+          </div>
         </div>
       </header>
 
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard label="SRN" value={detail.packageSummary.srnNumber} icon={<FileText size={14} className="text-blue-700" />} />
-        <SummaryCard label="GRN" value={detail.packageSummary.grnNumber} icon={<RotateCcw size={14} className="text-amber-700" />} />
-        <SummaryCard label="Credit Note" value={detail.packageSummary.creditNoteNumber} icon={<Receipt size={14} className="text-violet-700" />} />
-        <SummaryCard label="Return Amount" value={formatCurrency(detail.packageSummary.srnAmount)} icon={<UserCircle2 size={14} className="text-emerald-700" />} />
-      </section>
-
-      <section className="rounded-2xl border border-stone-200 bg-white p-4 lg:p-5">
-        <p className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Linked Package</p>
-        <p className="mt-1 text-[15px] font-semibold text-stone-900">
-          {detail.packageSummary.srnNumber} {"->"} {detail.packageSummary.grnNumber} {"->"} {detail.packageSummary.creditNoteNumber}
-        </p>
-        <p className="mt-1 text-[13px] text-stone-600">
-          SRN Date: {formatDate(detail.srnDate)} | GRN Date: {formatDate(detail.packageSummary.grnDate)} | CN Date: {formatDate(detail.packageSummary.creditNoteDate)}
-        </p>
-        <p className="mt-1 text-[13px] text-stone-600">
-          GRN Total Qty: {detail.packageSummary.grnTotalQty} | Credit Amount: {formatCurrency(detail.packageSummary.creditAmount)} | Created By: {detail.createdBy}
-        </p>
-      </section>
-
-      <DataTable
-        data={detail.lines}
-        columns={lineColumns}
-        minWidth={1480}
-        searchPlaceholder="Search products or reasons..."
-        emptyMessage="No lines found for this sales return note."
-      />
-
-      <section className="rounded-2xl border border-stone-200 bg-white p-4 lg:p-5">
-        <p className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Financial Summary</p>
-        <div className="mt-3 grid gap-3 md:grid-cols-3">
-          <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2">
-            <p className="text-[11px] text-stone-500">Invoice Total</p>
-            <p className="text-[14px] font-semibold text-stone-900">{formatCurrency(detail.invoice.totalAmount)}</p>
+      <section className="overflow-hidden rounded-2xl border border-stone-200 bg-white">
+        <div className="border-b border-stone-200 px-5 py-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Agrinova IMS</p>
+              <h2 className="mt-1 text-[20px] font-semibold text-[#2b2d7e] [font-family:var(--font-dmsans)]">
+                Sales Return Note
+              </h2>
+              <p className="mt-0.5 text-[12px] text-stone-600">
+                {detail.customer.name} | {detail.location.code} - {detail.location.name}
+              </p>
+            </div>
+            <div className="text-right text-[12px] text-stone-600">
+              <p>
+                <span className="font-medium text-stone-800">SRN Date:</span> {formatDate(detail.srnDate)}
+              </p>
+              <p>
+                <span className="font-medium text-stone-800">Invoice:</span> {detail.invoice.invoiceNumber}
+              </p>
+              <p>
+                <span className="font-medium text-stone-800">Credit Amount:</span> {formatCurrency(detail.invoice.creditedAmount)}
+              </p>
+            </div>
           </div>
-          <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2">
-            <p className="text-[11px] text-stone-500">Credited Amount (Current Invoice)</p>
-            <p className="text-[14px] font-semibold text-violet-700">{formatCurrency(detail.invoice.creditedAmount)}</p>
+        </div>
+
+        <div className="border-b border-stone-200 px-5 py-4">
+          <div className="grid gap-2 text-[13px] text-stone-700 md:grid-cols-2">
+            <p>
+              <span className="font-medium text-stone-800">SRN No:</span> {detail.srnNumber}
+            </p>
+            <p>
+              <span className="font-medium text-stone-800">Created By:</span> {detail.createdBy}
+            </p>
+            <p>
+              <span className="font-medium text-stone-800">Invoice Date:</span> {formatDate(detail.invoice.invoiceDate)}
+            </p>
           </div>
-          <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2">
-            <p className="text-[11px] text-stone-500">Current Invoice Balance</p>
-            <p className="text-[14px] font-semibold text-red-700">{formatCurrency(detail.invoice.balanceAmount)}</p>
+        </div>
+
+        <div className="overflow-x-auto border-b border-stone-200">
+          <table className="w-full min-w-[1260px] table-fixed border-collapse text-[13px]">
+            <colgroup>
+              <col className="w-[12%]" />
+              <col className="w-[22%]" />
+              <col className="w-[12%]" />
+              <col className="w-[8%]" />
+              <col className="w-[10%]" />
+              <col className="w-[8%]" />
+              <col className="w-[10%]" />
+              <col className="w-[10%]" />
+              <col className="w-[8%]" />
+            </colgroup>
+            <thead className="bg-stone-50 text-[11px] font-medium uppercase tracking-[0.1em] text-stone-600">
+              <tr>
+                <th className="border-b border-r border-stone-200 px-4 py-3 text-left">Product Code</th>
+                <th className="border-b border-r border-stone-200 px-4 py-3 text-left">Product Name</th>
+                <th className="border-b border-r border-stone-200 px-4 py-3 text-left">Pack Size</th>
+                <th className="border-b border-r border-stone-200 px-4 py-3 text-right">Usable Qty</th>
+                <th className="border-b border-r border-stone-200 px-4 py-3 text-right">Unusable Qty</th>
+                <th className="border-b border-r border-stone-200 px-4 py-3 text-right">Total Qty</th>
+                <th className="border-b border-r border-stone-200 px-4 py-3 text-left">Condition</th>
+                <th className="border-b border-r border-stone-200 px-4 py-3 text-left">Reason</th>
+                <th className="border-b border-stone-200 px-4 py-3 text-right">Line Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {detail.lines.length > 0 ? (
+                detail.lines.map((line) => (
+                  <tr key={line.lineId} className="border-b border-stone-100 hover:bg-stone-50">
+                    <td className="border-r border-stone-200 px-4 py-3 text-stone-700 [font-family:var(--font-jetbrains)]">
+                      {line.productCode}
+                    </td>
+                    <td className="border-r border-stone-200 px-4 py-3 font-medium text-stone-900">{line.productName}</td>
+                    <td className="border-r border-stone-200 px-4 py-3 text-stone-700">{line.packSize}</td>
+                    <td className="border-r border-stone-200 px-4 py-3 text-right text-stone-700">{line.usableQty}</td>
+                    <td className="border-r border-stone-200 px-4 py-3 text-right text-stone-700">{line.unusableQty}</td>
+                    <td className="border-r border-stone-200 px-4 py-3 text-right font-medium text-stone-900">{line.totalQty}</td>
+                    <td className="border-r border-stone-200 px-4 py-3 text-stone-700">{line.condition}</td>
+                    <td className="border-r border-stone-200 px-4 py-3 text-stone-700">{line.reasonForReturn}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-stone-900">{formatCurrency(line.lineTotal)}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={9} className="px-4 py-6 text-center text-[13px] text-stone-500">
+                    No lines found for this sales return note.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex justify-end px-5 py-4">
+          <div className="w-full max-w-[360px] space-y-2 rounded-xl border border-stone-200 bg-stone-50 p-4 text-[13px]">
+            <div className="flex items-center justify-between border-b border-stone-200 pb-1.5 text-stone-700">
+              <span>invoice total</span>
+              <span>{formatCurrency(detail.invoice.totalAmount)}</span>
+            </div>
+            <div className="flex items-center justify-between border-b border-stone-200 pb-1.5 text-stone-700">
+              <span>credited amount</span>
+              <span>{formatCurrency(detail.invoice.creditedAmount)}</span>
+            </div>
+            <div className="flex items-center justify-between text-[15px] font-semibold text-red-700">
+              <span>invoice balance</span>
+              <span>{formatCurrency(invoiceBalance)}</span>
+            </div>
           </div>
         </div>
       </section>
-    </div>
+
+      <section className="rounded-2xl border border-stone-200 bg-white p-4">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-stone-200 bg-stone-100 text-stone-700">
+            <FileText size={14} />
+          </span>
+          <h2 className="text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
+            Linked Notes
+          </h2>
+        </div>
+        <Link
+          href={`/invoices/${detail.invoice.invoiceId}`}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-[12px] font-medium text-indigo-900 transition-colors hover:bg-indigo-100"
+        >
+          <FileText size={13} className="text-indigo-700" />
+          {detail.invoice.invoiceNumber}
+        </Link>
+      </section>
+
+      <section className="rounded-2xl border border-stone-200 bg-white p-4">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-stone-200 bg-stone-100 text-stone-700">
+            <FileText size={14} />
+          </span>
+          <h2 className="text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
+            Notes
+          </h2>
+        </div>
+        <p className="whitespace-pre-wrap text-[13px] text-stone-700">{detail.notes?.trim() ? detail.notes : "No notes added."}</p>
+      </section>
+    </section>
   );
 }
-
-function SummaryCard({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-stone-200 bg-white p-4">
-      <div className="flex items-center gap-2">
-        <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-stone-100">{icon}</span>
-        <p className="text-[10.5px] uppercase tracking-[0.09em] text-stone-400 font-semibold">{label}</p>
-      </div>
-      <p className="mt-2 text-[16px] font-semibold text-stone-900">{value}</p>
-    </div>
-  );
-}
-

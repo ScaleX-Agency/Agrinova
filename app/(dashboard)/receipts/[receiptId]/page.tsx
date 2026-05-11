@@ -1,14 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  Calendar,
-  CreditCard,
-  User,
-  FileText,
-  DollarSign,
-  Receipt,
-  Building2,
-} from "lucide-react";
+import { CreditCard, DollarSign, Building2, FileText } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import BackNavigationLink from "@/components/ui/BackNavigationLink";
@@ -47,6 +39,15 @@ const formatDate = (value: Date) =>
     day: "2-digit",
     month: "short",
     year: "numeric",
+  });
+
+const formatDateTime = (value: Date) =>
+  value.toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 
 const formatCurrency = (value: number) =>
@@ -117,217 +118,174 @@ const ReceiptDetailPage = async ({
   const year = receipt.receipt_date.getFullYear();
   const month = String(receipt.receipt_date.getMonth() + 1).padStart(2, "0");
   const receiptNo = `RCP-${year}${month}-${String(receipt.receipt_id).padStart(3, "0")}`;
+  const method = receipt.payment_method as "CASH" | "CHEQUE" | "BANK_TRANSFER";
 
   return (
     <section className="space-y-5">
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <div>
+      <header className="rounded-2xl border border-stone-200 bg-white p-4 sm:p-5">
+        <div className="space-y-4">
+          <div className="space-y-2">
             <BackNavigationLink
               href="/receipts"
               label="Back to Receipts"
-              className="mb-1 inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 transition-colors hover:text-stone-700 [font-family:var(--font-dmsans)]"
+              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 transition-colors hover:text-stone-700 [font-family:var(--font-dmsans)]"
             />
-            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-stone-500">
-              Sales Document
-            </p>
             <div className="flex flex-wrap items-end gap-2">
-              <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)] font-semibold">
+              <h1 className="text-[26px] leading-tight font-semibold text-[#2b2d7e] [font-family:var(--font-dmsans)]">
                 Receipt {receiptNo}
               </h1>
-              <div
-                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${
-                  METHOD_BADGE_STYLE[receipt.payment_method as "CASH" | "CHEQUE" | "BANK_TRANSFER"].bg
-                } ${METHOD_BADGE_STYLE[receipt.payment_method as "CASH" | "CHEQUE" | "BANK_TRANSFER"].text}`}
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${METHOD_BADGE_STYLE[method].bg} ${METHOD_BADGE_STYLE[method].text}`}
               >
-                {METHOD_BADGE_STYLE[receipt.payment_method as "CASH" | "CHEQUE" | "BANK_TRANSFER"].icon}
-                {METHOD_LABEL[receipt.payment_method as "CASH" | "CHEQUE" | "BANK_TRANSFER"]}
-              </div>
+                {METHOD_BADGE_STYLE[method].icon}
+                {METHOD_LABEL[method]}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <ReceiptPrintButton
+              receiptNo={receiptNo}
+              receiptDate={receipt.receipt_date.toISOString()}
+              amountReceived={Number(receipt.amount)}
+              paymentMethodLabel={METHOD_LABEL[method]}
+              collectedBy={receipt.creator.full_name}
+              invoiceNo={receipt.invoice.invoice_number}
+              invoiceDate={receipt.invoice.invoice_date.toISOString()}
+              customerName={receipt.invoice.customer.name}
+              salesRepName={receipt.invoice.rep.full_name}
+              chequeNo={receipt.cheque_no ?? null}
+              chequeDate={receipt.cheque_date ? receipt.cheque_date.toISOString() : null}
+              bankName={receipt.bank_name ?? null}
+            />
+            {canDeleteReceipt ? (
+              <DeleteReceiptButton receiptId={receipt.receipt_id} receiptNo={receiptNo} />
+            ) : null}
+          </div>
+        </div>
+      </header>
+
+      <section className="overflow-hidden rounded-2xl border border-stone-200 bg-white">
+        <div className="border-b border-stone-200 px-5 py-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Agrinova IMS</p>
+              <h2 className="mt-1 text-[20px] font-semibold text-[#2b2d7e] [font-family:var(--font-dmsans)]">
+                Receipt Voucher
+              </h2>
+              <p className="mt-0.5 text-[12px] text-stone-600">
+                205D, Kalapaluwawa Road, Koswatta, Battaramulla
+              </p>
+            </div>
+            <div className="text-right text-[12px] text-stone-600">
+              <p>
+                <span className="font-medium text-stone-800">Receipt No:</span> {receiptNo}
+              </p>
+              <p>
+                <span className="font-medium text-stone-800">Receipt Date:</span> {formatDate(receipt.receipt_date)}
+              </p>
+              <p>
+                <span className="font-medium text-stone-800">Payment Method:</span> {METHOD_LABEL[method]}
+              </p>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <ReceiptPrintButton
-            receiptNo={receiptNo}
-            receiptDate={receipt.receipt_date.toISOString()}
-            amountReceived={Number(receipt.amount)}
-            paymentMethodLabel={METHOD_LABEL[receipt.payment_method as "CASH" | "CHEQUE" | "BANK_TRANSFER"]}
-            collectedBy={receipt.creator.full_name}
-            invoiceNo={receipt.invoice.invoice_number}
-            invoiceDate={receipt.invoice.invoice_date.toISOString()}
-            customerName={receipt.invoice.customer.name}
-            salesRepName={receipt.invoice.rep.full_name}
-            chequeNo={receipt.cheque_no ?? null}
-            chequeDate={receipt.cheque_date ? receipt.cheque_date.toISOString() : null}
-            bankName={receipt.bank_name ?? null}
-          />
-          {canDeleteReceipt ? (
-            <DeleteReceiptButton
-              receiptId={receipt.receipt_id}
-              receiptNo={receiptNo}
-            />
-          ) : null}
+        <div className="grid gap-5 border-b border-stone-200 px-5 py-4 md:grid-cols-2">
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-stone-500">Received From</p>
+            <p className="mt-1 text-[14px] font-semibold text-stone-900">{receipt.invoice.customer.name}</p>
+            <p className="text-[13px] text-stone-700">Invoice: {receipt.invoice.invoice_number}</p>
+            <p className="text-[13px] text-stone-700">Invoice Date: {formatDate(receipt.invoice.invoice_date)}</p>
+          </div>
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-stone-500">Collected By</p>
+            <p className="mt-1 text-[14px] font-semibold text-stone-900">{receipt.creator.full_name}</p>
+            <p className="text-[13px] text-stone-700">Sales Rep: {receipt.invoice.rep.full_name}</p>
+          </div>
         </div>
-      </div>
 
-      {/* Meta Data Section */}
+        {(receipt.payment_method === "CHEQUE" || receipt.payment_method === "BANK_TRANSFER") && (
+          <div className="border-b border-stone-200 px-5 py-4">
+            <h3 className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Bank Details</h3>
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3 text-[13px]">
+              {receipt.payment_method === "CHEQUE" ? (
+                <>
+                  <p className="text-stone-700">
+                    Cheque No: <span className="font-medium text-stone-900">{receipt.cheque_no ?? "-"}</span>
+                  </p>
+                  <p className="text-stone-700">
+                    Cheque Date:{" "}
+                    <span className="font-medium text-stone-900">
+                      {receipt.cheque_date ? formatDate(receipt.cheque_date) : "-"}
+                    </span>
+                  </p>
+                </>
+              ) : null}
+              <p className="text-stone-700">
+                Bank Name: <span className="font-medium text-stone-900">{receipt.bank_name ?? "-"}</span>
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end px-5 py-4">
+          <div className="w-full max-w-[360px] rounded-xl border border-stone-200 bg-stone-50 p-4 text-[13px]">
+            <div className="flex items-center justify-between text-[15px] font-semibold text-[#1a5c2e]">
+              <span>Amount Received</span>
+              <span>{formatCurrency(Number(receipt.amount))}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-stone-200 bg-white p-4">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-stone-200 bg-stone-100 text-stone-700">
+            <FileText size={14} />
+          </span>
+          <h2 className="text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
+            Linked Notes
+          </h2>
+        </div>
+        <Link
+          href={`/invoices/${receipt.invoice.invoice_id}`}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-[12px] font-medium text-indigo-900 transition-colors hover:bg-indigo-100"
+        >
+          <FileText size={13} className="text-indigo-700" />
+          {receipt.invoice.invoice_number}
+        </Link>
+      </section>
+
+      <section className="rounded-2xl border border-stone-200 bg-white p-4">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-stone-200 bg-stone-100 text-stone-700">
+            <FileText size={14} />
+          </span>
+          <h2 className="text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
+            Notes
+          </h2>
+        </div>
+        <p className="whitespace-pre-wrap text-[13px] text-stone-700">{receipt.notes?.trim() ? receipt.notes : "No notes added."}</p>
+      </section>
+
       <section className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
         <h2 className="mb-3 text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
           Record Metadata
         </h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 text-sm">
+        <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
           <div>
             <p className="text-[11px] text-stone-500">Created By</p>
             <p className="mt-0.5 text-[13px] font-medium text-stone-900">{receipt.creator.full_name}</p>
           </div>
           <div>
             <p className="text-[11px] text-stone-500">Created At</p>
-            <p className="mt-0.5 text-[13px] font-medium text-stone-900">{formatDate(receipt.created_at)}</p>
+            <p className="mt-0.5 text-[13px] font-medium text-stone-900">{formatDateTime(receipt.created_at)}</p>
           </div>
           <div>
             <p className="text-[11px] text-stone-500">Last Updated</p>
-            <p className="mt-0.5 text-[13px] font-medium text-stone-900">{formatDate(receipt.updated_at)}</p>
+            <p className="mt-0.5 text-[13px] font-medium text-stone-900">{formatDateTime(receipt.updated_at)}</p>
           </div>
-        </div>
-        {receipt.notes && (
-          <div className="mt-3">
-            <p className="text-[11px] text-stone-500">Notes</p>
-            <p className="mt-0.5 text-[13px] text-stone-800">{receipt.notes}</p>
-          </div>
-        )}
-      </section>
-
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-stone-200 bg-white p-3.5 transition-shadow hover:shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-blue-100 bg-blue-50 text-blue-700">
-              <Calendar size={18} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Receipt Date</p>
-              <p className="mt-1 text-[14px] font-semibold text-stone-900">{formatDate(receipt.receipt_date)}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-stone-200 bg-white p-3.5 transition-shadow hover:shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-amber-100 bg-amber-50 text-amber-700">
-              <CreditCard size={18} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Payment Method</p>
-              <p className="mt-1 text-[14px] font-semibold text-stone-900">{METHOD_LABEL[receipt.payment_method as "CASH" | "CHEQUE" | "BANK_TRANSFER"]}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-stone-200 bg-white p-3.5 transition-shadow hover:shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-purple-100 bg-purple-50 text-purple-700">
-              <User size={18} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Collected By</p>
-              <p className="mt-1 text-[14px] font-semibold text-stone-900">{receipt.creator.full_name}</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl border border-stone-200 bg-white p-3.5 transition-shadow hover:shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-purple-100 bg-purple-50 text-purple-700">
-              <User size={18} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Customer</p>
-              <p className="mt-1 text-[14px] font-semibold text-stone-900">{receipt.invoice.customer.name}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-stone-200 bg-white p-3.5 transition-shadow hover:shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-violet-100 bg-violet-50 text-violet-700">
-              <User size={18} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Sales Rep</p>
-              <p className="mt-1 text-[14px] font-semibold text-stone-900">{receipt.invoice.rep.full_name}</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {(receipt.payment_method === "CHEQUE" || receipt.payment_method === "BANK_TRANSFER") && (
-        <section className="rounded-2xl border border-stone-200 bg-white p-4">
-          <div className="mb-2 flex items-center gap-2">
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700">
-              <Building2 size={14} />
-            </span>
-            <h2 className="text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
-              Bank Details
-            </h2>
-          </div>
-
-          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-            {receipt.payment_method === "CHEQUE" && (
-              <>
-                <div className="rounded-xl border border-stone-200 bg-stone-50 p-3.5">
-                  <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Cheque No</p>
-                  <p className="mt-1 text-[14px] font-semibold text-stone-800">{receipt.cheque_no ?? "-"}</p>
-                </div>
-                <div className="rounded-xl border border-stone-200 bg-stone-50 p-3.5">
-                  <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Cheque Date</p>
-                  <p className="mt-1 text-[14px] font-semibold text-stone-800">
-                    {receipt.cheque_date ? formatDate(receipt.cheque_date) : "-"}
-                  </p>
-                </div>
-              </>
-            )}
-            <div className="rounded-xl border border-stone-200 bg-stone-50 p-3.5">
-              <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Bank Name</p>
-              <p className="mt-1 text-[14px] font-semibold text-stone-800">{receipt.bank_name ?? "-"}</p>
-            </div>
-          </div>
-        </section>
-      )}
-
-      <section className="rounded-2xl border border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-green-700">Amount Received</p>
-            <p className="mt-1.5 text-[30px] leading-none font-bold text-[#1a5c2e] [font-family:var(--font-dmsans)]">
-              {formatCurrency(Number(receipt.amount))}
-            </p>
-          </div>
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-green-200 bg-white text-green-700">
-            <Receipt size={18} />
-          </span>
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-stone-200 bg-white p-4">
-        <div className="mb-2 flex items-center gap-2">
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700">
-            <FileText size={14} />
-          </span>
-          <h2 className="text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
-            Linked Invoice
-          </h2>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href={`/invoices/${receipt.invoice.invoice_id}`}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-[12px] font-medium text-indigo-900 transition-colors hover:bg-indigo-100"
-          >
-            <FileText size={13} className="text-indigo-700" />
-            {receipt.invoice.invoice_number}
-          </Link>
         </div>
       </section>
     </section>

@@ -1,14 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  Calendar,
-  User,
-  MapPin,
-  Boxes,
-  Package,
-  FileText,
-  CheckCircle,
-} from "lucide-react";
+import { FileText, CheckCircle } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import BackNavigationLink from "@/components/ui/BackNavigationLink";
@@ -87,7 +79,6 @@ const GoodsIssueNoteDetailPage = async ({
             select: {
               product_name: true,
               pack_size: true,
-              selling_price: true,
             },
           },
         },
@@ -99,184 +90,132 @@ const GoodsIssueNoteDetailPage = async ({
     notFound();
   }
 
-  const totalIssuedQty = note.lines.reduce(
-    (sum: number, line) => sum + line.quantity,
-    0,
-  );
+  const totalIssuedQty = note.lines.reduce((sum: number, line) => sum + line.quantity, 0);
 
   return (
     <section className="space-y-5">
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <div>
+      <header className="rounded-2xl border border-stone-200 bg-white p-4 sm:p-5">
+        <div className="space-y-4">
+          <div className="space-y-2">
             <BackNavigationLink
               href="/goods-issue-notes"
               label="Back to Goods Issue Notes"
-              className="mb-1 inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 transition-colors hover:text-stone-700 [font-family:var(--font-dmsans)]"
+              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-500 transition-colors hover:text-stone-700 [font-family:var(--font-dmsans)]"
             />
-            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-stone-500">
-              Operations Document
-            </p>
             <div className="flex flex-wrap items-end gap-2">
-              <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)] font-semibold">
+              <h1 className="text-[26px] leading-tight font-semibold text-[#2b2d7e] [font-family:var(--font-dmsans)]">
                 Goods Issue Note {note.gin_number}
               </h1>
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-700">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eeeffe] px-2.5 py-1 text-[11px] font-medium text-[#2b2d7e]">
                 <CheckCircle size={14} className="shrink-0" />
                 Issued
-              </div>
+              </span>
             </div>
           </div>
-        </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <GinPrintButton
-            ginNumber={note.gin_number}
-            ginDate={note.gin_date.toISOString()}
-            invoiceNo={note.invoice?.invoice_number ?? null}
-            customerName={note.customer.name}
-            locationCode={note.location.code}
-            locationName={note.location.name}
-            notes={note.notes}
-            lines={note.lines.map((line) => {
-              return {
+          <div className="flex flex-wrap items-center gap-2">
+            <GinPrintButton
+              ginNumber={note.gin_number}
+              ginDate={note.gin_date.toISOString()}
+              invoiceNo={note.invoice?.invoice_number ?? null}
+              customerName={note.customer.name}
+              locationCode={note.location.code}
+              locationName={note.location.name}
+              notes={note.notes}
+              lines={note.lines.map((line) => ({
                 lineId: line.gin_line_id,
                 productName: line.product.product_name,
                 packSize: line.product.pack_size,
                 quantity: line.quantity,
-              };
-            })}
-          />
-          {note.invoice?.invoice_id && (
-            <Link
-              href={`/invoices/${note.invoice.invoice_id}`}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
-            >
-              <FileText size={14} />
-              View Invoice
-            </Link>
-          )}
-          {canDeleteGin ? (
-            <DeleteGoodsIssueNoteButton
-              ginId={note.gin_id}
-              ginNumber={note.gin_number}
+              }))}
             />
-          ) : null}
-        </div>
-      </div>
-
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-2xl border border-stone-200 bg-white p-3.5 transition-shadow hover:shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-blue-100 bg-blue-50 text-blue-700">
-              <Calendar size={18} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">GIN Date</p>
-              <p className="mt-1 text-[15px] font-semibold text-stone-900">{formatDate(note.gin_date)}</p>
-            </div>
+            {note.invoice?.invoice_id ? (
+              <Link
+                href={`/invoices/${note.invoice.invoice_id}`}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"
+              >
+                <FileText size={14} />
+                View Invoice
+              </Link>
+            ) : null}
+            {canDeleteGin ? <DeleteGoodsIssueNoteButton ginId={note.gin_id} ginNumber={note.gin_number} /> : null}
           </div>
         </div>
-
-        <div className="rounded-2xl border border-stone-200 bg-white p-3.5 transition-shadow hover:shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-purple-100 bg-purple-50 text-purple-700">
-              <User size={18} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Customer</p>
-              <p className="mt-1 text-[14px] font-semibold text-stone-900">{note.customer.name}</p>
-              {note.customer.phone && <p className="mt-0.5 text-[11px] text-stone-500">{note.customer.phone}</p>}
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-stone-200 bg-white p-3.5 transition-shadow hover:shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-amber-100 bg-amber-50 text-amber-700">
-              <MapPin size={18} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Location</p>
-              <p className="mt-1 text-[14px] font-semibold text-stone-900">{note.location.code}</p>
-              <p className="mt-0.5 text-[11px] text-stone-500">{note.location.name}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-stone-200 bg-white p-3.5 transition-shadow hover:shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-green-100 bg-green-50 text-green-700">
-              <Boxes size={18} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Line Count</p>
-              <p className="mt-1 text-[14px] font-semibold text-stone-900">{note.lines.length}</p>
-            </div>
-          </div>
-        </div>
-      </section>
+      </header>
 
       <section className="overflow-hidden rounded-2xl border border-stone-200 bg-white">
         <div className="border-b border-stone-200 px-5 py-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
-              <Package size={16} />
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Agrinova IMS</p>
+              <h2 className="mt-1 text-[20px] font-semibold text-[#2b2d7e] [font-family:var(--font-dmsans)]">
+                Goods Issue Note
+              </h2>
+              <p className="mt-0.5 text-[12px] text-stone-600">{note.location.code} - {note.location.name}</p>
             </div>
-            <h2 className="text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
-              Products
-            </h2>
+            <div className="text-right text-[12px] text-stone-600">
+              <p>
+                <span className="font-medium text-stone-800">GIN No:</span> {note.gin_number}
+              </p>
+              <p>
+                <span className="font-medium text-stone-800">GIN Date:</span> {formatDate(note.gin_date)}
+              </p>
+              <p>
+                <span className="font-medium text-stone-800">Customer:</span> {note.customer.name}
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] border-collapse text-[13px]">
-            <thead className="bg-stone-50 text-[11px] uppercase tracking-[0.1em] text-stone-600 font-semibold">
+        <div className="overflow-x-auto border-b border-stone-200">
+          <table className="w-full min-w-[860px] table-fixed border-collapse text-[13px]">
+            <colgroup>
+              <col className="w-[42%]" />
+              <col className="w-[20%]" />
+              <col className="w-[14%]" />
+              <col className="w-[24%]" />
+            </colgroup>
+            <thead className="bg-stone-50 text-[11px] font-medium uppercase tracking-[0.1em] text-stone-600">
               <tr>
-                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-left">Product</th>
-                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-left">Pack Size</th>
-                <th className="border-b border-r border-stone-200 px-5 py-3.5 text-center">Qty</th>
-                <th className="border-b border-stone-200 px-5 py-3.5 text-left">Stock Movement</th>
+                <th className="border-b border-r border-stone-200 px-4 py-3 text-left">Product</th>
+                <th className="border-b border-r border-stone-200 px-4 py-3 text-left">Pack Size</th>
+                <th className="border-b border-r border-stone-200 px-4 py-3 text-center">Qty</th>
+                <th className="border-b border-stone-200 px-4 py-3 text-left">Stock Movement</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-stone-100">
-              {note.lines.map((line) => {
-                return (
-                  <tr key={line.gin_line_id} className="transition-colors hover:bg-stone-50">
-                    <td className="border-r border-stone-200 px-5 py-3.5 text-left font-medium text-stone-900">{line.product.product_name}</td>
-                    <td className="border-r border-stone-200 px-5 py-3.5 text-left text-stone-700">{line.product.pack_size}</td>
-                    <td className="border-r border-stone-200 px-5 py-3.5 text-center font-medium text-stone-700">{line.quantity}</td>
-                    <td className="px-5 py-3.5 text-left text-stone-700">Issued</td>
-                  </tr>
-                );
-              })}
+            <tbody>
+              {note.lines.map((line) => (
+                <tr key={line.gin_line_id} className="border-b border-stone-100 hover:bg-stone-50">
+                  <td className="border-r border-stone-200 px-4 py-3 font-medium text-stone-900">{line.product.product_name}</td>
+                  <td className="border-r border-stone-200 px-4 py-3 text-stone-700">{line.product.pack_size}</td>
+                  <td className="border-r border-stone-200 px-4 py-3 text-center text-stone-700">{line.quantity}</td>
+                  <td className="px-4 py-3 text-stone-700">Issued</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
-      </section>
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl border border-stone-200 bg-white p-4">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Notes</p>
-          <p className="mt-1.5 text-[16px] font-semibold text-stone-900">{note.notes?.trim() ? note.notes : "-"}</p>
-        </div>
-
-        <div className="rounded-2xl border border-stone-200 bg-white p-4">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Total Issued Qty</p>
-          <p className="mt-1.5 text-[20px] font-semibold text-[#1a5c2e]">{totalIssuedQty}</p>
-        </div>
-      </section>
-
-      {note.invoice?.invoice_id && (
-        <section className="rounded-2xl border border-stone-200 bg-white p-4">
-          <div className="mb-2 flex items-center gap-2">
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700">
-              <FileText size={14} />
-            </span>
-            <h2 className="text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
-              Linked Invoice
-            </h2>
+        <div className="flex justify-end px-5 py-4">
+          <div className="w-full max-w-[360px] rounded-xl border border-stone-200 bg-stone-50 p-4 text-[13px]">
+            <div className="flex items-center justify-between text-[15px] font-semibold text-[#1a5c2e]">
+              <span>Total Issued Qty</span>
+              <span>{totalIssuedQty}</span>
+            </div>
           </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-stone-200 bg-white p-4">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-stone-200 bg-stone-100 text-stone-700">
+            <FileText size={14} />
+          </span>
+          <h2 className="text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
+            Linked Notes
+          </h2>
+        </div>
+        {note.invoice?.invoice_id ? (
           <Link
             href={`/invoices/${note.invoice.invoice_id}`}
             className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-[12px] font-medium text-indigo-900 transition-colors hover:bg-indigo-100"
@@ -284,15 +223,28 @@ const GoodsIssueNoteDetailPage = async ({
             <FileText size={13} className="text-indigo-700" />
             {note.invoice.invoice_number}
           </Link>
-        </section>
-      )}
+        ) : (
+          <p className="text-[12px] text-stone-500">No linked invoice.</p>
+        )}
+      </section>
 
-      {/* ── Record Metadata ── */}
+      <section className="rounded-2xl border border-stone-200 bg-white p-4">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-stone-200 bg-stone-100 text-stone-700">
+            <FileText size={14} />
+          </span>
+          <h2 className="text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
+            Notes
+          </h2>
+        </div>
+        <p className="whitespace-pre-wrap text-[13px] text-stone-700">{note.notes?.trim() ? note.notes : "No notes added."}</p>
+      </section>
+
       <section className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
         <h2 className="mb-3 text-[11px] font-medium uppercase tracking-wide text-stone-500 [font-family:var(--font-dmsans)]">
           Record Metadata
         </h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 text-sm">
+        <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
           <div>
             <p className="text-[11px] text-stone-500">Created By</p>
             <p className="mt-0.5 text-[13px] font-medium text-stone-900">{note.creator.full_name}</p>
