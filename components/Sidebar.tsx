@@ -83,6 +83,33 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    title: "Analytics",
+    items: [
+      {
+        href: "/customer-sales",
+        icon: <BarChart3 size={16} />,
+        label: "Customer Sales",
+      },
+      {
+        href: "/product-performance",
+        icon: <PackageSearch size={16} />,
+        label: "Product Performance",
+        shortLabel: "Products",
+      },
+      {
+        href: "/sales-rep-sales",
+        icon: <UserCheck size={16} />,
+        label: "Sales Rep Sales",
+        shortLabel: "Rep Sales",
+      },
+      {
+        href: "/commission",
+        icon: <BarChart3 size={16} />,
+        label: "Commission",
+      },
+    ],
+  },
+  {
     title: "Documents",
     items: [
       {
@@ -118,33 +145,6 @@ const NAV_GROUPS: NavGroup[] = [
         icon: <RotateCcw size={16} />,
         label: "Sales Return Notes",
         shortLabel: "Returns",
-      },
-    ],
-  },
-  {
-    title: "Analytics",
-    items: [
-      {
-        href: "/customer-sales",
-        icon: <BarChart3 size={16} />,
-        label: "Customer Sales",
-      },
-      {
-        href: "/product-performance",
-        icon: <PackageSearch size={16} />,
-        label: "Product Performance",
-        shortLabel: "Products",
-      },
-      {
-        href: "/sales-rep-sales",
-        icon: <UserCheck size={16} />,
-        label: "Sales Rep Sales",
-        shortLabel: "Rep Sales",
-      },
-      {
-        href: "/commission",
-        icon: <BarChart3 size={16} />,
-        label: "Commission",
       },
     ],
   },
