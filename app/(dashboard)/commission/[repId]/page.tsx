@@ -7,25 +7,9 @@ import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   ArrowLeft,
-  CalendarRange,
-  CheckCircle2,
-  Clock3,
-  CreditCard,
-  FileText,
-  HandCoins,
   Phone,
   RefreshCcw,
-  ShieldAlert,
-  TrendingUp,
 } from "lucide-react";
-import {
-  Legend,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  Cell,
-} from "recharts";
 import DataTable from "@/components/ui/DataTable";
 
 type PeriodType = "daily" | "monthly" | "yearly" | "custom";
@@ -67,15 +51,6 @@ const formatCurrency = (value: number) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);
-
-const formatDate = (value: string | null) => {
-  if (!value) return "-";
-  return new Date(value).toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-};
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -135,37 +110,18 @@ export default function CommissionRepDetailPage() {
     setTo(todayISO());
   };
 
-  const customerColumns: ColumnDef<DetailResponse["customerPerformance"][number]>[] = [
-    { accessorKey: "customerName", header: "Customer" },
-    { accessorKey: "invoiceCount", header: "Invoices", meta: { align: "right" } },
-    { accessorKey: "netSales", header: "Net Sales", cell: ({ row }) => formatCurrency(row.original.netSales), meta: { align: "right" } },
-    { accessorKey: "collections", header: "Collections", cell: ({ row }) => formatCurrency(row.original.collections), meta: { align: "right" } },
-    { accessorKey: "outstanding", header: "Outstanding", cell: ({ row }) => formatCurrency(row.original.outstanding), meta: { align: "right" } },
-    { accessorKey: "overdueAmount", header: "Overdue", cell: ({ row }) => formatCurrency(row.original.overdueAmount), meta: { align: "right" } },
-    { accessorKey: "lastInvoiceDate", header: "Last Invoice", cell: ({ row }) => formatDate(row.original.lastInvoiceDate) },
-  ];
-
-  const openInvoiceColumns: ColumnDef<DetailResponse["openInvoices"][number]>[] = [
-    { accessorKey: "invoiceNumber", header: "Invoice" },
-    { accessorKey: "customerName", header: "Customer" },
-    { accessorKey: "invoiceDate", header: "Date", cell: ({ row }) => formatDate(row.original.invoiceDate) },
-    { accessorKey: "total", header: "Total", cell: ({ row }) => formatCurrency(row.original.total), meta: { align: "right" } },
-    { accessorKey: "paid", header: "Paid", cell: ({ row }) => formatCurrency(row.original.paid), meta: { align: "right" } },
-    { accessorKey: "credited", header: "Credited", cell: ({ row }) => formatCurrency(row.original.credited), meta: { align: "right" } },
-    { accessorKey: "balance", header: "Balance", cell: ({ row }) => <span className="text-red-700 font-medium">{formatCurrency(row.original.balance)}</span>, meta: { align: "right" } },
-    { accessorKey: "daysOutstanding", header: "Days", meta: { align: "right" } },
-    { accessorKey: "status", header: "Status" },
-  ];
-
   const commissionColumns: ColumnDef<DetailResponse["commissionLedger"][number]>[] = [
     { accessorKey: "commissionId", header: "Commission #" },
-    { accessorKey: "settlementType", header: "Type" },
     { accessorKey: "invoiceNo", header: "Invoice" },
     { accessorKey: "customerName", header: "Customer" },
     {
       accessorKey: "settlementAmount",
       header: "Settlement",
-      cell: ({ row }) => formatCurrency(row.original.settlementAmount),
+      cell: ({ row }) => (
+        <span className={row.original.settlementAmount < 0 ? "font-medium text-red-700" : ""}>
+          {formatCurrency(row.original.settlementAmount)}
+        </span>
+      ),
       meta: { align: "right", className: "border-l border-stone-200", headerClassName: "border-l border-stone-200" },
     },
     {
@@ -177,7 +133,11 @@ export default function CommissionRepDetailPage() {
     {
       accessorKey: "commissionAmount",
       header: "Commission",
-      cell: ({ row }) => formatCurrency(row.original.commissionAmount),
+      cell: ({ row }) => (
+        <span className={row.original.commissionAmount < 0 ? "font-medium text-red-700" : ""}>
+          {formatCurrency(row.original.commissionAmount)}
+        </span>
+      ),
       meta: { align: "right", className: "border-l border-stone-200", headerClassName: "border-l border-stone-200" },
     },
     {
@@ -187,22 +147,6 @@ export default function CommissionRepDetailPage() {
     },
     { accessorKey: "status", header: "Status" },
   ];
-
-  const transactionColumns: ColumnDef<DetailResponse["transactions"][number]>[] = [
-    { accessorKey: "type", header: "Type" },
-    { accessorKey: "reference", header: "Reference" },
-    { accessorKey: "date", header: "Date", cell: ({ row }) => formatDate(row.original.date) },
-    { accessorKey: "amount", header: "Amount", cell: ({ row }) => formatCurrency(row.original.amount), meta: { align: "right" } },
-    { accessorKey: "status", header: "Status" },
-  ];
-
-  const pieData = useMemo(() => {
-    if (!detailQuery.data) return [];
-    return [
-      { name: "Collected", value: detailQuery.data.kpis.collections, color: "#1a5c2e" },
-      { name: "Outstanding", value: detailQuery.data.kpis.outstanding, color: "#dc2626" },
-    ].filter((item) => item.value > 0);
-  }, [detailQuery.data]);
 
   return (
     <div className="space-y-5">
@@ -217,12 +161,6 @@ export default function CommissionRepDetailPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/invoices" className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[12px] font-medium text-stone-700 hover:bg-stone-50">
-            <FileText size={13} /> Invoices
-          </Link>
-          <Link href="/receipts" className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[12px] font-medium text-stone-700 hover:bg-stone-50">
-            <CreditCard size={13} /> Receipts
-          </Link>
           <button type="button" onClick={reset} className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[12px] font-medium text-stone-700 hover:bg-stone-50">
             <RefreshCcw size={13} /> Reset
           </button>
@@ -275,13 +213,7 @@ export default function CommissionRepDetailPage() {
 
       {detailQuery.isLoading ? (
         <div className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-8">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-[95px] rounded-2xl border border-stone-200 bg-white animate-pulse" />
-            ))}
-          </div>
-          <div className="h-[260px] rounded-2xl border border-stone-200 bg-white animate-pulse" />
-          <div className="h-[260px] rounded-2xl border border-stone-200 bg-white animate-pulse" />
+          <div className="h-[420px] rounded-2xl border border-stone-200 bg-white animate-pulse" />
         </div>
       ) : detailQuery.error ? (
         <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-[13px]">
@@ -293,85 +225,9 @@ export default function CommissionRepDetailPage() {
         </div>
       ) : (
         <>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-8">
-            <Kpi label="Lifetime Sales" value={formatCurrency(detailQuery.data.kpis.lifetimeSales)} icon={<TrendingUp size={14} className="text-emerald-700" />} />
-            <Kpi label="Period Sales" value={formatCurrency(detailQuery.data.kpis.periodNetSales)} icon={<CalendarRange size={14} className="text-blue-700" />} />
-            <Kpi label="Collections" value={formatCurrency(detailQuery.data.kpis.collections)} icon={<CheckCircle2 size={14} className="text-emerald-700" />} />
-            <Kpi label="Outstanding" value={formatCurrency(detailQuery.data.kpis.outstanding)} icon={<HandCoins size={14} className="text-red-700" />} />
-            <Kpi label="Overdue" value={formatCurrency(detailQuery.data.kpis.overdueAmount)} icon={<ShieldAlert size={14} className="text-red-700" />} />
-            <Kpi label="Avg Days" value={detailQuery.data.kpis.avgDaysToCollect === null ? "-" : String(detailQuery.data.kpis.avgDaysToCollect)} icon={<Clock3 size={14} className="text-amber-700" />} />
-            <Kpi label="Approved Comm." value={formatCurrency(detailQuery.data.kpis.approvedCommission)} icon={<CheckCircle2 size={14} className="text-violet-700" />} />
-            <Kpi label="Pending Comm." value={formatCurrency(detailQuery.data.kpis.pendingCommission)} icon={<Clock3 size={14} className="text-violet-700" />} />
-          </div>
-
-          <section className="rounded-2xl border border-stone-200 bg-white p-4 lg:p-5">
-            <p className="mb-2 text-[13px] font-medium text-stone-700">Collected vs Outstanding</p>
-            <div className="h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={58}
-                    outerRadius={92}
-                    paddingAngle={2}
-                  >
-                    {pieData.map((entry) => (
-                      <Cell key={entry.name} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-stone-200 bg-white p-4 lg:p-5">
-            <p className="mb-3 text-[13px] font-semibold text-stone-800">Top Products</p>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-[13px]">
-                <thead className="text-[11px] uppercase tracking-[0.1em] text-stone-500">
-                  <tr className="border-b border-stone-200">
-                    <th className="py-2 text-left">Product</th>
-                    <th className="py-2 text-right">Qty</th>
-                    <th className="py-2 text-right">Net Revenue</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {detailQuery.data.topProducts.map((p) => (
-                    <tr key={p.productId} className="border-b border-stone-100">
-                      <td className="py-2 text-stone-700">
-                        {p.productCode} - {p.productName}
-                      </td>
-                      <td className="py-2 text-right text-stone-700">{p.quantity}</td>
-                      <td className="py-2 text-right text-emerald-700">{formatCurrency(p.netRevenue)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <DataTable data={detailQuery.data.customerPerformance} columns={customerColumns} minWidth={1180} searchPlaceholder="Search customer" emptyMessage="No customer performance data." />
-          <DataTable data={detailQuery.data.openInvoices} columns={openInvoiceColumns} minWidth={1300} hideSearch emptyMessage="No open invoices." />
           <DataTable data={detailQuery.data.commissionLedger} columns={commissionColumns} minWidth={1300} searchPlaceholder="Search commission, invoice, customer" emptyMessage="No commission records." />
-          <DataTable data={detailQuery.data.transactions} columns={transactionColumns} minWidth={980} searchPlaceholder="Search transactions" emptyMessage="No transactions in selected period." />
         </>
       )}
-    </div>
-  );
-}
-
-function Kpi({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
-  return (
-    <div className="bg-white border border-stone-200 rounded-2xl p-4 flex items-start gap-2.5">
-      <div className="w-8 h-8 rounded-lg bg-stone-100 flex items-center justify-center">{icon}</div>
-      <div className="min-w-0">
-        <p className="text-[10px] uppercase tracking-[0.09em] text-stone-400 font-semibold">{label}</p>
-        <p className="text-[17px] leading-tight text-stone-900 font-semibold mt-1">{value}</p>
-      </div>
     </div>
   );
 }
