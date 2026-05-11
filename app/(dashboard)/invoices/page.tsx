@@ -55,7 +55,7 @@ const formatCurrency = (value: number) =>
   }).format(value);
 
 const InvoicesPage = () => {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm] = useState("");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<StatusFilter>("ALL");
   const [ginStatusFilter, setGinStatusFilter] = useState<GinStatusFilter>("ALL");
   const [rangeFilter, setRangeFilter] = useState("month");

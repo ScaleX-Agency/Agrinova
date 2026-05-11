@@ -1,7 +1,7 @@
 "use client";
 
   // eslint-disable-next-line
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
   // eslint-disable-next-line
 import Link from "next/link";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -20,14 +20,6 @@ import { getTodayDateInputValue, hasValidLineItems, normalizeStockEntryLines, to
 import { getStockEntryFieldErrors, getFirstStockEntryFieldError } from "./stock-entry-form.validation";
 import type { StockEntryFieldErrors, StockEntryLine, ProductOption } from "./stock-entry-form.types";
 import type { InventoryLocationsResponse } from "@/types/api";
-
-const ENTRY_TYPE_LABEL: Record<"LOCAL_PURCHASE" | "FOREIGN_IMPORT", string> = {
-  LOCAL_PURCHASE: "Local Purchase",
-  FOREIGN_IMPORT: "Foreign Import",
-};
-
-
-
 
 const NewStockEntryPage = () => {
   const router = useRouter();
@@ -87,12 +79,7 @@ const NewStockEntryPage = () => {
     },
   });
 
-  // Set default location to first available
-  useEffect(() => {
-    if (locationsQuery.data && locationsQuery.data.length > 0 && !locationId) {
-      setLocationId(locationsQuery.data[0].id);
-    }
-  }, [locationsQuery.data, locationId]);
+  const effectiveLocationId = locationId ?? locationsQuery.data?.[0]?.id ?? null;
 
 
 
@@ -149,7 +136,7 @@ const NewStockEntryPage = () => {
     const errors = getStockEntryFieldErrors({
       date,
       grnNumber,
-      locationId,
+      locationId: effectiveLocationId,
       lines: normalizedLines,
     });
 
@@ -168,7 +155,7 @@ const NewStockEntryPage = () => {
     const payload: CreateStockEntryDto = {
       entry_type: entryType,
       date,
-      location_id: locationId!,
+      location_id: effectiveLocationId!,
       reference_no: reference.trim() || null,
       notes: notes.trim() || null,
       grn_number: grnNumber || null,
@@ -217,7 +204,7 @@ const NewStockEntryPage = () => {
         date={date}
         grnNumber={grnNumber}
         reference={reference}
-        locationId={locationId}
+        locationId={effectiveLocationId}
         locationOptions={locationOptions}
         dateError={fieldErrors.date}
         locationError={fieldErrors.location}
@@ -233,7 +220,7 @@ const NewStockEntryPage = () => {
 
       <StockEntryProductsSection
         lines={lines}
-        locationId={locationId}
+        locationId={effectiveLocationId}
         productOptions={productOptions}
         isProductsLoading={productsQuery.isLoading}
         fieldError={fieldErrors.lines}

@@ -985,14 +985,6 @@ export async function createStockEntry(
       existingStocks.map((stock) => [stock.product_id, stock]),
     );
 
-    const movementNote = [
-      `GRN ${createdNote.grn_number}`,
-      dto.reference_no?.trim() ? `Ref: ${dto.reference_no.trim()}` : null,
-      dto.notes?.trim() ? dto.notes.trim() : null,
-    ]
-      .filter(Boolean)
-      .join(" • ");
-
     const stockUpdates: Array<{
       stock_id: number;
       product_id: number;
@@ -1201,3 +1193,4 @@ export async function getAllLocations() {
     orderBy: { location_id: "asc" },
   });
 }
+

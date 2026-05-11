@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import SearchableSelect, { type SearchableSelectOption } from "@/components/SearchableSelect";
 import { useCreateStockTransfer, useLocations } from "@/hooks/useInventory";
 import type { StockOverviewRow } from "@/types/inventory";
@@ -33,49 +34,30 @@ export default function StockTransferModal({ onClose, onSaved }: Props) {
   const [toLocationId, setToLocationId] = useState<number | null>(null);
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<TransferLine[]>([]);
-  const [sourceStock, setSourceStock] = useState<StockOverviewRow[]>([]);
-  const [loadingSourceStock, setLoadingSourceStock] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (locations.length > 0 && fromLocationId === null) {
-      setFromLocationId(locations[0].id);
-    }
-  }, [locations, fromLocationId]);
+  const effectiveFromLocationId = fromLocationId ?? locations[0]?.id ?? null;
 
-  useEffect(() => {
-    if (!fromLocationId) {
-      setSourceStock([]);
-      return;
-    }
-    let mounted = true;
-    setLoadingSourceStock(true);
-    setError("");
-    fetch(`/api/inventory/${fromLocationId}?all=true`)
-      .then(async (response) => {
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(payload.error ?? "Failed to load source stock.");
-        }
-        return Array.isArray(payload.stock) ? (payload.stock as StockOverviewRow[]) : [];
-      })
-      .then((rows) => {
-        if (!mounted) return;
-        setSourceStock(rows.filter((row) => row.quantity_on_hand > 0));
-      })
-      .catch((err) => {
-        if (!mounted) return;
-        setError(err instanceof Error ? err.message : "Failed to load source stock.");
-        setSourceStock([]);
-      })
-      .finally(() => {
-        if (!mounted) return;
-        setLoadingSourceStock(false);
-      });
-    return () => {
-      mounted = false;
-    };
-  }, [fromLocationId]);
+  const sourceStockQuery = useQuery<StockOverviewRow[], Error>({
+    queryKey: ["stock-transfer-source", effectiveFromLocationId],
+    queryFn: async () => {
+      const response = await fetch(`/api/inventory/${effectiveFromLocationId}?all=true`);
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to load source stock.");
+      }
+      const rows = Array.isArray(payload.stock) ? (payload.stock as StockOverviewRow[]) : [];
+      return rows.filter((row) => row.quantity_on_hand > 0);
+    },
+    enabled: Boolean(effectiveFromLocationId),
+  });
+
+  const sourceStock = useMemo(
+    () => sourceStockQuery.data ?? [],
+    [sourceStockQuery.data],
+  );
+  const loadingSourceStock = sourceStockQuery.isLoading;
+  const sourceStockError = sourceStockQuery.error?.message ?? "";
 
   const locationOptions = useMemo<SearchableSelectOption[]>(
     () =>
@@ -88,8 +70,8 @@ export default function StockTransferModal({ onClose, onSaved }: Props) {
   );
 
   const toLocationOptions = useMemo(
-    () => locationOptions.filter((option) => option.id !== fromLocationId),
-    [locationOptions, fromLocationId],
+    () => locationOptions.filter((option) => option.id !== effectiveFromLocationId),
+    [locationOptions, effectiveFromLocationId],
   );
 
   const productOptions = useMemo<SearchableSelectOption[]>(
@@ -123,10 +105,10 @@ export default function StockTransferModal({ onClose, onSaved }: Props) {
     );
   };
 
-  const canAddLine = useMemo(() => {
+  const canAddLine = (() => {
     const selected = getSelectedProductIds();
     return productOptions.some((option) => !selected.has(option.id));
-  }, [lines, productOptions]);
+  })();
 
   const addLine = () => {
     const selectedByOthers = getSelectedProductIds();
@@ -153,9 +135,9 @@ export default function StockTransferModal({ onClose, onSaved }: Props) {
   };
 
   const validate = () => {
-    if (!fromLocationId) return "Select a source location.";
+    if (!effectiveFromLocationId) return "Select a source location.";
     if (!toLocationId) return "Select a destination location.";
-    if (fromLocationId === toLocationId) return "Source and destination must be different.";
+    if (effectiveFromLocationId === toLocationId) return "Source and destination must be different.";
     if (!transferDate) return "Select a transfer date.";
     if (lines.length === 0) return "Add at least one transfer item.";
 
@@ -191,7 +173,7 @@ export default function StockTransferModal({ onClose, onSaved }: Props) {
     try {
       await createMutation.mutateAsync({
         transfer_date: transferDate,
-        from_location_id: fromLocationId!,
+        from_location_id: effectiveFromLocationId!,
         to_location_id: toLocationId!,
         notes: notes.trim() || null,
         items: lines.map((line) => ({
@@ -234,7 +216,7 @@ export default function StockTransferModal({ onClose, onSaved }: Props) {
             <div>
               <label className="block text-[11px] font-semibold text-stone-500 uppercase tracking-wide mb-1.5">From Location *</label>
               <SearchableSelect
-                value={fromLocationId}
+                value={effectiveFromLocationId}
                 onChange={(value) => {
                   setFromLocationId(value);
                   if (toLocationId === value) setToLocationId(null);
@@ -294,7 +276,7 @@ export default function StockTransferModal({ onClose, onSaved }: Props) {
                         onChange={(value) => updateLine(line.id, { productId: value })}
                         options={lineOptions}
                         placeholder={loadingSourceStock ? "Loading source stock..." : "Select product"}
-                        disabled={loadingSourceStock || !fromLocationId}
+                        disabled={loadingSourceStock || !effectiveFromLocationId}
                       />
                     </div>
                     <div className="col-span-3">
@@ -326,7 +308,7 @@ export default function StockTransferModal({ onClose, onSaved }: Props) {
               {lines.length === 0 && (
                 <div className="py-8 text-center">
                   <p className="text-[13px] font-medium text-stone-500">No transfer items added</p>
-                  <p className="text-[12px] text-stone-400 mt-1">Click "Add Line" to begin selecting products.</p>
+                  <p className="text-[12px] text-stone-400 mt-1">Click &quot;Add Line&quot; to begin selecting products.</p>
                 </div>
               )}
             </div>
@@ -342,9 +324,9 @@ export default function StockTransferModal({ onClose, onSaved }: Props) {
             />
           </div>
 
-          {error && (
+          {(error || sourceStockError) && (
             <div className="bg-red-50 border border-red-100 text-red-600 rounded-lg p-3 text-[12px]">
-              {error}
+              {error || sourceStockError}
             </div>
           )}
         </div>
