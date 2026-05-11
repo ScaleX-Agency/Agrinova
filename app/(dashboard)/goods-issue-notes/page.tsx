@@ -126,6 +126,7 @@ const GoodsIssueNotesPage = () => {
         data={rows}
         columns={tableColumns}
         minWidth={940}
+        isLoading={notesQuery.isLoading}
         searchPlaceholder="Search GIN no, customer or location"
         emptyMessage="No goods issue notes found yet. Create an invoice and the system will generate the GIN."
       />

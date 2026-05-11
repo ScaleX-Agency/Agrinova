@@ -94,45 +94,56 @@ const GoodsReceivingNotesPage = () => {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr
-                key={row.id}
-                className="border-b border-stone-100 hover:bg-stone-50"
-              >
-                <td className="px-4 py-3 font-medium text-[#2b2d7e] [font-family:var(--font-jetbrains)]">
-                  {row.grnNumber}
-                </td>
-                <td className="px-4 py-3 text-stone-700">
-                  {formatDate(row.date)}
-                </td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium ${ENTRY_TYPE_STYLE[row.entryType]}`}
-                  >
-                    {ENTRY_TYPE_LABEL[row.entryType]}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-stone-700">
-                  {row.locationCode} - {row.locationName}
-                </td>
-                <td className="px-4 py-3 text-stone-700">
-                  {row.referenceNo ?? "—"}
-                </td>
-                <td className="px-4 py-3 text-stone-700">{row.lineCount}</td>
-                <td className="px-4 py-3 text-stone-700">
-                  {row.createdByName}
-                </td>
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/goods-receiving-notes/${row.id}`}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] hover:bg-[#eeeffe]"
-                  >
-                    <Eye size={12} />
-                    View
-                  </Link>
+            {notesQuery.isLoading ? (
+              <tr>
+                <td colSpan={8} className="px-4 py-16 text-center text-[13px] text-stone-500">
+                  <div className="flex flex-col items-center justify-center gap-3">
+                    <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#1a5c2e] border-t-transparent"></span>
+                    <span>Loading data...</span>
+                  </div>
                 </td>
               </tr>
-            ))}
+            ) : (
+              rows.map((row) => (
+                <tr
+                  key={row.id}
+                  className="border-b border-stone-100 hover:bg-stone-50"
+                >
+                  <td className="px-4 py-3 font-medium text-[#2b2d7e] [font-family:var(--font-jetbrains)]">
+                    {row.grnNumber}
+                  </td>
+                  <td className="px-4 py-3 text-stone-700">
+                    {formatDate(row.date)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium ${ENTRY_TYPE_STYLE[row.entryType]}`}
+                    >
+                      {ENTRY_TYPE_LABEL[row.entryType]}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-stone-700">
+                    {row.locationCode} - {row.locationName}
+                  </td>
+                  <td className="px-4 py-3 text-stone-700">
+                    {row.referenceNo ?? "-"}
+                  </td>
+                  <td className="px-4 py-3 text-stone-700">{row.lineCount}</td>
+                  <td className="px-4 py-3 text-stone-700">
+                    {row.createdByName}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Link
+                      href={`/goods-receiving-notes/${row.id}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] hover:bg-[#eeeffe]"
+                    >
+                      <Eye size={12} />
+                      View
+                    </Link>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
 

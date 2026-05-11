@@ -205,6 +205,7 @@ const ReceiptsClient = () => {
         data={filtered}
         columns={tableColumns}
         minWidth={1080}
+        isLoading={receiptsQuery.isLoading}
         searchPlaceholder="Search receipt no, invoice no, or customer"
         emptyMessage="No receipts match the selected filters."
         toolbarRight={
@@ -235,8 +236,6 @@ const ReceiptsClient = () => {
           </>
         }
       />
-
-      {receiptsQuery.isLoading && <p className="text-[13px] text-stone-500">Loading receipts...</p>}
 
       {receiptsQuery.error instanceof Error && (
         <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
