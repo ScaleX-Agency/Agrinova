@@ -23,7 +23,7 @@ export async function GET(
         invoice_number: true,
         invoice_date: true,
         total_amount: true,
-        status: true,
+        payment_status: true,
         notes: true,
         customer: {
           select: {
@@ -163,7 +163,7 @@ export async function GET(
             id: invoice.invoice_id,
             number: invoice.invoice_number,
             date: invoice.invoice_date.toISOString(),
-            status: invoice.status,
+            status: invoice.payment_status,
             notes: invoice.notes,
           },
           customer: {

@@ -207,7 +207,7 @@ export async function GET(request: Request) {
 
         return {
           settlementId: s.settlement_id,
-          settlementType: s.settlement_type,
+          settlementType: s.settlement_type as "RECEIPT" | "CREDIT_NOTE",
           invoiceId: s.invoice.invoice_id,
           invoiceNo: s.invoice.invoice_number ?? "",
           invoiceDate: s.invoice.invoice_date.toISOString(),

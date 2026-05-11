@@ -23,7 +23,7 @@ export async function GET(
         invoice_number: true,
         invoice_date: true,
         total_amount: true,
-        status: true,
+        payment_status: true,
         invoice_lines: {
           select: {
             line_id: true,
@@ -53,7 +53,8 @@ export async function GET(
               select: {
                 return_line_id: true,
                 product_id: true,
-                quantity: true,
+                quantity_usable: true,
+                quantity_unusable: true,
                 line_total: true,
                 product: {
                   select: {
@@ -117,8 +118,9 @@ export async function GET(
       for (const line of srn.lines) {
         const key = line.product_id;
         const entry = productSummaryMap.get(key);
+        const qty = line.quantity_usable + line.quantity_unusable;
         if (entry) {
-          entry.returnedQuantity += line.quantity;
+          entry.returnedQuantity += qty;
           entry.returnedLineTotal += Number(line.line_total);
           entry.returnCount += 1;
           if (!entry.returnNumbers.includes(srn.return_number)) {
@@ -174,7 +176,7 @@ export async function GET(
           id: invoice.invoice_id,
           number: invoice.invoice_number,
           date: invoice.invoice_date.toISOString(),
-          status: invoice.status,
+          status: invoice.payment_status,
         },
         summary: {
           totalProducts: productSummaries.length,
