@@ -203,6 +203,7 @@ const InvoiceDetailPage = async ({
           free_quantity: true,
           line_total: true,
           net_line_total: true,
+          credited_amount: true,
           product: {
             select: {
               product_name: true,
@@ -527,10 +528,10 @@ const InvoiceDetailPage = async ({
                         -
                       </td>
                       <td className="border-r border-stone-200 px-4 py-3 text-right text-red-700">
-                        - {formatCurrency(Number(line.line_total))}
+                        - {formatCurrency(Number(line.credited_amount))}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold text-red-700">
-                        - {formatCurrency(Number(line.net_line_total))}
+                        - {formatCurrency(Number(line.credited_amount))}
                       </td>
                     </tr>
                   ))}
