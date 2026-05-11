@@ -427,7 +427,7 @@ const RecordReturnsModalButton = ({
                     <th className="sticky top-0 border-b border-stone-200 px-3 py-2 text-center">Unusable</th>
                     <th className="sticky top-0 border-b border-stone-200 px-3 py-2 text-left">Condition</th>
                     <th className="sticky top-0 border-b border-stone-200 px-3 py-2 text-left">Reason</th>
-                    <th className="sticky top-0 border-b border-stone-200 px-3 py-2 text-right">Deduction</th>
+                    <th className="sticky top-0 border-b border-stone-200 px-3 py-2 text-right">Deduction (LKR)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -587,24 +587,27 @@ const RecordReturnsModalButton = ({
                             />
                           </td>
                           <td className="border-b border-stone-100 px-2 py-2">
-                            <input
-                              type="number"
-                              min={0}
-                              step="0.01"
-                              max={line.invoiceLineBalanceAmount}
-                              value={line.deductionAmount}
-                              disabled={line.returnQty <= 0}
-                              onChange={(event) =>
-                                setDraftValue(line.lineId, (current) => ({
-                                  ...current,
-                                  deductionAmount: Math.min(
-                                    current.invoiceLineBalanceAmount,
-                                    Math.max(0, Number(event.target.value) || 0),
-                                  ),
-                                }))
-                              }
-                              className="w-full min-w-0 rounded-md border border-stone-300 px-2 py-1 text-right text-[12px] outline-none focus:border-[#1a5c2e] disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400"
-                            />
+                            <div className="flex items-center gap-1">
+                              <span className="text-[11px] font-medium text-stone-500">LKR</span>
+                              <input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                max={line.invoiceLineBalanceAmount}
+                                value={line.deductionAmount}
+                                disabled={line.returnQty <= 0}
+                                onChange={(event) =>
+                                  setDraftValue(line.lineId, (current) => ({
+                                    ...current,
+                                    deductionAmount: Math.min(
+                                      current.invoiceLineBalanceAmount,
+                                      Math.max(0, Number(event.target.value) || 0),
+                                    ),
+                                  }))
+                                }
+                                className="w-full min-w-0 rounded-md border border-stone-300 px-2 py-1 text-right text-[12px] outline-none focus:border-[#1a5c2e] disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400"
+                              />
+                            </div>
                           </td>
                         </tr>
                       );
