@@ -120,7 +120,13 @@ export default function OperatorDetailPageClient({
   }, [resolvedOperatorId]);
 
   useEffect(() => {
-    void fetchOperator();
+    const timer = window.setTimeout(() => {
+      void fetchOperator();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [fetchOperator]);
 
   const handleSave = async (event: FormEvent<HTMLFormElement>) => {
