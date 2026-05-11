@@ -41,7 +41,11 @@ export async function getAllStock(
   filters?: { search?: string; location_id?: number; status?: string },
 ): Promise<PaginatedResult<StockOverviewRow>> {
   // eslint-disable-next-line
-  const where: any = {};
+  const where: any = {
+    location: {
+      status: "ACTIVE",
+    },
+  };
   if (filters?.location_id) {
     where.location_id = filters.location_id;
   }
@@ -131,7 +135,12 @@ export async function getAllStockByLocation(
    
 ): Promise<PaginatedResult<StockOverviewRow>> {
   // eslint-disable-next-line
-  const where: any = { location_id: locationId };
+  const where: any = {
+    location_id: locationId,
+    location: {
+      status: "ACTIVE",
+    },
+  };
 
   if (filters?.search) {
     where.OR = [
@@ -224,6 +233,7 @@ export const getLocationSummaries = unstable_cache(
         COUNT(CASE WHEN s.quantity_on_hand <= 0              THEN 1 END)      AS out_count
       FROM "INVENTORY_LOCATION" l
       LEFT JOIN "STOCK" s ON s.location_id = l.location_id
+      WHERE l.status = 'ACTIVE'
       GROUP BY l.location_id, l.code, l.name
       ORDER BY l.location_id
     `;
