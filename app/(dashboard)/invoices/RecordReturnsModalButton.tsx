@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { RotateCcw } from "lucide-react";
+import SearchableSelect from "@/components/SearchableSelect";
 import type {
   CreateSalesReturnRequestDto,
   CreateSalesReturnResponse,
@@ -57,6 +58,7 @@ const RecordReturnsModalButton = ({
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [lineDrafts, setLineDrafts] = useState<ReturnLineDraft[]>([]);
+  const [selectedProductLineId, setSelectedProductLineId] = useState<number | null>(null);
 
   const invoiceDetailQuery = useQuery({
     queryKey: ["record-returns-modal-invoice", invoiceId],
@@ -132,7 +134,23 @@ const RecordReturnsModalButton = ({
       .filter((line) => line.returnableQty > 0);
   }, [invoiceDetailQuery.data]);
 
-  const workingLineDrafts = lineDrafts.length > 0 ? lineDrafts : baseDrafts;
+  const workingLineDrafts = lineDrafts;
+  const selectedLineIds = useMemo(
+    () => new Set(workingLineDrafts.map((line) => line.lineId)),
+    [workingLineDrafts],
+  );
+  const availableProductOptions = useMemo(
+    () =>
+      baseDrafts
+        .filter((line) => !selectedLineIds.has(line.lineId))
+        .map((line) => ({
+          id: line.lineId,
+          label: line.productName,
+          description: `${line.packSize} • Returnable: ${line.returnableQty}`,
+          searchText: `${line.productName} ${line.packSize}`,
+        })),
+    [baseDrafts, selectedLineIds],
+  );
 
   const createReturnMutation = useMutation({
     mutationFn: async (payload: CreateSalesReturnRequestDto) => {
@@ -159,7 +177,18 @@ const RecordReturnsModalButton = ({
     setReturnDate(getTodayDateInputValue());
     setNotes("");
     setLineDrafts([]);
+    setSelectedProductLineId(null);
     setIsOpen(true);
+  };
+
+  const handleAddProductLine = () => {
+    if (!selectedProductLineId) return;
+    const selectedBaseLine = baseDrafts.find((line) => line.lineId === selectedProductLineId);
+    if (!selectedBaseLine) return;
+    if (selectedLineIds.has(selectedProductLineId)) return;
+    setLineDrafts((current) => [...current, selectedBaseLine]);
+    setSelectedProductLineId(null);
+    setError("");
   };
 
   const setDraftValue = (
@@ -296,9 +325,14 @@ const RecordReturnsModalButton = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-6xl rounded-xl border border-stone-200 bg-white p-5">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-[18px] font-semibold text-stone-900">
-                Record Return
-              </h2>
+              <div>
+                <h2 className="text-[18px] font-semibold text-stone-900">
+                  Record Sales Return
+                </h2>
+                <p className="text-[12px] text-stone-500">
+                  Enter returned quantities and condition details. Credit is calculated from your line deductions.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
@@ -352,24 +386,48 @@ const RecordReturnsModalButton = ({
                   value={notes}
                   onChange={(event) => setNotes(event.target.value)}
                   className="rounded-lg border border-stone-300 px-3 py-2 text-[13px] outline-none focus:border-[#1a5c2e]"
-                  placeholder="Optional notes"
+                  placeholder="Optional notes (e.g. damaged in transit)"
                 />
               </label>
+            </div>
+
+            <div className="mb-4 rounded-lg border border-stone-200 bg-stone-50 p-3">
+              <p className="mb-2 text-[12px] font-medium text-stone-700">Add Products To Return</p>
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto]">
+                <SearchableSelect
+                  value={selectedProductLineId}
+                  onChange={setSelectedProductLineId}
+                  options={availableProductOptions}
+                  placeholder="Select product to add"
+                  searchPlaceholder="Search product..."
+                  emptyMessage="No more returnable products available."
+                  loading={invoiceDetailQuery.isLoading}
+                  disabled={invoiceDetailQuery.isLoading || availableProductOptions.length === 0}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddProductLine}
+                  disabled={!selectedProductLineId}
+                  className="rounded-lg bg-[#1a5c2e] px-3 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Add Product
+                </button>
+              </div>
             </div>
 
             <div className="max-h-[420px] overflow-auto rounded-lg border border-stone-200">
               <table className="w-full table-fixed border-collapse text-[12px]">
                 <thead className="bg-stone-50 text-[11px] uppercase tracking-[0.08em] text-stone-500">
                   <tr>
-                    <th className="border-b border-stone-200 px-3 py-2 text-left">Product</th>
-                    <th className="border-b border-stone-200 px-3 py-2 text-center">Returnable Qty</th>
-                    <th className="border-b border-stone-200 px-3 py-2 text-center">Return Qty</th>
-                    <th className="border-b border-stone-200 px-3 py-2 text-center">Usable Qty</th>
-                    <th className="border-b border-stone-200 px-3 py-2 text-right">Balance</th>
-                    <th className="border-b border-stone-200 px-3 py-2 text-center">Unusable</th>
-                    <th className="border-b border-stone-200 px-3 py-2 text-left">Condition</th>
-                    <th className="border-b border-stone-200 px-3 py-2 text-left">Reason</th>
-                    <th className="border-b border-stone-200 px-3 py-2 text-right">Deduction</th>
+                    <th className="sticky top-0 border-b border-stone-200 px-3 py-2 text-left">Product</th>
+                    <th className="sticky top-0 border-b border-stone-200 px-3 py-2 text-center">Returnable</th>
+                    <th className="sticky top-0 border-b border-stone-200 px-3 py-2 text-center">Return Qty</th>
+                    <th className="sticky top-0 border-b border-stone-200 px-3 py-2 text-center">Usable Qty</th>
+                    <th className="sticky top-0 border-b border-stone-200 px-3 py-2 text-right">Line Balance</th>
+                    <th className="sticky top-0 border-b border-stone-200 px-3 py-2 text-center">Unusable</th>
+                    <th className="sticky top-0 border-b border-stone-200 px-3 py-2 text-left">Condition</th>
+                    <th className="sticky top-0 border-b border-stone-200 px-3 py-2 text-left">Reason</th>
+                    <th className="sticky top-0 border-b border-stone-200 px-3 py-2 text-right">Deduction</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -382,7 +440,7 @@ const RecordReturnsModalButton = ({
                   ) : workingLineDrafts.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="px-3 py-3 text-stone-500">
-                        No returnable lines are available.
+                        No products added yet. Select a product above to start recording returns.
                       </td>
                     </tr>
                   ) : (
@@ -399,67 +457,102 @@ const RecordReturnsModalButton = ({
                           </td>
                           <td className="border-b border-stone-100 px-2 py-2 text-center">{line.returnableQty}</td>
                           <td className="border-b border-stone-100 px-2 py-2">
-                            <input
-                              type="number"
-                              min={0}
-                              max={line.returnableQty}
-                              value={line.returnQty}
-                              onChange={(event) => {
-                                const returnQty = Math.max(
-                                  0,
-                                  Number(event.target.value) || 0,
-                                );
-                                const clampedReturn = Math.min(
-                                  line.returnableQty,
-                                  returnQty,
-                                );
-                                setDraftValue(line.lineId, (current) => {
-                                  const nextUsableQty = Math.min(
-                                    current.usableQty,
-                                    clampedReturn,
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                min={0}
+                                max={line.returnableQty}
+                                value={line.returnQty}
+                                onChange={(event) => {
+                                  const returnQty = Math.max(
+                                    0,
+                                    Number(event.target.value) || 0,
                                   );
-                                  return {
+                                  const clampedReturn = Math.min(
+                                    line.returnableQty,
+                                    returnQty,
+                                  );
+                                  setDraftValue(line.lineId, (current) => {
+                                    const nextUsableQty = Math.min(
+                                      current.usableQty,
+                                      clampedReturn,
+                                    );
+                                    return {
+                                      ...current,
+                                      returnQty: clampedReturn,
+                                      usableQty: nextUsableQty,
+                                      deductionAmount:
+                                        clampedReturn > 0
+                                          ? Math.min(
+                                              current.invoiceLineBalanceAmount,
+                                              Number(
+                                                (
+                                                  current.defaultUnitRate * clampedReturn
+                                                ).toFixed(2),
+                                              ),
+                                            )
+                                          : 0,
+                                    };
+                                  });
+                                }}
+                                className="w-full min-w-0 rounded-md border border-stone-300 px-2 py-1 text-[12px] outline-none focus:border-[#1a5c2e]"
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDraftValue(line.lineId, (current) => ({
                                     ...current,
-                                    returnQty: clampedReturn,
-                                    usableQty: nextUsableQty,
-                                    deductionAmount:
-                                      clampedReturn > 0
-                                        ? Math.min(
-                                            current.invoiceLineBalanceAmount,
-                                            Number(
-                                              (
-                                                current.defaultUnitRate * clampedReturn
-                                              ).toFixed(2),
-                                            ),
-                                          )
-                                        : 0,
-                                  };
-                                });
-                              }}
-                              className="w-full min-w-0 rounded-md border border-stone-300 px-2 py-1 text-[12px] outline-none focus:border-[#1a5c2e]"
-                            />
+                                    returnQty: current.returnableQty,
+                                    usableQty: Math.min(current.usableQty, current.returnableQty),
+                                    deductionAmount: Math.min(
+                                      current.invoiceLineBalanceAmount,
+                                      Number((current.defaultUnitRate * current.returnableQty).toFixed(2)),
+                                    ),
+                                  }))
+                                }
+                                className="rounded border border-stone-300 px-1.5 py-1 text-[10px] font-medium text-stone-600 hover:bg-stone-50"
+                                title="Set max returnable quantity"
+                              >
+                                Max
+                              </button>
+                            </div>
                           </td>
                           <td className="border-b border-stone-100 px-2 py-2">
-                            <input
-                              type="number"
-                              min={0}
-                              max={line.returnQty}
-                              value={line.usableQty}
-                              onChange={(event) => {
-                                const usableQty = Math.max(
-                                  0,
-                                  Number(event.target.value) || 0,
-                                );
-                                setDraftValue(line.lineId, (current) => ({
-                                  ...current,
-                                  usableQty: Math.min(
-                                    current.returnQty,
-                                    usableQty,
-                                  ),
-                                }));
-                              }}
-                              className="w-full min-w-0 rounded-md border border-stone-300 px-2 py-1 text-[12px] outline-none focus:border-[#1a5c2e]"
-                            />
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                min={0}
+                                max={line.returnQty}
+                                value={line.usableQty}
+                                onChange={(event) => {
+                                  const usableQty = Math.max(
+                                    0,
+                                    Number(event.target.value) || 0,
+                                  );
+                                  setDraftValue(line.lineId, (current) => ({
+                                    ...current,
+                                    usableQty: Math.min(
+                                      current.returnQty,
+                                      usableQty,
+                                    ),
+                                  }));
+                                }}
+                                className="w-full min-w-0 rounded-md border border-stone-300 px-2 py-1 text-[12px] outline-none focus:border-[#1a5c2e]"
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDraftValue(line.lineId, (current) => ({
+                                    ...current,
+                                    usableQty: current.returnQty,
+                                  }))
+                                }
+                                className="rounded border border-stone-300 px-1.5 py-1 text-[10px] font-medium text-stone-600 hover:bg-stone-50"
+                                title="Set usable quantity equal to return quantity"
+                              >
+                                All
+                              </button>
+                            </div>
                           </td>
                           <td className="border-b border-stone-100 px-2 py-2 text-right text-stone-700">
                             {formatCurrency(line.invoiceLineBalanceAmount)}
@@ -477,6 +570,7 @@ const RecordReturnsModalButton = ({
                                 }))
                               }
                               className="w-full min-w-0 rounded-md border border-stone-300 px-2 py-1 text-[12px] outline-none focus:border-[#1a5c2e]"
+                              placeholder="Good / Damaged"
                             />
                           </td>
                           <td className="border-b border-stone-100 px-2 py-2">
@@ -489,6 +583,7 @@ const RecordReturnsModalButton = ({
                                 }))
                               }
                               className="w-full min-w-0 rounded-md border border-stone-300 px-2 py-1 text-[12px] outline-none focus:border-[#1a5c2e]"
+                              placeholder="Reason for return"
                             />
                           </td>
                           <td className="border-b border-stone-100 px-2 py-2">
@@ -498,6 +593,7 @@ const RecordReturnsModalButton = ({
                               step="0.01"
                               max={line.invoiceLineBalanceAmount}
                               value={line.deductionAmount}
+                              disabled={line.returnQty <= 0}
                               onChange={(event) =>
                                 setDraftValue(line.lineId, (current) => ({
                                   ...current,
@@ -507,7 +603,7 @@ const RecordReturnsModalButton = ({
                                   ),
                                 }))
                               }
-                              className="w-full min-w-0 rounded-md border border-stone-300 px-2 py-1 text-right text-[12px] outline-none focus:border-[#1a5c2e]"
+                              className="w-full min-w-0 rounded-md border border-stone-300 px-2 py-1 text-right text-[12px] outline-none focus:border-[#1a5c2e] disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400"
                             />
                           </td>
                         </tr>
