@@ -15,11 +15,10 @@ import {
 import LocationCards from "./LocationCards";
 import StockTable from "./StockTable";
 import MovementsLog from "./MovementsLog";
-import StockTransfersTable from "./StockTransfersTable";
 import RecordMovementModal from "./RecordMovementModal";
 import ImportStockModal from "./ImportStockModal";
 import StockTransferModal from "./StockTransferModal";
-import { useAllMovements, useAllStock, useLocationSummaries, useStockTransfers } from "@/hooks/useInventory";
+import { useAllMovements, useAllStock, useLocationSummaries } from "@/hooks/useInventory";
 import type {
   LocationSummary,
   MovementRow,
@@ -41,7 +40,7 @@ export default function StockOverview({
   const qc = useQueryClient();
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<"overview" | "movements" | "transfers">(
+  const [activeTab, setActiveTab] = useState<"overview" | "movements">(
     "overview",
   );
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -71,30 +70,58 @@ export default function StockOverview({
       initialMovements,
     );
 
-  const [transferPage, setTransferPage] = useState(1);
-  const transferPageSize = 20;
-  const { data: transfers = { items: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 1 } } } =
-    useStockTransfers({
-      page: transferPage,
-      pageSize: transferPageSize,
-    });
-
   const [movementTarget, setMovementTarget] = useState<StockOverviewRow | null>(null);
   const [showImport, setShowImport] = useState(false);
 
+  const displayStock = useMemo(() => {
+    if (filter.location_id !== null) {
+      return stock.filter((row) => row.location_id === filter.location_id);
+    }
+
+    const grouped = new Map<number, StockOverviewRow>();
+    for (const row of stock) {
+      const existing = grouped.get(row.product_id);
+      if (!existing) {
+        grouped.set(row.product_id, {
+          ...row,
+          stock_id: -row.product_id,
+          location_id: 0,
+          location_code: "All Locations",
+          location_name: "All Locations",
+          is_aggregate: true,
+        });
+        continue;
+      }
+
+      const nextQty = existing.quantity_on_hand + row.quantity_on_hand;
+      grouped.set(row.product_id, {
+        ...existing,
+        quantity_on_hand: nextQty,
+        status:
+          nextQty <= 0
+            ? "out"
+            : nextQty < existing.reorder_threshold
+              ? "low"
+              : "ok",
+      });
+    }
+
+    return Array.from(grouped.values()).sort((a, b) =>
+      a.product_name.localeCompare(b.product_name),
+    );
+  }, [stock, filter.location_id]);
+
   const filteredStock = useMemo(() => {
     const searchTerm = filter.search.trim().toLowerCase();
-    return stock.filter((row) => {
+    return displayStock.filter((row) => {
       const matchesSearch =
         !searchTerm ||
         row.product_name.toLowerCase().includes(searchTerm) ||
         row.product_code.toLowerCase().includes(searchTerm);
-      const matchesLocation =
-        filter.location_id == null || row.location_id === filter.location_id;
       const matchesStatus = filter.status === "all" || row.status === filter.status;
-      return matchesSearch && matchesLocation && matchesStatus;
+      return matchesSearch && matchesStatus;
     });
-  }, [stock, filter.search, filter.location_id, filter.status]);
+  }, [displayStock, filter.search, filter.status]);
 
   const paginatedStock = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -173,7 +200,7 @@ export default function StockOverview({
 
       <div className="flex items-center justify-between">
         <div className="flex gap-0.5 bg-stone-100 rounded-lg p-1 w-fit">
-          {(["overview", "movements", "transfers"] as const).map((tab) => (
+          {(["overview", "movements"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -185,18 +212,16 @@ export default function StockOverview({
             >
               {tab === "overview"
                 ? "Stock Overview"
-                : tab === "movements"
-                  ? "Movements Log"
-                  : "Transfer Records"}
+                : "Movements Log"}
             </button>
           ))}
         </div>
 
-        {(activeTab === "overview" || activeTab === "transfers") && (
+        {activeTab === "overview" && (
           <div className="flex gap-2">
             <button
               onClick={() => setShowTransferModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-green-700 rounded-lg hover:bg-green-800 transition-colors"
             >
               <ArrowLeftRight size={13} /> Transfer Stock
             </button>
@@ -248,19 +273,6 @@ export default function StockOverview({
             pageSize: movementsPageSize,
             total: movements.pagination.total,
             setPage: setMovementsPage,
-          }}
-        />
-      )}
-
-      {activeTab === "transfers" && (
-        <StockTransfersTable
-          rows={transfers.items}
-          onCreateTransfer={() => setShowTransferModal(true)}
-          pagination={{
-            page: transferPage,
-            pageSize: transferPageSize,
-            total: transfers.pagination.total,
-            setPage: setTransferPage,
           }}
         />
       )}
@@ -328,7 +340,7 @@ function StatCard({
         {icon}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-stone-400 mb-1">{label}</p>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-stone-900 mb-1">{label}</p>
         <p className="text-2xl font-semibold text-stone-800 leading-none mb-1.5">{value}</p>
         {delta && deltaVariant && (
           <span

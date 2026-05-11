@@ -29,6 +29,7 @@ export interface StockOverviewRow {
   location_id: number;
   location_code: string;
   location_name: string;
+  is_aggregate?: boolean;
 }
 
 export interface LocationSummary {
