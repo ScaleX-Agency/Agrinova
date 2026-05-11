@@ -455,23 +455,23 @@ export default function DashboardPage() {
           {/* KPI row — 5 cards */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
             <KpiCard loading={salesLoading} label="Total Sales"
-              value={salesData ? formatLKR(salesData.kpis.totalSales) : "—"}
-              sub={salesData ? `↑ ${salesData.kpis.salesGrowth ?? 0}% vs last period` : undefined}
+              value={salesData?.kpis ? formatLKR(salesData.kpis.totalSales) : "—"}
+              sub={salesData?.kpis ? `↑ ${salesData.kpis.salesGrowth ?? 0}% vs last period` : undefined}
               icon={<DollarSign size={18} className="text-blue-700" />}
               iconBg="bg-blue-50 border-blue-100" badgeCls="bg-blue-50 text-blue-800" trendUp />
             <KpiCard loading={salesLoading} label="Collections"
-              value={salesData ? formatLKR(salesData.kpis.collections) : "—"}
+              value={salesData?.kpis ? formatLKR(salesData.kpis.collections) : "—"}
               sub="Cash received"
               icon={<TrendingUp size={18} className="text-green-700" />}
               iconBg="bg-green-50 border-green-100" badgeCls="bg-green-50 text-green-700" trendUp />
             <KpiCard loading={salesLoading} label="Outstanding"
-              value={salesData ? formatLKR(salesData.kpis.totalOutstanding) : "—"}
-              sub={salesData ? `${salesData.kpis.overdueCustomers} overdue` : undefined}
+              value={salesData?.kpis ? formatLKR(salesData.kpis.totalOutstanding) : "—"}
+              sub={salesData?.kpis ? `${salesData.kpis.overdueCustomers} overdue` : undefined}
               icon={<Clock size={18} className="text-amber-700" />}
               iconBg="bg-amber-50 border-amber-100" badgeCls="bg-amber-50 text-amber-800" />
             <KpiCard loading={salesLoading} label="Active Customers"
               value={salesData?.kpis.activeCustomers ?? "—"}
-              sub={salesData ? `+${salesData.kpis.newCustomers ?? 0} new` : undefined}
+              sub={salesData?.kpis ? `+${salesData.kpis.newCustomers ?? 0} new` : undefined}
               icon={<Users size={18} className="text-violet-700" />}
               iconBg="bg-violet-50 border-violet-100" badgeCls="bg-violet-50 text-violet-700" trendUp />
             <KpiCard loading={salesLoading} label="Overdue Customers"

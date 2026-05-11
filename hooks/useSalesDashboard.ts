@@ -60,6 +60,25 @@ export interface SalesDashboardData {
   overdueCustomers:  OverdueCustomer[];
 }
 
+type RawCustomer = {
+  customerId?: number;
+  name?: string;
+  salesRep?: string | null;
+  netSales?: number;
+  collections?: number;
+  outstanding?: number;
+  overdueAmount?: number;
+  invoiceCount?: number;
+  riskStatus?: string;
+  daysOutstanding?: number;
+};
+
+type RawTrendPoint = {
+  label?: string;
+  sales?: number;
+  collections?: number;
+};
+
 function getDateRange(range: DateRange): { from: string; to: string } {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -100,7 +119,91 @@ async function fetchSalesDashboard(range: DateRange): Promise<SalesDashboardData
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error ?? "Failed to fetch sales data");
   }
-  return res.json();
+  const raw = await res.json();
+
+  // Already in expected dashboard shape.
+  if (raw?.kpis) return raw as SalesDashboardData;
+
+  // Normalize /api/customer-sales payload shape to dashboard shape.
+  const customers: RawCustomer[] = Array.isArray(raw?.customers) ? raw.customers : [];
+  const totals = raw?.totals ?? {};
+  const trend: RawTrendPoint[] = Array.isArray(raw?.trend) ? raw.trend : [];
+
+  const repMap = new Map<number, SalesByRep>();
+  for (const c of customers) {
+    const repName = String(c?.salesRep ?? "Unassigned");
+    const key = repName
+      .split("")
+      .reduce((acc: number, ch: string) => acc + ch.charCodeAt(0), 0);
+    const sales = Number(c?.netSales ?? 0);
+    const collected = Number(c?.collections ?? 0);
+    const existing = repMap.get(key);
+    if (existing) {
+      existing.sales += sales;
+      existing.collected += collected;
+    } else {
+      repMap.set(key, {
+        rep_id: key,
+        rep_name: repName,
+        sales,
+        collected,
+      });
+    }
+  }
+
+  const topCustomers: TopCustomer[] = customers
+    .map((c) => ({
+      customer_id: Number(c?.customerId ?? 0),
+      name: String(c?.name ?? "-"),
+      total_sales: Number(c?.netSales ?? 0),
+      outstanding_balance: Number(c?.outstanding ?? 0),
+      invoice_count: Number(c?.invoiceCount ?? 0),
+    }))
+    .sort((a, b) => b.total_sales - a.total_sales);
+
+  const overdueCustomers: OverdueCustomer[] = customers
+    .filter((c) => Number(c?.overdueAmount ?? 0) > 0)
+    .map((c) => ({
+      customer_id: Number(c?.customerId ?? 0),
+      name: String(c?.name ?? "-"),
+      rep_name: String(c?.salesRep ?? "Unassigned"),
+      outstanding: Number(c?.overdueAmount ?? 0),
+      days_overdue: Number(c?.daysOutstanding ?? 0),
+    }))
+    .sort((a, b) => b.days_overdue - a.days_overdue);
+
+  const customerSegments: CustomerSegments = {
+    active: customers.filter((c) => Number(c?.invoiceCount ?? 0) > 0).length,
+    new: customers.filter((c) => {
+      const invoiceCount = Number(c?.invoiceCount ?? 0);
+      const risk = String(c?.riskStatus ?? "");
+      return invoiceCount > 0 && risk !== "inactive";
+    }).length,
+    inactive: customers.filter((c) => String(c?.riskStatus ?? "") === "inactive").length,
+  };
+
+  const normalized: SalesDashboardData = {
+    kpis: {
+      totalSales: Number(totals?.netSales ?? 0),
+      collections: Number(totals?.collections ?? 0),
+      totalOutstanding: Number(totals?.outstanding ?? 0),
+      activeCustomers: Number(totals?.activeCustomers ?? 0),
+      overdueCustomers: overdueCustomers.length,
+      newCustomers: customerSegments.new,
+      salesGrowth: 0,
+    },
+    salesTrend: trend.map((t) => ({
+      date: String(t?.label ?? ""),
+      sales: Number(t?.sales ?? 0),
+      collections: Number(t?.collections ?? 0),
+    })),
+    salesByRep: Array.from(repMap.values()).sort((a, b) => b.sales - a.sales),
+    topCustomers,
+    customerSegments,
+    overdueCustomers,
+  };
+
+  return normalized;
 }
 
 export function useSalesDashboard(range: DateRange) {
