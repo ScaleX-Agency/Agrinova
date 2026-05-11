@@ -15,7 +15,9 @@ type StockEntryDetailsSectionProps = {
   onGrnNumberChange: (value: string) => void;
   onReferenceChange: (value: string) => void;
   onLocationChange: (value: number) => void;
+  grnNumberError?: string;
 };
+
 
 const StockEntryDetailsSection = ({
   entryType,
@@ -32,7 +34,9 @@ const StockEntryDetailsSection = ({
   onGrnNumberChange,
   onReferenceChange,
   onLocationChange,
+  grnNumberError,
 }: StockEntryDetailsSectionProps) => {
+
   const editableInputClassName =
     "rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]";
 
@@ -84,16 +88,18 @@ const StockEntryDetailsSection = ({
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <label className="flex flex-col gap-1.5">
-            <span className="text-[12px] font-medium text-stone-600">GRN Number</span>
+            <span className="text-[12px] font-medium text-stone-600">GRN Number *</span>
             <input
               type="text"
               value={grnNumber}
               onChange={(event) => onGrnNumberChange(event.target.value)}
               className={editableInputClassName}
-              placeholder="e.g., GRN-202604"
+              placeholder="e.g., GRN-202604-001"
             />
-            <p className="text-[11px] text-stone-500">Auto-generated, but can be customized</p>
+            {grnNumberError && <p className="text-[12px] text-red-700">{grnNumberError}</p>}
+            {!grnNumberError && <p className="text-[11px] text-stone-500">Enter a unique GRN number for this entry.</p>}
           </label>
+
 
           <label className="flex flex-col gap-1.5">
             <span className="text-[12px] font-medium text-stone-600">Reference No.</span>

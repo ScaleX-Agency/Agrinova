@@ -58,7 +58,16 @@ export async function POST(req: NextRequest) {
 
     const data = await createStockEntry(body, currentUser.user_id);
     return NextResponse.json({ data }, { status: 201 });
-  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err: any) {
+    console.error("[POST /api/stock] Error:", err);
+    const msg = err instanceof Error ? err.message : "Failed to create stock entry";
+    
+    let status = 400;
+    if (msg.includes("already exists") || msg.includes("unique GRN")) {
+      status = 409;
+    }
+
+    return NextResponse.json({ error: msg }, { status });
   }
 }
+

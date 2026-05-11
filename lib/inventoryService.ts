@@ -24,7 +24,11 @@ function computeStatus(
 }
 
 function computeQtyDelta(type: string, qty: number): number {
-  return type === "ISSUE" || type === "ADJUSTMENT" ? -qty : qty;
+  if (type === "ISSUE" || type === "ADJUSTMENT") return -qty;
+  if (type === "ISSUE_REVERSAL") return qty;
+  if (type === "RETURN_REVERSAL" || type === "PURCHASE_REVERSAL") return -qty;
+  if (type === "RETURN_UNUSABLE" || type === "RETURN_UNUSABLE_REVERSAL") return 0;
+  return qty;
 }
 
 // ── Stock ─────────────────────────────────────────────────────
@@ -37,7 +41,11 @@ export async function getAllStock(
   filters?: { search?: string; location_id?: number; status?: string },
 ): Promise<PaginatedResult<StockOverviewRow>> {
   // eslint-disable-next-line
-  const where: any = {};
+  const where: any = {
+    location: {
+      status: "ACTIVE",
+    },
+  };
   if (filters?.location_id) {
     where.location_id = filters.location_id;
   }
@@ -66,20 +74,22 @@ export async function getAllStock(
     }
   }
 
-  const total = await prisma.stock.count({ where });
-  const stocksRaw = await prisma.stock.findMany({
-    where,
-    include: {
-      product: { include: { category: true } },
-      location: true,
-    },
-    orderBy: [
-      { location: { location_id: "asc" } },
-      { product: { product_name: "asc" } },
-    ],
-    skip: (page - 1) * pageSize,
-    take: pageSize,
-  });
+  const [total, stocksRaw] = await Promise.all([
+    prisma.stock.count({ where }),
+    prisma.stock.findMany({
+      where,
+      include: {
+        product: { include: { category: true } },
+        location: true,
+      },
+      orderBy: [
+        { location: { location_id: "asc" } },
+        { product: { product_name: "asc" } },
+      ],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
 
   const items = stocksRaw.map((s) => {
     return {
@@ -125,7 +135,12 @@ export async function getAllStockByLocation(
    
 ): Promise<PaginatedResult<StockOverviewRow>> {
   // eslint-disable-next-line
-  const where: any = { location_id: locationId };
+  const where: any = {
+    location_id: locationId,
+    location: {
+      status: "ACTIVE",
+    },
+  };
 
   if (filters?.search) {
     where.OR = [
@@ -152,18 +167,20 @@ export async function getAllStockByLocation(
     }
   }
 
-  const total = await prisma.stock.count({ where });
-  const stocksRaw = await prisma.stock.findMany({
-    where,
-    include: {
-      product: { include: { category: true } },
-      location: true,
-    },
-    orderBy: [
-      { product: { product_name: "asc" } },
-      { stock_id: "asc" },
-    ],
-  });
+  const [total, stocksRaw] = await Promise.all([
+    prisma.stock.count({ where }),
+    prisma.stock.findMany({
+      where,
+      include: {
+        product: { include: { category: true } },
+        location: true,
+      },
+      orderBy: [
+        { product: { product_name: "asc" } },
+        { stock_id: "asc" },
+      ],
+    }),
+  ]);
 
   const items = stocksRaw.map((s) => ({
     stock_id: s.stock_id,
@@ -216,6 +233,7 @@ export const getLocationSummaries = unstable_cache(
         COUNT(CASE WHEN s.quantity_on_hand <= 0              THEN 1 END)      AS out_count
       FROM "INVENTORY_LOCATION" l
       LEFT JOIN "STOCK" s ON s.location_id = l.location_id
+      WHERE l.status = 'ACTIVE'
       GROUP BY l.location_id, l.code, l.name
       ORDER BY l.location_id
     `;
@@ -266,18 +284,20 @@ export async function getAllMovements(
     ];
   }
 
-  const total = await prisma.stockMovement.count({ where });
-  const movs = await prisma.stockMovement.findMany({
-    where,
-    include: {
-      stock: { include: { location: true } },
-      product: true,
-      creator: true,
-    },
-    orderBy: { movement_date: "desc" },
-    skip: (page - 1) * pageSize,
-    take: pageSize,
-  });
+  const [total, movs] = await Promise.all([
+    prisma.stockMovement.count({ where }),
+    prisma.stockMovement.findMany({
+      where,
+      include: {
+        stock: { include: { location: true } },
+        product: true,
+        creator: true,
+      },
+      orderBy: { movement_date: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
 
   const items = movs.map((m) => ({
     movement_id: m.movement_id,
@@ -286,8 +306,8 @@ export async function getAllMovements(
     product_name: m.product.product_name,
     product_code: m.product.product_code,
     location_code: m.stock.location.code,
+    movement_qty: m.quantity,
     qty_delta: computeQtyDelta(m.movement_type, m.quantity),
-    notes: m.notes,
     created_by_name: m.creator.full_name,
   }));
 
@@ -364,7 +384,6 @@ export async function createMovement(
         movement_type: dto.movement_type,
         quantity: dto.quantity,
         movement_date: new Date(),
-        notes: dto.notes ?? null,
       },
     });
 
@@ -403,7 +422,7 @@ export async function getAllProducts(
     ];
   }
 
-  const [total, products] = await prisma.$transaction([
+  const [total, products] = await Promise.all([
     prisma.product.count({ where }),
     prisma.product.findMany({
       where,
@@ -421,6 +440,7 @@ export async function getAllProducts(
     product_name: p.product_name,
     pack_size: p.pack_size,
     selling_price: Number(p.selling_price),
+    reorder_threshold: p.reorder_threshold,
     category: p.category,
   }));
 
@@ -467,6 +487,7 @@ export async function createProduct(dto: CreateProductDto, userId?: number) {
         pack_size: dto.pack_size,
         category_id: dto.category_id,
         selling_price: dto.selling_price,
+        reorder_threshold: dto.reorder_threshold ?? 0,
         product_code,
       },
       include: { category: true },
@@ -489,7 +510,6 @@ export async function createProduct(dto: CreateProductDto, userId?: number) {
           movement_type: "PURCHASE",
           quantity: dto.initial_qty,
           movement_date: new Date(),
-          notes: "Initial stock addition",
         },
       });
     }
@@ -733,7 +753,6 @@ export async function createStockEntry(
           movement_type: "PURCHASE",
           quantity: qty,
           movement_date: entryDate,
-          notes: movementNote || "Stock received via GRN.",
         },
       });
 
@@ -795,6 +814,7 @@ export async function updateProduct(
       pack_size: dto.pack_size,
       category_id: dto.category_id,
       selling_price: dto.selling_price,
+      reorder_threshold: dto.reorder_threshold,
     },
     include: { category: true },
   });
@@ -858,7 +878,6 @@ export async function importStock(data: any[], userId: number) {
         movement_type: row.entry_type || "PURCHASE",
         quantity: qty,
         movement_date: row.date ? new Date(row.date) : new Date(),
-        notes: row.notes || "Imported stock",
       },
     });
 

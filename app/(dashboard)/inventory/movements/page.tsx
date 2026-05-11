@@ -4,10 +4,11 @@
 
 import { useMemo, useState } from "react";
 import { Activity, Download, Search, Clock } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useAllMovements } from "@/hooks/useInventory";
-import type { MovementRow } from "@/types/inventory";
+import type { MovementRow, MovementType } from "@/types/inventory";
+import type { UnusableStockSummaryResponse } from "@/types/api";
 
-type MovementType = "ISSUE" | "RETURN" | "PURCHASE" | "ADJUSTMENT";
 type FilterType   = MovementType | "ALL";
 
 const TYPE_BADGE: Record<MovementType, string> = {
@@ -15,11 +16,36 @@ const TYPE_BADGE: Record<MovementType, string> = {
   RETURN:     "bg-teal-50   text-teal-700",
   PURCHASE:   "bg-green-50  text-green-700",
   ADJUSTMENT: "bg-amber-50  text-amber-800",
+  RETURN_UNUSABLE: "bg-rose-50 text-rose-700",
+  ISSUE_REVERSAL: "bg-indigo-50 text-indigo-700",
+  RETURN_REVERSAL: "bg-orange-50 text-orange-700",
+  PURCHASE_REVERSAL: "bg-yellow-50 text-yellow-700",
+  RETURN_UNUSABLE_REVERSAL: "bg-pink-50 text-pink-700",
 };
 const TYPE_LABELS: Record<FilterType, string> = {
-  ALL: "All", ISSUE: "Issue", RETURN: "Return", PURCHASE: "Purchase", ADJUSTMENT: "Adjustment",
+  ALL: "All",
+  ISSUE: "Issue",
+  RETURN: "Return",
+  PURCHASE: "Purchase",
+  ADJUSTMENT: "Adjustment",
+  RETURN_UNUSABLE: "Return Unusable",
+  ISSUE_REVERSAL: "Issue Reversal",
+  RETURN_REVERSAL: "Return Reversal",
+  PURCHASE_REVERSAL: "Purchase Reversal",
+  RETURN_UNUSABLE_REVERSAL: "Return Unusable Reversal",
 };
-const TYPES: FilterType[] = ["ALL", "ISSUE", "RETURN", "PURCHASE", "ADJUSTMENT"];
+const TYPES: FilterType[] = [
+  "ALL",
+  "ISSUE",
+  "RETURN",
+  "PURCHASE",
+  "ADJUSTMENT",
+  "RETURN_UNUSABLE",
+  "ISSUE_REVERSAL",
+  "RETURN_REVERSAL",
+  "PURCHASE_REVERSAL",
+  "RETURN_UNUSABLE_REVERSAL",
+];
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-GB", {
@@ -47,6 +73,17 @@ export default function MovementsPage() {
 
   // eslint-disable-next-line
   const filtered = response.items || [];
+  const unusableStockQuery = useQuery<number, Error>({
+    queryKey: ["unusable-stock-summary-total"],
+    queryFn: async () => {
+      const response = await fetch("/api/unusable-stock");
+      const result = (await response.json()) as UnusableStockSummaryResponse;
+      if (!response.ok) {
+        throw new Error(result.error ?? "Failed to load unusable stock summary.");
+      }
+      return result.data?.totalUnusableQty ?? 0;
+    },
+  });
 
   // With pagination, total stats are only approximate for the current page unless fetched separately.
   // For simplicity, we show current page stats here or omit them. We will show overall total from pagination.
@@ -76,12 +113,13 @@ export default function MovementsPage() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         {[
           { label: "Total Records", value: stats.total,     accent: "bg-stone-50 border-stone-200", text: "text-stone-700" },
           { label: "Issues",        value: stats.issues,    accent: "bg-blue-50 border-blue-100",   text: "text-blue-800"  },
           { label: "Purchases",     value: stats.purchases, accent: "bg-green-50 border-green-100", text: "text-green-700" },
           { label: "Returns",       value: stats.returns,   accent: "bg-teal-50 border-teal-100",   text: "text-teal-700"  },
+          { label: "Unusable Qty",  value: unusableStockQuery.data ?? 0, accent: "bg-rose-50 border-rose-100", text: "text-rose-700" },
         ].map((s) => (
           <div key={s.label} className={`border rounded-2xl p-4 ${s.accent}`}>
             <p className="text-[11px] font-medium uppercase tracking-wide text-stone-400 [font-family:var(--font-dmsans)]">
@@ -141,10 +179,10 @@ export default function MovementsPage() {
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-stone-100">
-              {["Date", "Type", "Product", "Location", "Qty", "Notes", "By"].map((h, i) => (
+              {["Date", "Type", "Product", "Location", "Recorded Qty", "Stock Delta", "By"].map((h, i) => (
                 <th
                   key={h}
-                  className={`px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-stone-400 bg-white [font-family:var(--font-dmsans)] ${i === 4 ? "text-right" : "text-left"}`}
+                  className={`px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-stone-400 bg-white [font-family:var(--font-dmsans)] ${i === 4 || i === 5 ? "text-right" : "text-left"}`}
                 >
                   {h}
                 </th>
@@ -194,11 +232,11 @@ export default function MovementsPage() {
                         {m.location_code}
                       </span>
                     </td>
+                    <td className="px-4 py-3 text-right [font-family:var(--font-jetbrains)] text-[14px] font-medium text-stone-700">
+                      {m.movement_qty}
+                    </td>
                     <td className="px-4 py-3 text-right [font-family:var(--font-jetbrains)] text-[14px] font-bold" style={{ color: isNeg ? "#991b1b" : "#166534" }}>
                       {isNeg ? `−${Math.abs(m.qty_delta)}` : `+${m.qty_delta}`}
-                    </td>
-                    <td className="px-4 py-3 text-[12px] text-stone-400 max-w-[160px] truncate [font-family:var(--font-dmsans)]">
-                      {m.notes ?? "—"}
                     </td>
                     <td className="px-4 py-3 text-[12px] text-stone-500 [font-family:var(--font-dmsans)]">
                       {m.created_by_name}

@@ -79,7 +79,7 @@ const GrnPrintButton = ({
               <>
                 <p>Date: {formatDate(grnDate)}</p>
                 <p>Entry Type: {ENTRY_TYPE_LABEL[entryType]}</p>
-                <p>Reference: {referenceNo ?? "—"}</p>
+                <p>Reference: {referenceNo ?? "-"}</p>
               </>
             }
           >

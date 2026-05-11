@@ -9,9 +9,11 @@ type InvoicePrintLine = {
   productName: string;
   packSize: string;
   quantity: number;
+  freeQuantity: number;
   unitPrice: number;
   discount: number;
   lineTotal: number;
+  returnedAmount: number;
 };
 
 type InvoicePrintButtonProps = {
@@ -25,7 +27,8 @@ type InvoicePrintButtonProps = {
   lines: InvoicePrintLine[];
   subtotal: number;
   discountTotal: number;
-  grandTotal: number;
+  returnsTotal: number;
+  grandTotalAfterReturns: number;
 };
 
 const formatDate = (value: string) =>
@@ -54,7 +57,8 @@ const InvoicePrintButton = ({
   lines,
   subtotal,
   discountTotal,
-  grandTotal,
+  returnsTotal,
+  grandTotalAfterReturns,
 }: InvoicePrintButtonProps) => {
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -94,9 +98,11 @@ const InvoicePrintButton = ({
                     <th>Product</th>
                     <th>Pack Size</th>
                     <th className="text-center">Qty</th>
+                    <th className="text-center">Free Qty</th>
                     <th className="text-right">Unit Price</th>
                     <th className="text-center">Discount (%)</th>
-                    <th className="text-right">Line Total</th>
+                    <th className="text-right">Gross Total</th>
+                    <th className="text-right">Returned</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -105,9 +111,13 @@ const InvoicePrintButton = ({
                       <td>{line.productName}</td>
                       <td>{line.packSize}</td>
                       <td className="text-center">{line.quantity}</td>
+                      <td className="text-center">{line.freeQuantity > 0 ? line.freeQuantity : "-"}</td>
                       <td className="text-right">{formatCurrency(line.unitPrice)}</td>
                       <td className="text-center">{line.discount.toFixed(2)}</td>
                       <td className="text-right">{formatCurrency(line.lineTotal)}</td>
+                      <td className="text-right text-red-700">
+                        {line.returnedAmount > 0 ? `- ${formatCurrency(line.returnedAmount)}` : "-"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -116,16 +126,20 @@ const InvoicePrintButton = ({
 
             <section className="mt-6 ml-auto w-[320px] space-y-1 text-[13px]">
               <div className="flex items-center justify-between border-b border-stone-200 pb-1">
-                <span>Subtotal</span>
+                <span>subtotal</span>
                 <span>{formatCurrency(subtotal)}</span>
               </div>
               <div className="flex items-center justify-between border-b border-stone-200 pb-1">
-                <span>Discount</span>
+                <span>discount</span>
                 <span>- {formatCurrency(discountTotal)}</span>
               </div>
+              <div className="flex items-center justify-between border-b border-stone-200 pb-1 text-red-700">
+                <span>returns</span>
+                <span>- {formatCurrency(returnsTotal)}</span>
+              </div>
               <div className="flex items-center justify-between pt-1 text-[15px] font-semibold text-[#1a5c2e]">
-                <span>Grand Total</span>
-                <span>{formatCurrency(grandTotal)}</span>
+                <span>grand total</span>
+                <span>{formatCurrency(grandTotalAfterReturns)}</span>
               </div>
             </section>
           </PrintPage>

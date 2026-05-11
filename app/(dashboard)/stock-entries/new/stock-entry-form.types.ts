@@ -12,6 +12,8 @@ export type ProductOption = {
 
 export type StockEntryFieldErrors = {
   date?: string;
+  grnNumber?: string;
   location?: string;
   lines?: string;
 };
+

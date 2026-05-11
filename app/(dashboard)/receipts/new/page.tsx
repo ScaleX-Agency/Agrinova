@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import ConfirmationModal from "@/components/ConfirmationModal";
+import ErrorModal from "@/components/ErrorModal";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -54,6 +56,9 @@ const NewReceiptPage = () => {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
+  const submitPayload = useRef<CreateReceiptRequestDto | null>(null);
 
   useEffect(() => {
     setInvoiceId(initialInvoiceId);
@@ -123,7 +128,7 @@ const NewReceiptPage = () => {
     }
   }, [invoiceId, invoicesQuery.data]);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFieldErrors({});
     setSubmitError("");
@@ -164,7 +169,8 @@ const NewReceiptPage = () => {
       return;
     }
 
-    const payload: CreateReceiptRequestDto = {
+    // Prepare payload and open confirmation modal
+    submitPayload.current = {
       invoiceId: invoiceId as number,
       collectedBy: 1,
       receiptDate,
@@ -174,13 +180,22 @@ const NewReceiptPage = () => {
       chequeDate: paymentMethod === "CHEQUE" ? chequeDate : undefined,
       bankName: paymentMethod === "CHEQUE" ? bankName.trim() : undefined,
     };
+    setIsConfirmModalOpen(true);
+  };
 
+  const confirmSave = async () => {
+    if (!submitPayload.current) return;
     try {
-      const result = await saveMutation.mutateAsync(payload);
-      setSuccessMessage(`Receipt created successfully (${result?.receiptNo ?? "saved"}).`);
-      router.push(`/invoices/${invoiceId}`);
+      const result = await saveMutation.mutateAsync(submitPayload.current);
+      setIsConfirmModalOpen(false);
+      // Wait for modal to close before navigating
+      setTimeout(() => {
+        router.push(`/invoices/${submitPayload.current?.invoiceId}`);
+      }, 0);
     } catch (error) {
+      setIsConfirmModalOpen(false);
       setSubmitError(error instanceof Error ? error.message : "Unable to create receipt.");
+      setIsErrorModalOpen(true);
     }
   };
 
@@ -416,17 +431,38 @@ const NewReceiptPage = () => {
           </section>
         )}
 
-        {submitError && (
+        {submitError && !isErrorModalOpen && (
           <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
             {submitError}
           </p>
         )}
-
         {successMessage && (
           <p className="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-[13px] text-green-700">
             {successMessage}
           </p>
         )}
+      <ConfirmationModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={confirmSave}
+        title="Confirm Receipt Submission"
+        description={
+          <>
+            Are you sure you want to record this payment for invoice <strong>{selectedInvoice?.invoiceNo}</strong>?
+            <br />
+            Double check all details before confirming.
+          </>
+        }
+        confirmLabel="Save Receipt"
+        isLoading={saveMutation.isPending}
+      />
+
+      <ErrorModal
+        isOpen={isErrorModalOpen}
+        onClose={() => setIsErrorModalOpen(false)}
+        title="Oops, something went wrong"
+        message={submitError}
+      />
 
         <div className="flex justify-end gap-2">
           <Link

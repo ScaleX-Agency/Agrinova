@@ -39,32 +39,30 @@ const formatCurrency = (value: number) =>
     maximumFractionDigits: 2,
   }).format(value);
 
-const toMonthKey = (isoDate: string) => {
-  const date = new Date(isoDate);
-  if (Number.isNaN(date.getTime())) return "";
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-};
-
-const formatMonthLabel = (monthKey: string) => {
-  const [year, month] = monthKey.split("-").map(Number);
-  if (!year || !month) return monthKey;
-  return new Date(year, month - 1, 1).toLocaleDateString("en-GB", {
-    month: "short",
-    year: "numeric",
-  });
-};
-   
-
 const ReceiptsClient = () => {
   // eslint-disable-next-line
   const [searchTerm, setSearchTerm] = useState("");
   const [methodFilter, setMethodFilter] = useState<MethodFilter>("ALL");
-  const [monthFilter, setMonthFilter] = useState("ALL");
+  const [rangeFilter, setRangeFilter] = useState("month");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+  const [appliedRange, setAppliedRange] = useState("month");
+  const [appliedStart, setAppliedStart] = useState("");
+  const [appliedEnd, setAppliedEnd] = useState("");
 
   const receiptsQuery = useQuery<ReceiptOptionDto[], Error>({
-    queryKey: ["receipts-list"],
+    queryKey: ["receipts-list", appliedRange, appliedStart, appliedEnd],
     queryFn: async () => {
-      const response = await fetch("/api/receipts");
+      const params = new URLSearchParams();
+      if (appliedRange !== "all") {
+        params.set("range", appliedRange);
+        if (appliedRange === "custom") {
+          if (appliedStart) params.set("startDate", appliedStart);
+          if (appliedEnd) params.set("endDate", appliedEnd);
+        }
+      }
+      const query = params.toString();
+      const response = await fetch(`/api/receipts${query ? `?${query}` : ""}`);
       const result = (await response.json()) as ReceiptsResponse;
       if (!response.ok) throw new Error(result.error ?? "Failed to load receipts.");
       return Array.isArray(result.data) ? result.data : [];
@@ -79,24 +77,18 @@ const ReceiptsClient = () => {
   // eslint-disable-next-line
   const receipts = receiptsQuery.data ?? [];
 
-  const monthOptions = useMemo(() => {
-    const unique = new Set(receipts.map((receipt) => toMonthKey(receipt.receiptDate)).filter(Boolean));
-    return Array.from(unique).sort((a, b) => (a > b ? -1 : 1));
-  }, [receipts]);
-
   const filtered = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
 
     return receipts.filter((receipt) => {
       const methodMatches = methodFilter === "ALL" || receipt.paymentMethod === methodFilter;
-      const monthMatches = monthFilter === "ALL" || toMonthKey(receipt.receiptDate) === monthFilter;
       const searchMatches =
         needle.length === 0 ||
         [receipt.receiptNo, receipt.invoiceNo, receipt.customerName].join(" ").toLowerCase().includes(needle);
 
-      return methodMatches && monthMatches && searchMatches;
+      return methodMatches && searchMatches;
     });
-  }, [methodFilter, monthFilter, receipts, searchTerm]);
+  }, [methodFilter, receipts, searchTerm]);
 
   const totalCollected = filtered.reduce((sum, receipt) => sum + receipt.amountReceived, 0);
 
@@ -205,6 +197,7 @@ const ReceiptsClient = () => {
         data={filtered}
         columns={tableColumns}
         minWidth={1080}
+        isLoading={receiptsQuery.isLoading}
         searchPlaceholder="Search receipt no, invoice no, or customer"
         emptyMessage="No receipts match the selected filters."
         toolbarRight={
@@ -221,22 +214,48 @@ const ReceiptsClient = () => {
             </select>
 
             <select
-              value={monthFilter}
-              onChange={(event) => setMonthFilter(event.target.value)}
+              value={rangeFilter}
+              onChange={(event) => setRangeFilter(event.target.value)}
               className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
             >
-              <option value="ALL">All Months</option>
-              {monthOptions.map((monthKey) => (
-                <option key={monthKey} value={monthKey}>
-                  {formatMonthLabel(monthKey)}
-                </option>
-              ))}
+              <option value="all">All Time</option>
+              <option value="day">Today</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="year">This Year</option>
+              <option value="custom">Custom Range</option>
             </select>
+
+            {rangeFilter === "custom" && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={(event) => setCustomStart(event.target.value)}
+                  className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+                />
+                <span className="text-[12px] text-stone-400">to</span>
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={(event) => setCustomEnd(event.target.value)}
+                  className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+                />
+              </div>
+            )}
+            <button
+              onClick={() => {
+                setAppliedRange(rangeFilter);
+                setAppliedStart(customStart);
+                setAppliedEnd(customEnd);
+              }}
+              className="rounded-xl bg-[#1a5c2e] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42]"
+            >
+              Apply Filter
+            </button>
           </>
         }
       />
-
-      {receiptsQuery.isLoading && <p className="text-[13px] text-stone-500">Loading receipts...</p>}
 
       {receiptsQuery.error instanceof Error && (
         <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">

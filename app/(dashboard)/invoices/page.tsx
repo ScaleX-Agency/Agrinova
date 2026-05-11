@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
    
   // eslint-disable-next-line
-import { Download, Eye, Package, Plus, Printer } from "lucide-react";
+import { Download, Eye, Plus, Printer } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { InvoiceOptionDto, InvoicesResponse } from "@/types/api";
@@ -54,45 +54,28 @@ const formatCurrency = (value: number) =>
     maximumFractionDigits: 2,
   }).format(value);
 
-const getRecentMonthOptions = (count: number) => {
-  const now = new Date();
-  const options: { key: string; label: string }[] = [];
-
-  for (let index = 0; index < count; index += 1) {
-    const date = new Date(now.getFullYear(), now.getMonth() - index, 1);
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-    const label = date.toLocaleDateString("en-GB", {
-      month: "short",
-      year: "numeric",
-    });
-    options.push({ key, label });
-  }
-
-  return options;
-};
-   
-
 const InvoicesPage = () => {
-  // eslint-disable-next-line
   const [searchTerm, setSearchTerm] = useState("");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<StatusFilter>("ALL");
   const [ginStatusFilter, setGinStatusFilter] = useState<GinStatusFilter>("ALL");
-  const [timeFilter, setTimeFilter] = useState("ALL");
+  const [rangeFilter, setRangeFilter] = useState("month");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
 
-  const monthOptions = useMemo(() => getRecentMonthOptions(12), []);
+  const [appliedRange, setAppliedRange] = useState("month");
+  const [appliedStart, setAppliedStart] = useState("");
+  const [appliedEnd, setAppliedEnd] = useState("");
 
   const invoicesQuery = useQuery<InvoiceOptionDto[], Error>({
-    queryKey: ["invoices-list", paymentStatusFilter, ginStatusFilter, timeFilter],
+    queryKey: ["invoices-list", appliedRange, appliedStart, appliedEnd],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (paymentStatusFilter !== "ALL") {
-        params.set("paymentStatus", paymentStatusFilter);
-      }
-      if (ginStatusFilter !== "ALL") {
-        params.set("ginStatus", ginStatusFilter);
-      }
-      if (timeFilter !== "ALL") {
-        params.set("month", timeFilter);
+      if (appliedRange !== "all") {
+        params.set("range", appliedRange);
+        if (appliedRange === "custom") {
+          if (appliedStart) params.set("startDate", appliedStart);
+          if (appliedEnd) params.set("endDate", appliedEnd);
+        }
       }
 
       const query = params.toString();
@@ -116,9 +99,12 @@ const InvoicesPage = () => {
         needle.length === 0 ||
         [invoice.invoiceNo, invoice.customerName, invoice.repName].join(" ").toLowerCase().includes(needle);
 
-      return searchMatches;
+      const paymentMatches = paymentStatusFilter === "ALL" || invoice.status === paymentStatusFilter;
+      const ginMatches = ginStatusFilter === "ALL" || invoice.ginStatus === ginStatusFilter;
+
+      return searchMatches && paymentMatches && ginMatches;
     });
-  }, [invoices, searchTerm]);
+  }, [invoices, searchTerm, paymentStatusFilter, ginStatusFilter]);
 
   const totalValue = filtered.reduce((sum, row) => sum + row.totalAmount, 0);
   const paid = filtered.filter((row) => row.status === "PAID").length;
@@ -185,38 +171,6 @@ const InvoicesPage = () => {
           const invoice = row.original;
           return (
             <div className="flex items-center justify-center gap-2">
-              {invoice.ginStatus === "ISSUED" ? (
-                <span
-                  className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-100 px-2.5 py-1.5 text-[12px] font-medium text-stone-400"
-                  title="GIN already issued"
-                >
-                  <Package size={12} />
-                  Issue Stocks
-                </span>
-              ) : (
-                <Link
-                  href={`/goods-issue-notes/new?invoiceId=${invoice.id}`}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
-                >
-                  <Package size={12} />
-                  Issue Stocks
-                </Link>
-              )}
-              {invoice.status === "PAID" ? (
-                <span
-                  className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-100 px-2.5 py-1.5 text-[12px] font-medium text-stone-400"
-                  title="Invoice is fully paid"
-                >
-                  Record Payment
-                </span>
-              ) : (
-                <Link
-                  href={`/receipts/new?invoiceId=${invoice.id}`}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d7a42]"
-                >
-                  Record Payment
-                </Link>
-              )}
               <Link
                 href={`/invoices/${invoice.id}`}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] hover:bg-[#eeeffe]"
@@ -280,6 +234,7 @@ const InvoicesPage = () => {
         data={filtered}
         columns={tableColumns}
         minWidth={1180}
+        isLoading={invoicesQuery.isFetching}
         searchPlaceholder="Search invoices, customer, or sales rep"
         emptyMessage="No invoices match the selected filters."
         toolbarRight={
@@ -308,24 +263,48 @@ const InvoicesPage = () => {
             </select>
 
             <select
-              value={timeFilter}
-              onChange={(event) => setTimeFilter(event.target.value)}
+              value={rangeFilter}
+              onChange={(event) => setRangeFilter(event.target.value)}
               className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
             >
-              <option value="ALL">All Time</option>
-              {monthOptions.map((monthOption) => (
-                <option key={monthOption.key} value={monthOption.key}>
-                  {monthOption.label}
-                </option>
-              ))}
+              <option value="all">All Time</option>
+              <option value="day">Today</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="year">This Year</option>
+              <option value="custom">Custom Range</option>
             </select>
+
+            {rangeFilter === "custom" && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={(e) => setCustomStart(e.target.value)}
+                  className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+                />
+                <span className="text-[12px] text-stone-400">to</span>
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={(e) => setCustomEnd(e.target.value)}
+                  className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+                />
+              </div>
+            )}
+            <button
+              onClick={() => {
+                setAppliedRange(rangeFilter);
+                setAppliedStart(customStart);
+                setAppliedEnd(customEnd);
+              }}
+              className="rounded-xl bg-[#1a5c2e] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42]"
+            >
+              Apply Filter
+            </button>
           </>
         }
       />
-
-      {invoicesQuery.isLoading && (
-        <p className="text-[13px] text-stone-500">Loading invoices...</p>
-      )}
 
       {invoicesQuery.error instanceof Error && (
         <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
