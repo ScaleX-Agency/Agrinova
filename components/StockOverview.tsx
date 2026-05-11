@@ -22,14 +22,19 @@ import { useAllMovements, useAllStock, useLocationSummaries } from "@/hooks/useI
 import type {
   LocationSummary,
   MovementRow,
+  MovementType,
+  PaginatedResult,
   StockFilter,
   StockOverviewRow,
 } from "@/types/inventory";
 
 interface StockOverviewProps {
-  initialStock?: { stock: StockOverviewRow[]; pagination: any };
+  initialStock?: {
+    stock: StockOverviewRow[];
+    pagination: { page: number; pageSize: number; total: number; totalPages: number };
+  };
   initialSummaries?: LocationSummary[];
-  initialMovements?: { items: MovementRow[]; pagination: any };
+  initialMovements?: PaginatedResult<MovementRow>;
 }
 
 export default function StockOverview({
@@ -59,7 +64,7 @@ export default function StockOverview({
 
   const [movementsPage, setMovementsPage] = useState(1);
   const movementsPageSize = 20;
-  const [movTypeFilter, setMovTypeFilter] = useState<any>("ALL");
+  const [movTypeFilter, setMovTypeFilter] = useState<"ALL" | MovementType>("ALL");
   const movementsEnabled = activeTab === "movements";
   const { data: movements = { items: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 1 } } } =
     useAllMovements(

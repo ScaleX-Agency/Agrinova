@@ -186,7 +186,7 @@ const NewReceiptPage = () => {
   const confirmSave = async () => {
     if (!submitPayload.current) return;
     try {
-      const result = await saveMutation.mutateAsync(submitPayload.current);
+      await saveMutation.mutateAsync(submitPayload.current);
       setIsConfirmModalOpen(false);
       // Wait for modal to close before navigating
       setTimeout(() => {

@@ -15,17 +15,13 @@ import type {
 // ── Query key registry ────────────────────────────────────────
 // Centralised so invalidation is consistent everywhere.
 export const KEYS = {
-  // eslint-disable-next-line
-  allStock:          (filters?: any) => ["stock", "all", filters] as const,
+  allStock:          (filters?: unknown) => ["stock", "all", filters] as const,
    
   summaries:         ["stock", "summaries"]   as const,
-  // eslint-disable-next-line
-  allMovements:      (filters?: any) => ["movements", "all", filters] as const,
-  stockTransfers:    (filters?: any) => ["stock-transfers", "all", filters] as const,
-  // eslint-disable-next-line
-  locationStock:     (id: number, filters?: any) => ["stock",     "location", id, filters] as const,
-  // eslint-disable-next-line
-  locationMovements: (id: number, filters?: any) => ["movements", "location", id, filters] as const,
+  allMovements:      (filters?: unknown) => ["movements", "all", filters] as const,
+  stockTransfers:    (filters?: unknown) => ["stock-transfers", "all", filters] as const,
+  locationStock:     (id: number, filters?: unknown) => ["stock",     "location", id, filters] as const,
+  locationMovements: (id: number, filters?: unknown) => ["movements", "location", id, filters] as const,
   products:          ["products"]             as const,
    
 };
