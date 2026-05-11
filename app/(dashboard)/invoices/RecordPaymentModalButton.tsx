@@ -195,7 +195,7 @@ const RecordPaymentModalButton = ({
         invoiceId,
         collectedBy: 0,
         receiptDate,
-        amountReceived: resolvedAmountReceived,
+        amountReceived: resolvedAmountReceived ?? 0,
         paymentMethod,
         chequeNo: paymentMethod === "CHEQUE" ? chequeNo.trim() : undefined,
         chequeDate: paymentMethod === "CHEQUE" ? chequeDate : undefined,

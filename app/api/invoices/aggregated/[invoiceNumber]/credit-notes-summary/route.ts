@@ -23,7 +23,7 @@ export async function GET(
         invoice_number: true,
         invoice_date: true,
         total_amount: true,
-        status: true,
+        payment_status: true,
         creditNotes: {
           where: { is_active: true },
           select: {
@@ -91,7 +91,7 @@ export async function GET(
           number: invoice.invoice_number,
           date: invoice.invoice_date.toISOString(),
           totalAmount: Number(invoice.total_amount),
-          status: invoice.status,
+          status: invoice.payment_status,
         },
         summary: {
           totalCredits: Number(totalCredits.toFixed(2)),

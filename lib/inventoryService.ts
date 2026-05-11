@@ -653,7 +653,6 @@ export async function createMovement(
         movement_type: dto.movement_type,
         quantity: dto.quantity,
         movement_date: new Date(),
-        notes: dto.notes ?? null,
       },
     });
 

@@ -23,7 +23,7 @@ export async function GET(
         invoice_number: true,
         invoice_date: true,
         total_amount: true,
-        status: true,
+        payment_status: true,
         notes: true,
         customer: {
           select: {
@@ -76,7 +76,8 @@ export async function GET(
               select: {
                 return_line_id: true,
                 product_id: true,
-                quantity: true,
+                quantity_usable: true,
+                quantity_unusable: true,
                 condition: true,
                 reason_for_return: true,
                 line_total: true,
@@ -111,7 +112,7 @@ export async function GET(
           number: invoice.invoice_number,
           date: invoice.invoice_date.toISOString(),
           totalAmount: Number(invoice.total_amount),
-          status: invoice.status,
+          status: invoice.payment_status,
           notes: invoice.notes,
           customer: invoice.customer,
           salesRep: invoice.rep,
@@ -140,7 +141,7 @@ export async function GET(
             productCode: line.product.product_code,
             productName: line.product.product_name,
             packSize: line.product.pack_size,
-            quantity: line.quantity,
+            quantity: line.quantity_usable + line.quantity_unusable,
             condition: line.condition,
             reasonForReturn: line.reason_for_return,
             lineTotal: Number(line.line_total),
