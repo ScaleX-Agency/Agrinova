@@ -48,16 +48,29 @@ const formatDate = (value: string | null) => {
 export default function SalesReturnNotesPage() {
   const [locationId, setLocationId] = useState("all");
   const [search, setSearch] = useState("");
+  const [rangeFilter, setRangeFilter] = useState("month");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+  const [appliedRange, setAppliedRange] = useState("month");
+  const [appliedStart, setAppliedStart] = useState("");
+  const [appliedEnd, setAppliedEnd] = useState("");
 
   const queryString = useMemo(() => {
     const sp = new URLSearchParams();
     sp.set("locationId", locationId);
+    if (appliedRange !== "all") {
+      sp.set("range", appliedRange);
+      if (appliedRange === "custom") {
+        if (appliedStart) sp.set("startDate", appliedStart);
+        if (appliedEnd) sp.set("endDate", appliedEnd);
+      }
+    }
     if (search.trim()) sp.set("search", search.trim());
     return sp.toString();
-  }, [locationId, search]);
+  }, [locationId, search, appliedRange, appliedStart, appliedEnd]);
 
   const listQuery = useQuery({
-    queryKey: ["sales-return-notes-list", locationId, search],
+    queryKey: ["sales-return-notes-list", locationId, search, appliedRange, appliedStart, appliedEnd],
     queryFn: async () => {
       const response = await fetch(`/api/sales-return-notes/list?${queryString}`, { cache: "no-store" });
       const result = (await response.json()) as ListResponse | { error?: string };
@@ -126,7 +139,7 @@ export default function SalesReturnNotesPage() {
       </header>
 
       <section className="rounded-2xl border border-stone-200 bg-white p-4 lg:p-5">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
           <label className="space-y-1">
             <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Location</span>
             <select
@@ -143,6 +156,22 @@ export default function SalesReturnNotesPage() {
             </select>
           </label>
 
+          <label className="space-y-1">
+            <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Date Range</span>
+            <select
+              value={rangeFilter}
+              onChange={(event) => setRangeFilter(event.target.value)}
+              className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]"
+            >
+              <option value="all">All Time</option>
+              <option value="day">Today</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="year">This Year</option>
+              <option value="custom">Custom Range</option>
+            </select>
+          </label>
+
           <label className="space-y-1 md:col-span-2">
             <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Search</span>
             <div className="relative">
@@ -155,6 +184,41 @@ export default function SalesReturnNotesPage() {
               />
             </div>
           </label>
+
+          {rangeFilter === "custom" && (
+            <>
+              <label className="space-y-1">
+                <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Start Date</span>
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={(event) => setCustomStart(event.target.value)}
+                  className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]"
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">End Date</span>
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={(event) => setCustomEnd(event.target.value)}
+                  className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]"
+                />
+              </label>
+            </>
+          )}
+        </div>
+        <div className="mt-3 flex justify-end">
+          <button
+            onClick={() => {
+              setAppliedRange(rangeFilter);
+              setAppliedStart(customStart);
+              setAppliedEnd(customEnd);
+            }}
+            className="rounded-xl bg-[#1a5c2e] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42]"
+          >
+            Apply Filter
+          </button>
         </div>
       </section>
 

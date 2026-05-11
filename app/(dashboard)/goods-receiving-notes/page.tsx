@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Eye, PackagePlus } from "lucide-react";
 import type { GoodsReceivingNotesResponse } from "@/types/api";
@@ -23,10 +24,26 @@ const formatDate = (value: string) =>
   });
 
 const GoodsReceivingNotesPage = () => {
+  const [rangeFilter, setRangeFilter] = useState("month");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+  const [appliedRange, setAppliedRange] = useState("month");
+  const [appliedStart, setAppliedStart] = useState("");
+  const [appliedEnd, setAppliedEnd] = useState("");
+
   const notesQuery = useQuery({
-    queryKey: ["goods-receiving-notes"],
+    queryKey: ["goods-receiving-notes", appliedRange, appliedStart, appliedEnd],
     queryFn: async () => {
-      const response = await fetch("/api/goods-receiving-notes");
+      const params = new URLSearchParams();
+      if (appliedRange !== "all") {
+        params.set("range", appliedRange);
+        if (appliedRange === "custom") {
+          if (appliedStart) params.set("startDate", appliedStart);
+          if (appliedEnd) params.set("endDate", appliedEnd);
+        }
+      }
+      const query = params.toString();
+      const response = await fetch(`/api/goods-receiving-notes${query ? `?${query}` : ""}`);
       const result = (await response.json()) as GoodsReceivingNotesResponse;
       if (!response.ok) {
         throw new Error(
@@ -62,6 +79,48 @@ const GoodsReceivingNotesPage = () => {
           New Stock Entry
         </Link>
       </header>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          value={rangeFilter}
+          onChange={(event) => setRangeFilter(event.target.value)}
+          className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+        >
+          <option value="all">All Time</option>
+          <option value="day">Today</option>
+          <option value="week">This Week</option>
+          <option value="month">This Month</option>
+          <option value="year">This Year</option>
+          <option value="custom">Custom Range</option>
+        </select>
+        {rangeFilter === "custom" && (
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={customStart}
+              onChange={(event) => setCustomStart(event.target.value)}
+              className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+            />
+            <span className="text-[12px] text-stone-400">to</span>
+            <input
+              type="date"
+              value={customEnd}
+              onChange={(event) => setCustomEnd(event.target.value)}
+              className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+            />
+          </div>
+        )}
+        <button
+          onClick={() => {
+            setAppliedRange(rangeFilter);
+            setAppliedStart(customStart);
+            setAppliedEnd(customEnd);
+          }}
+          className="rounded-xl bg-[#1a5c2e] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42]"
+        >
+          Apply Filter
+        </button>
+      </div>
 
       <div className="overflow-x-auto rounded-2xl border border-stone-200 bg-white">
         <table className="w-full min-w-[960px] border-collapse text-left text-[14px]">

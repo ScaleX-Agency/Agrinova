@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { Eye, FileText } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -28,10 +29,26 @@ const formatDate = (value: string) => {
 };
 
 const GoodsIssueNotesPage = () => {
+  const [rangeFilter, setRangeFilter] = useState("month");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+  const [appliedRange, setAppliedRange] = useState("month");
+  const [appliedStart, setAppliedStart] = useState("");
+  const [appliedEnd, setAppliedEnd] = useState("");
+
   const notesQuery = useQuery({
-    queryKey: ["goods-issue-notes"],
+    queryKey: ["goods-issue-notes", appliedRange, appliedStart, appliedEnd],
     queryFn: async () => {
-      const response = await fetch("/api/goods-issue-notes");
+      const params = new URLSearchParams();
+      if (appliedRange !== "all") {
+        params.set("range", appliedRange);
+        if (appliedRange === "custom") {
+          if (appliedStart) params.set("startDate", appliedStart);
+          if (appliedEnd) params.set("endDate", appliedEnd);
+        }
+      }
+      const query = params.toString();
+      const response = await fetch(`/api/goods-issue-notes${query ? `?${query}` : ""}`);
       const result = (await response.json()) as GoodsIssueNotesResponse;
       if (!response.ok) throw new Error(result.error ?? "Failed to load goods issue notes.");
       return Array.isArray(result.data) ? result.data : [];
@@ -129,6 +146,49 @@ const GoodsIssueNotesPage = () => {
         isLoading={notesQuery.isLoading}
         searchPlaceholder="Search GIN no, customer or location"
         emptyMessage="No goods issue notes found yet. Create an invoice and the system will generate the GIN."
+        toolbarRight={
+          <>
+            <select
+              value={rangeFilter}
+              onChange={(event) => setRangeFilter(event.target.value)}
+              className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+            >
+              <option value="all">All Time</option>
+              <option value="day">Today</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="year">This Year</option>
+              <option value="custom">Custom Range</option>
+            </select>
+            {rangeFilter === "custom" && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={(event) => setCustomStart(event.target.value)}
+                  className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+                />
+                <span className="text-[12px] text-stone-400">to</span>
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={(event) => setCustomEnd(event.target.value)}
+                  className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+                />
+              </div>
+            )}
+            <button
+              onClick={() => {
+                setAppliedRange(rangeFilter);
+                setAppliedStart(customStart);
+                setAppliedEnd(customEnd);
+              }}
+              className="rounded-xl bg-[#1a5c2e] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42]"
+            >
+              Apply Filter
+            </button>
+          </>
+        }
       />
 
       {notesQuery.error instanceof Error && (

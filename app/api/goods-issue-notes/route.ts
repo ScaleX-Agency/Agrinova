@@ -20,6 +20,9 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const invoiceIdParam = url.searchParams.get("invoiceId");
     const includeLines = url.searchParams.get("includeLines") === "true";
+    const range = url.searchParams.get("range");
+    const startDateParam = url.searchParams.get("startDate");
+    const endDateParam = url.searchParams.get("endDate");
     const checkGinNo = url.searchParams.get("checkGinNo") === "true";
     const ginNumber = url.searchParams.get("ginNumber")?.trim();
 
@@ -62,10 +65,53 @@ export async function GET(request: Request) {
       );
     }
 
+    let dateFilter: Prisma.DateTimeFilter | undefined;
+    if (range && range !== "all") {
+      const now = new Date();
+      let start: Date | null = null;
+      let end: Date | null = null;
+
+      if (range === "day") {
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      } else if (range === "week") {
+        const day = now.getDay();
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+        start = new Date(now.getFullYear(), now.getMonth(), diff);
+        end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7);
+      } else if (range === "month") {
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      } else if (range === "year") {
+        start = new Date(now.getFullYear(), 0, 1);
+        end = new Date(now.getFullYear() + 1, 0, 1);
+      } else if (range === "custom") {
+        start = startDateParam ? new Date(startDateParam) : null;
+        if (endDateParam) {
+          const endDate = new Date(endDateParam);
+          end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() + 1);
+        }
+      }
+
+      if (start || end) {
+        dateFilter = {};
+        if (start) dateFilter.gte = start;
+        if (end) dateFilter.lt = end;
+      }
+    } else if (startDateParam || endDateParam) {
+      dateFilter = {};
+      if (startDateParam) dateFilter.gte = new Date(startDateParam);
+      if (endDateParam) {
+        const end = new Date(endDateParam);
+        dateFilter.lt = new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1);
+      }
+    }
+
     const notes = await prisma.goodsIssueNote.findMany({
       where: {
         is_active: true,
         ...(invoiceId ? { invoice_id: invoiceId } : {}),
+        ...(dateFilter ? { gin_date: dateFilter } : {}),
       },
       orderBy: [{ gin_date: "desc" }, { gin_id: "desc" }],
       include: {

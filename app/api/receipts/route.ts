@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getReceiptNumber } from "@/lib/commission";
 import { getCurrentUser } from "@/lib/auth";
@@ -23,10 +24,60 @@ const toPositiveNumber = (value: unknown, fallback = 0) => {
 const isValidPaymentMethod = (value: unknown): value is "CASH" | "CHEQUE" | "BANK_TRANSFER" =>
   value === "CASH" || value === "CHEQUE" || value === "BANK_TRANSFER";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const range = searchParams.get("range");
+    const startDateParam = searchParams.get("startDate");
+    const endDateParam = searchParams.get("endDate");
+
+    let dateFilter: Prisma.DateTimeFilter | undefined;
+    if (range && range !== "all") {
+      const now = new Date();
+      let start: Date | null = null;
+      let end: Date | null = null;
+
+      if (range === "day") {
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      } else if (range === "week") {
+        const day = now.getDay();
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+        start = new Date(now.getFullYear(), now.getMonth(), diff);
+        end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7);
+      } else if (range === "month") {
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      } else if (range === "year") {
+        start = new Date(now.getFullYear(), 0, 1);
+        end = new Date(now.getFullYear() + 1, 0, 1);
+      } else if (range === "custom") {
+        start = startDateParam ? new Date(startDateParam) : null;
+        if (endDateParam) {
+          const endDate = new Date(endDateParam);
+          end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() + 1);
+        }
+      }
+
+      if (start || end) {
+        dateFilter = {};
+        if (start) dateFilter.gte = start;
+        if (end) dateFilter.lt = end;
+      }
+    } else if (startDateParam || endDateParam) {
+      dateFilter = {};
+      if (startDateParam) dateFilter.gte = new Date(startDateParam);
+      if (endDateParam) {
+        const end = new Date(endDateParam);
+        dateFilter.lt = new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1);
+      }
+    }
+
     const receipts = await prisma.receipt.findMany({
-      where: { is_active: true },
+      where: {
+        is_active: true,
+        ...(dateFilter ? { receipt_date: dateFilter } : {}),
+      },
       orderBy: [{ receipt_date: "desc" }, { receipt_id: "desc" }],
       select: {
         receipt_id: true,
