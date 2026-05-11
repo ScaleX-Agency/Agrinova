@@ -2,7 +2,8 @@
 
   // eslint-disable-next-line
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Mail, ShieldUser, UserRound } from "lucide-react";
 import BackNavigationLink from "@/components/ui/BackNavigationLink";
 
@@ -44,12 +45,10 @@ function formatRole(roleName: string) {
 }
 
 export default function AccountPageClient() {
-  const [account, setAccount] = useState<AccountDetails | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [saveError, setSaveError] = useState("");
+  const [formTouched, setFormTouched] = useState(false);
   const [form, setForm] = useState<AccountForm>({
     firstName: "",
     lastName: "",
@@ -57,37 +56,27 @@ export default function AccountPageClient() {
     password: "",
   });
 
-  const fetchAccount = useCallback(async () => {
-    setLoading(true);
-    setLoadError("");
-
-    try {
+  const accountQuery = useQuery<AccountApiResponse, Error>({
+    queryKey: ["account-profile"],
+    queryFn: async () => {
       const response = await fetch("/api/account", { cache: "no-store" });
       if (!response.ok) {
         const error = await getApiError(response, "Failed to load account.");
         throw new Error(error);
       }
+      return (await response.json()) as AccountApiResponse;
+    },
+  });
 
-      const data = (await response.json()) as AccountApiResponse;
-      setAccount(data.account);
-      setForm({
-        firstName: data.account.first_name,
-        lastName: data.account.last_name,
-        email: data.account.username,
+  const account = accountQuery.data?.account ?? null;
+  const formValues: AccountForm = formTouched && account
+    ? form
+    : {
+        firstName: account?.first_name ?? "",
+        lastName: account?.last_name ?? "",
+        email: account?.username ?? "",
         password: "",
-      });
-    } catch (error: unknown) {
-      setLoadError(
-        error instanceof Error ? error.message : "Failed to load account.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void fetchAccount();
-  }, [fetchAccount]);
+      };
 
   const handleSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -100,10 +89,10 @@ export default function AccountPageClient() {
 
     try {
       const payload = {
-        firstName: form.firstName.trim(),
-        lastName: form.lastName.trim(),
-        email: form.email.trim().toLowerCase(),
-        ...(form.password.trim() ? { password: form.password } : {}),
+        firstName: formValues.firstName.trim(),
+        lastName: formValues.lastName.trim(),
+        email: formValues.email.trim().toLowerCase(),
+        ...(formValues.password.trim() ? { password: formValues.password } : {}),
       };
 
       const response = await fetch("/api/account", {
@@ -117,12 +106,12 @@ export default function AccountPageClient() {
         throw new Error(error);
       }
 
-      const data = (await response.json()) as AccountApiResponse;
-      setAccount(data.account);
+      await accountQuery.refetch();
+      setFormTouched(false);
       setForm({
-        firstName: data.account.first_name,
-        lastName: data.account.last_name,
-        email: data.account.username,
+        firstName: "",
+        lastName: "",
+        email: "",
         password: "",
       });
       setSuccessMessage("Account updated successfully.");
@@ -135,7 +124,7 @@ export default function AccountPageClient() {
     }
   };
 
-  if (loading) {
+  if (accountQuery.isLoading) {
     return (
       <div className="space-y-4">
         <div className="h-8 w-44 rounded bg-stone-100 animate-pulse" />
@@ -149,27 +138,23 @@ export default function AccountPageClient() {
     );
   }
 
-  if (loadError || !account) {
+  if (accountQuery.error || !account) {
     return (
       <div className="px-4 py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 text-[13px] [font-family:var(--font-dmsans)]">
-        {loadError || "Account not found."}
+        {accountQuery.error?.message || "Account not found."}
       </div>
     );
   }
 
   const hasChanges =
-    form.firstName.trim() !== account.first_name.trim() ||
-    form.lastName.trim() !== account.last_name.trim() ||
-    form.email.trim().toLowerCase() !== account.username.trim().toLowerCase() ||
-    form.password.trim().length > 0;
+    formValues.firstName.trim() !== account.first_name.trim() ||
+    formValues.lastName.trim() !== account.last_name.trim() ||
+    formValues.email.trim().toLowerCase() !== account.username.trim().toLowerCase() ||
+    formValues.password.trim().length > 0;
 
   const handleCancelEdits = () => {
-    setForm({
-      firstName: account.first_name,
-      lastName: account.last_name,
-      email: account.username,
-      password: "",
-    });
+    setFormTouched(false);
+    setForm({ firstName: "", lastName: "", email: "", password: "" });
     setSaveError("");
     setSuccessMessage("");
   };
@@ -246,12 +231,13 @@ export default function AccountPageClient() {
                 First name
               </label>
               <input
-                value={form.firstName}
+                value={formValues.firstName}
                 onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    firstName: event.target.value,
-                  }))
+                  setForm((prev) => {
+                    setFormTouched(true);
+                    const base = formTouched ? prev : formValues;
+                    return { ...base, firstName: event.target.value };
+                  })
                 }
                 required
                 className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-white text-[13px] text-stone-800 placeholder:text-stone-300 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-50 [font-family:var(--font-dmsans)]"
@@ -262,9 +248,13 @@ export default function AccountPageClient() {
                 Last name
               </label>
               <input
-                value={form.lastName}
+                value={formValues.lastName}
                 onChange={(event) =>
-                  setForm((prev) => ({ ...prev, lastName: event.target.value }))
+                  setForm((prev) => {
+                    setFormTouched(true);
+                    const base = formTouched ? prev : formValues;
+                    return { ...base, lastName: event.target.value };
+                  })
                 }
                 required
                 className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-white text-[13px] text-stone-800 placeholder:text-stone-300 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-50 [font-family:var(--font-dmsans)]"
@@ -283,9 +273,13 @@ export default function AccountPageClient() {
               />
               <input
                 type="email"
-                value={form.email}
+                value={formValues.email}
                 onChange={(event) =>
-                  setForm((prev) => ({ ...prev, email: event.target.value }))
+                  setForm((prev) => {
+                    setFormTouched(true);
+                    const base = formTouched ? prev : formValues;
+                    return { ...base, email: event.target.value };
+                  })
                 }
                 required
                 className="w-full pl-8 pr-3 py-2 rounded-xl border border-stone-200 bg-white text-[13px] text-stone-800 placeholder:text-stone-300 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-50 [font-family:var(--font-dmsans)]"
@@ -300,9 +294,13 @@ export default function AccountPageClient() {
             <input
               type="password"
               minLength={8}
-              value={form.password}
+              value={formValues.password}
               onChange={(event) =>
-                setForm((prev) => ({ ...prev, password: event.target.value }))
+                setForm((prev) => {
+                  setFormTouched(true);
+                  const base = formTouched ? prev : formValues;
+                  return { ...base, password: event.target.value };
+                })
               }
               placeholder="Leave blank to keep current password"
               className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-white text-[13px] text-stone-800 placeholder:text-stone-300 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-50 [font-family:var(--font-dmsans)]"

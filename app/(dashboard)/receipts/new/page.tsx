@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef } from "react";
 import ConfirmationModal from "@/components/ConfirmationModal";
 import ErrorModal from "@/components/ErrorModal";
 import Link from "next/link";
@@ -60,10 +60,6 @@ const NewReceiptPage = () => {
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const submitPayload = useRef<CreateReceiptRequestDto | null>(null);
 
-  useEffect(() => {
-    setInvoiceId(initialInvoiceId);
-  }, [initialInvoiceId]);
-
   const invoicesQuery = useQuery<InvoiceOptionDto[], Error>({
     queryKey: ["receipt-invoices"],
     queryFn: async () => {
@@ -85,10 +81,15 @@ const NewReceiptPage = () => {
     },
   });
 
-  useEffect(() => {
-    if (!invoiceDetailQuery.data || amountTouched) return;
-    setAmountReceived(invoiceDetailQuery.data.outstandingAmount);
-  }, [amountTouched, invoiceDetailQuery.data]);
+  const selectedInvoiceOption = useMemo(
+    () =>
+      invoiceId && invoicesQuery.data
+        ? invoicesQuery.data.find((invoice) => invoice.id === invoiceId)
+        : undefined,
+    [invoiceId, invoicesQuery.data],
+  );
+
+  const effectiveInvoiceId = selectedInvoiceOption?.status === "PAID" ? null : invoiceId;
 
   const saveMutation = useMutation({
     mutationFn: async (payload: CreateReceiptRequestDto) => {
@@ -117,16 +118,9 @@ const NewReceiptPage = () => {
   );
 
   const selectedInvoice = invoiceDetailQuery.data;
-
-  useEffect(() => {
-    if (!invoiceId || !invoicesQuery.data) return;
-    const selectedOption = invoicesQuery.data.find((invoice) => invoice.id === invoiceId);
-    if (selectedOption?.status === "PAID") {
-      setInvoiceId(null);
-      setAmountTouched(false);
-      setAmountReceived(0);
-    }
-  }, [invoiceId, invoicesQuery.data]);
+  const effectiveAmountReceived = amountTouched
+    ? amountReceived
+    : (selectedInvoice?.outstandingAmount ?? amountReceived);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -136,7 +130,7 @@ const NewReceiptPage = () => {
 
     const nextFieldErrors: Record<string, string> = {};
 
-    if (!invoiceId) {
+    if (!effectiveInvoiceId) {
       nextFieldErrors.invoice = "Invoice is required.";
     }
 
@@ -144,11 +138,11 @@ const NewReceiptPage = () => {
       nextFieldErrors.receiptDate = "Receipt date is required.";
     }
 
-    if (!Number.isFinite(amountReceived) || amountReceived <= 0) {
+    if (!Number.isFinite(effectiveAmountReceived) || effectiveAmountReceived <= 0) {
       nextFieldErrors.amountReceived = "Amount must be greater than 0.";
     }
 
-    if (selectedInvoice && amountReceived > selectedInvoice.outstandingAmount) {
+    if (selectedInvoice && effectiveAmountReceived > selectedInvoice.outstandingAmount) {
       nextFieldErrors.amountReceived = "Amount cannot exceed outstanding amount.";
     }
 
@@ -171,10 +165,10 @@ const NewReceiptPage = () => {
 
     // Prepare payload and open confirmation modal
     submitPayload.current = {
-      invoiceId: invoiceId as number,
+      invoiceId: effectiveInvoiceId as number,
       collectedBy: 1,
       receiptDate,
-      amountReceived,
+      amountReceived: effectiveAmountReceived,
       paymentMethod,
       chequeNo: paymentMethod === "CHEQUE" ? chequeNo.trim() : undefined,
       chequeDate: paymentMethod === "CHEQUE" ? chequeDate : undefined,
@@ -258,7 +252,7 @@ const NewReceiptPage = () => {
             <label className="flex flex-col gap-1.5">
               <span className="text-[12px] font-medium text-stone-600">Invoice</span>
               <SearchableSelect
-                value={invoiceId}
+                value={effectiveInvoiceId}
                 onChange={(value) => {
                   setInvoiceId(value);
                   setAmountTouched(false);
@@ -332,7 +326,7 @@ const NewReceiptPage = () => {
                   type="number"
                   min={0}
                   step="0.01"
-                  value={Number.isFinite(amountReceived) ? amountReceived : 0}
+                  value={Number.isFinite(effectiveAmountReceived) ? effectiveAmountReceived : 0}
                   onChange={(event) => {
                     setAmountTouched(true);
                     setAmountReceived(Number(event.target.value));
