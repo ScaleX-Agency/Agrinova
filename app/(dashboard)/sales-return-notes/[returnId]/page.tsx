@@ -110,7 +110,6 @@ export default function SalesReturnNoteDetailPage() {
   }
 
   const detail = detailQuery.data;
-  const invoiceBalance = Math.max(0, detail.invoice.totalAmount - detail.invoice.creditedAmount);
 
   return (
     <section className="space-y-5">
@@ -162,9 +161,6 @@ export default function SalesReturnNoteDetailPage() {
               </p>
               <p>
                 <span className="font-medium text-stone-800">Invoice:</span> {detail.invoice.invoiceNumber}
-              </p>
-              <p>
-                <span className="font-medium text-stone-800">Credit Amount:</span> {formatCurrency(detail.invoice.creditedAmount)}
               </p>
             </div>
           </div>
@@ -224,7 +220,7 @@ export default function SalesReturnNoteDetailPage() {
                     <td className="border-r border-stone-200 px-4 py-3 text-right font-medium text-stone-900">{line.totalQty}</td>
                     <td className="border-r border-stone-200 px-4 py-3 text-stone-700">{line.condition}</td>
                     <td className="border-r border-stone-200 px-4 py-3 text-stone-700">{line.reasonForReturn}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-stone-900">{formatCurrency(line.lineTotal)}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-red-700">-{formatCurrency(line.lineTotal)}</td>
                   </tr>
                 ))
               ) : (
@@ -238,22 +234,6 @@ export default function SalesReturnNoteDetailPage() {
           </table>
         </div>
 
-        <div className="flex justify-end px-5 py-4">
-          <div className="w-full max-w-[360px] space-y-2 rounded-xl border border-stone-200 bg-stone-50 p-4 text-[13px]">
-            <div className="flex items-center justify-between border-b border-stone-200 pb-1.5 text-stone-700">
-              <span>invoice total</span>
-              <span>{formatCurrency(detail.invoice.totalAmount)}</span>
-            </div>
-            <div className="flex items-center justify-between border-b border-stone-200 pb-1.5 text-stone-700">
-              <span>credited amount</span>
-              <span>{formatCurrency(detail.invoice.creditedAmount)}</span>
-            </div>
-            <div className="flex items-center justify-between text-[15px] font-semibold text-red-700">
-              <span>invoice balance</span>
-              <span>{formatCurrency(invoiceBalance)}</span>
-            </div>
-          </div>
-        </div>
       </section>
 
       <section className="rounded-2xl border border-stone-200 bg-white p-4">

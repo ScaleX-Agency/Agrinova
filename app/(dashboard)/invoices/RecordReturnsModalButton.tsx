@@ -323,7 +323,7 @@ const RecordReturnsModalButton = ({
 
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-6xl rounded-xl border border-stone-200 bg-white p-5">
+          <div className="w-full max-w-[96vw] xl:max-w-[1500px] rounded-xl border border-stone-200 bg-white p-5">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="text-[18px] font-semibold text-stone-900">
