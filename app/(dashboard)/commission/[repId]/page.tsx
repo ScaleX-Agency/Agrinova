@@ -162,10 +162,29 @@ export default function CommissionRepDetailPage() {
     { accessorKey: "settlementType", header: "Type" },
     { accessorKey: "invoiceNo", header: "Invoice" },
     { accessorKey: "customerName", header: "Customer" },
-    { accessorKey: "settlementAmount", header: "Settlement", cell: ({ row }) => formatCurrency(row.original.settlementAmount), meta: { align: "right" } },
-    { accessorKey: "commissionRate", header: "Rate", cell: ({ row }) => `${row.original.commissionRate.toFixed(2)}%`, meta: { align: "right" } },
-    { accessorKey: "commissionAmount", header: "Commission", cell: ({ row }) => formatCurrency(row.original.commissionAmount), meta: { align: "right" } },
-    { accessorKey: "daysToPay", header: "Days", meta: { align: "right" } },
+    {
+      accessorKey: "settlementAmount",
+      header: "Settlement",
+      cell: ({ row }) => formatCurrency(row.original.settlementAmount),
+      meta: { align: "right", className: "border-l border-stone-200", headerClassName: "border-l border-stone-200" },
+    },
+    {
+      accessorKey: "commissionRate",
+      header: "Rate",
+      cell: ({ row }) => `${row.original.commissionRate.toFixed(2)}%`,
+      meta: { align: "right", className: "border-l border-stone-200", headerClassName: "border-l border-stone-200" },
+    },
+    {
+      accessorKey: "commissionAmount",
+      header: "Commission",
+      cell: ({ row }) => formatCurrency(row.original.commissionAmount),
+      meta: { align: "right", className: "border-l border-stone-200", headerClassName: "border-l border-stone-200" },
+    },
+    {
+      accessorKey: "daysToPay",
+      header: "Days",
+      meta: { align: "right", className: "border-l border-stone-200", headerClassName: "border-l border-stone-200" },
+    },
     { accessorKey: "status", header: "Status" },
   ];
 
@@ -190,7 +209,7 @@ export default function CommissionRepDetailPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Link href="/commission" className="inline-flex items-center gap-1 text-[12px] text-stone-500 hover:text-stone-700">
-            <ArrowLeft size={13} /> Back to Sales Rep Sales
+            <ArrowLeft size={13} /> Back to Commission
           </Link>
           <h1 className="mt-1 text-[28px] leading-tight text-stone-900 font-semibold">{detailQuery.data?.rep.repName ?? "Sales Rep"}</h1>
           <p className="text-[13px] text-stone-500 mt-1 inline-flex items-center gap-2">

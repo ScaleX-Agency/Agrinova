@@ -8,6 +8,8 @@ import type {
   PendingCommissionsResponse,
 } from "@/types/api";
 
+type PeriodType = "daily" | "weekly" | "monthly" | "yearly" | "custom";
+
 const formatDate = (value: string) =>
   new Date(value).toLocaleDateString("en-GB", {
     day: "2-digit",
@@ -23,7 +25,23 @@ const formatCurrency = (value: number) =>
     maximumFractionDigits: 2,
   }).format(value);
 
-export default function PendingCommissionTab() {
+export default function PendingCommissionTab({
+  periodType,
+  date,
+  month,
+  year,
+  from,
+  to,
+  repId,
+}: {
+  periodType: PeriodType;
+  date: string;
+  month: string;
+  year: string;
+  from: string;
+  to: string;
+  repId: string;
+}) {
   const qc = useQueryClient();
   const [rateEdits, setRateEdits] = useState<Record<number, number | undefined>>({});
   const [configDraft, setConfigDraft] = useState<{
@@ -35,9 +53,19 @@ export default function PendingCommissionTab() {
   } | null>(null);
 
   const pendingQuery = useQuery({
-    queryKey: ["commission-pending"],
+    queryKey: ["commission-pending", periodType, date, month, year, from, to, repId],
     queryFn: async () => {
-      const response = await fetch("/api/commission/pending");
+      const params = new URLSearchParams();
+      params.set("periodType", periodType);
+      if (periodType === "daily" || periodType === "weekly") params.set("date", date);
+      if (periodType === "monthly") params.set("month", month);
+      if (periodType === "yearly") params.set("year", year);
+      if (periodType === "custom") {
+        params.set("from", from);
+        params.set("to", to);
+      }
+      params.set("repId", repId);
+      const response = await fetch(`/api/commission/pending?${params.toString()}`);
       const result = (await response.json()) as PendingCommissionsResponse;
       if (!response.ok) throw new Error(result.error ?? "Failed to load pending commissions.");
       return result.data?.rows ?? [];
@@ -251,23 +279,6 @@ export default function PendingCommissionTab() {
               )}
             </tbody>
           </table>
-        </div>
-        <div className="mt-3 flex justify-end">
-          <button
-            type="button"
-            disabled={rows.length === 0 || approveMutation.isPending}
-            onClick={() =>
-              approveMutation.mutate(
-                rows.map((row) => ({
-                  settlementId: row.settlementId,
-                  rateOverride: rateEdits[row.settlementId],
-                })),
-              )
-            }
-            className="rounded-xl bg-[#2b2d7e] px-3 py-2 text-[12px] font-semibold text-white disabled:opacity-60"
-          >
-            {approveMutation.isPending ? "Approving..." : "Approve All Visible"}
-          </button>
         </div>
       </div>
     </section>

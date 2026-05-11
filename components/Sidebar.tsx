@@ -135,10 +135,15 @@ const NAV_GROUPS: NavGroup[] = [
         shortLabel: "Products",
       },
       {
-        href: "/commission",
+        href: "/sales-rep-sales",
         icon: <UserCheck size={16} />,
         label: "Sales Rep Sales",
         shortLabel: "Rep Sales",
+      },
+      {
+        href: "/commission",
+        icon: <BarChart3 size={16} />,
+        label: "Commission",
       },
     ],
   },
