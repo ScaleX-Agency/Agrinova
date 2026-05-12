@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   Boxes,
   Package,
-  ArrowLeftRight,
   ClipboardList,
   FileText,
   Receipt,
@@ -63,14 +62,6 @@ const SEARCH_INDEX: SearchItem[] = [
     icon: <ClipboardList size={15} />,
     group: "Inventory",
     keywords: ["grn", "goods receiving", "incoming", "purchase", "import"],
-  },
-  {
-    label: "Stock Movements",
-    description: "View issue / return / purchase history",
-    href: "/inventory/movements",
-    icon: <ArrowLeftRight size={15} />,
-    group: "Inventory",
-    keywords: ["movements", "transfer", "issue", "return", "adjustment"],
   },
   // Operations
   {

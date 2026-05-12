@@ -303,23 +303,16 @@ const InvoiceDetailPage = async ({
               customerName={invoice.customer.name}
               customerPhone={invoice.customer.phone ?? null}
               customerAddress={invoice.customer.address ?? null}
-              repName={invoice.rep.full_name}
-              statusLabel={STATUS_LABEL[paymentStatus]}
               lines={invoice.invoice_lines.map((line) => ({
                 lineId: line.line_id,
                 productName: line.product.product_name,
                 packSize: line.product.pack_size,
                 quantity: line.quantity,
-                freeQuantity: line.free_quantity,
                 unitPrice: Number(line.unit_price),
                 discount: Number(line.discount),
-                lineTotal: Number(line.line_total),
-                returnedAmount: Number(line.credited_amount),
+                netLineTotal: Number(line.net_line_total),
               }))}
-              subtotal={subtotal}
-              discountTotal={discountTotal}
-              returnsTotal={creditedAmount}
-              grandTotalAfterReturns={grandTotalAfterReturns}
+              totalAmount={total}
             />
 
             {ginStatus === "ISSUED" ? (

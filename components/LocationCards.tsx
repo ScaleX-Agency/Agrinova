@@ -40,7 +40,7 @@ export default function LocationCards({ summaries, selectedId, onSelect }: Props
               </span>
             )}
 
-            <p className="[font-family:var(--font-jetbrains)] text-[10px] font-medium text-stone-400 tracking-wider mb-0.5">
+            <p className="[font-family:var(--font-jetbrains)] text-[10px] font-medium text-stone-900 tracking-wider mb-0.5">
               {loc.code}
             </p>
             <p className={`text-[13px] font-semibold mb-2.5 ${isSelected ? "text-blue-800" : "text-stone-800"}`}>
@@ -50,11 +50,11 @@ export default function LocationCards({ summaries, selectedId, onSelect }: Props
             <div className="flex gap-3">
               <div>
                 <p className="text-[15px] font-bold text-stone-800 leading-none">{loc.total_products}</p>
-                <p className="text-[10px] text-stone-400 mt-0.5">Products</p>
+                <p className="text-[10px] text-stone-900 mt-0.5">Products</p>
               </div>
               <div>
                 <p className="text-[15px] font-bold text-stone-800 leading-none">{loc.total_units}</p>
-                <p className="text-[10px] text-stone-400 mt-0.5">Units</p>
+                <p className="text-[10px] text-stone-900 mt-0.5">Units</p>
               </div>
               {loc.low_count > 0 && (
                 <div>

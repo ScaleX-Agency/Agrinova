@@ -173,7 +173,13 @@ export default function CustomerDetailPageClient({
   }, [canEdit, resolvedCustomerId]);
 
   useEffect(() => {
-    void fetchCustomer();
+    const timer = window.setTimeout(() => {
+      void fetchCustomer();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [fetchCustomer]);
 
   const handleSave = async (event: FormEvent<HTMLFormElement>) => {

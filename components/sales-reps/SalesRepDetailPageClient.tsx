@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import {
   Phone,
   ShieldUser,
@@ -60,16 +61,13 @@ export default function SalesRepDetailPageClient({
   canEdit,
 }: SalesRepDetailPageClientProps) {
   const router = useRouter();
-  const [salesRep, setSalesRep] = useState<SalesRep | null>(null);
-  const [customers, setCustomers] = useState<SalesRepCustomerOption[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [formTouched, setFormTouched] = useState(false);
   const [form, setForm] = useState<EditSalesRepForm>({
     fullName: "",
     phone: "",
@@ -80,22 +78,14 @@ export default function SalesRepDetailPageClient({
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
   }, [repId]);
 
-  const hasEditChanges =
-    !!salesRep &&
-    (form.fullName.trim() !== salesRep.full_name.trim() ||
-      form.phone.trim() !== salesRep.phone.trim());
-
-  const fetchSalesRep = useCallback(async () => {
-    if (!resolvedRepId) {
-      setLoadError("Invalid sales rep ID.");
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    setLoadError("");
-
-    try {
+  const salesRepQuery = useQuery<
+    { salesRep: SalesRep; customers: SalesRepCustomerOption[] },
+    Error
+  >({
+    queryKey: ["sales-rep-detail", resolvedRepId],
+    enabled: Boolean(resolvedRepId),
+    queryFn: async () => {
+      if (!resolvedRepId) throw new Error("Invalid sales rep ID.");
       const [salesRepResponse, customersResponse] = await Promise.all([
         fetch(`/api/sales-reps/${resolvedRepId}`, {
           cache: "no-store",
@@ -125,35 +115,29 @@ export default function SalesRepDetailPageClient({
       const customersData =
         (await customersResponse.json()) as SalesRepCustomersResponse;
 
-      setSalesRep(data.salesRep);
-      setForm({
-        fullName: data.salesRep.full_name,
-        phone: data.salesRep.phone,
-      });
-      setCustomers(
-        Array.isArray(customersData.data)
+      const customers = Array.isArray(customersData.data)
           ? customersData.data
           : Array.isArray(customersData.customers)
             ? customersData.customers.map((customer) => ({
                 id: customer.customer_id,
                 label: customer.name,
               }))
-            : [],
-      );
-    } catch (error: unknown) {
-      setLoadError(
-        error instanceof Error
-          ? error.message
-          : "Failed to load sales rep details.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [resolvedRepId]);
+            : [];
 
-  useEffect(() => {
-    void fetchSalesRep();
-  }, [fetchSalesRep]);
+      return { salesRep: data.salesRep, customers };
+    },
+  });
+
+  const salesRep = salesRepQuery.data?.salesRep ?? null;
+  const customers = salesRepQuery.data?.customers ?? [];
+  const formValues: EditSalesRepForm = formTouched && salesRep
+    ? form
+    : { fullName: salesRep?.full_name ?? "", phone: salesRep?.phone ?? "" };
+
+  const hasEditChanges =
+    !!salesRep &&
+    (formValues.fullName.trim() !== salesRep.full_name.trim() ||
+      formValues.phone.trim() !== salesRep.phone.trim());
 
   const handleSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -166,8 +150,8 @@ export default function SalesRepDetailPageClient({
 
     try {
       const payload = {
-        fullName: form.fullName.trim(),
-        phone: form.phone.trim(),
+        fullName: formValues.fullName.trim(),
+        phone: formValues.phone.trim(),
       };
 
       const response = await fetch(`/api/sales-reps/${resolvedRepId}`, {
@@ -186,12 +170,9 @@ export default function SalesRepDetailPageClient({
         throw new Error(error);
       }
 
-      const data = (await response.json()) as SalesRepDetailApiResponse;
-      setSalesRep(data.salesRep);
-      setForm({
-        fullName: data.salesRep.full_name,
-        phone: data.salesRep.phone,
-      });
+      await salesRepQuery.refetch();
+      setFormTouched(false);
+      setForm({ fullName: "", phone: "" });
       setEditing(false);
       setSuccessMessage("Sales rep updated successfully.");
     } catch (error: unknown) {
@@ -234,7 +215,7 @@ export default function SalesRepDetailPageClient({
     }
   };
 
-  if (loading) {
+  if (salesRepQuery.isLoading) {
     return (
       <div className="space-y-4">
         <div className="h-8 w-44 rounded bg-stone-100 animate-pulse" />
@@ -248,12 +229,12 @@ export default function SalesRepDetailPageClient({
     );
   }
 
-  if (loadError || !salesRep) {
+  if (salesRepQuery.error || !salesRep) {
     return (
       <div className="space-y-4">
         <BackNavigationLink href="/sales-reps" label="Back to Sales Reps" />
         <div className="px-4 py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 text-[13px] [font-family:var(--font-dmsans)]">
-          {loadError || "Sales rep not found."}
+          {salesRepQuery.error?.message || "Sales rep not found."}
         </div>
       </div>
     );
@@ -328,12 +309,13 @@ export default function SalesRepDetailPageClient({
                 Full name
               </label>
               <input
-                value={form.fullName}
+                value={formValues.fullName}
                 onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    fullName: event.target.value,
-                  }))
+                  setForm((prev) => {
+                    setFormTouched(true);
+                    const base = formTouched ? prev : formValues;
+                    return { ...base, fullName: event.target.value };
+                  })
                 }
                 required
                 className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-white text-[13px] text-stone-800 placeholder:text-stone-300 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-50 [font-family:var(--font-dmsans)]"
@@ -345,12 +327,13 @@ export default function SalesRepDetailPageClient({
                 Phone
               </label>
               <input
-                value={form.phone}
+                value={formValues.phone}
                 onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    phone: event.target.value,
-                  }))
+                  setForm((prev) => {
+                    setFormTouched(true);
+                    const base = formTouched ? prev : formValues;
+                    return { ...base, phone: event.target.value };
+                  })
                 }
                 required
                 className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-white text-[13px] text-stone-800 placeholder:text-stone-300 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-50 [font-family:var(--font-dmsans)]"
@@ -362,10 +345,8 @@ export default function SalesRepDetailPageClient({
                 type="button"
                 onClick={() => {
                   setEditing(false);
-                  setForm({
-                    fullName: salesRep.full_name,
-                    phone: salesRep.phone,
-                  });
+                  setFormTouched(false);
+                  setForm({ fullName: "", phone: "" });
                   setSaveError("");
                 }}
                 className="px-4 py-2 rounded-xl border border-stone-200 text-[13px] font-medium text-stone-600 hover:bg-stone-100 transition-colors [font-family:var(--font-dmsans)]"

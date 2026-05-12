@@ -75,9 +75,13 @@ export async function POST(req: Request, { params }: Props) {
         "RETURN_UNUSABLE",
         "PURCHASE",
         "ADJUSTMENT",
+        "TRANSFER_OUT",
+        "TRANSFER_IN",
         "ISSUE_REVERSAL",
         "RETURN_REVERSAL",
         "PURCHASE_REVERSAL",
+        "TRANSFER_OUT_REVERSAL",
+        "TRANSFER_IN_REVERSAL",
         "RETURN_UNUSABLE_REVERSAL",
       ].includes(dto.movement_type)
     ) {

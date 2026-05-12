@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useQuery } from "@tanstack/react-query";
    
   // eslint-disable-next-line
 import { Phone, Plus, UserRound, Users, X } from "lucide-react";
@@ -44,9 +45,6 @@ async function getApiError(response: Response, fallback: string) {
 export default function SalesRepsPageClient({
   canEdit,
 }: SalesRepsPageClientProps) {
-  const [salesReps, setSalesReps] = useState<SalesRep[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createForm, setCreateForm] =
     useState<CreateSalesRepForm>(DEFAULT_CREATE_FORM);
@@ -104,31 +102,18 @@ export default function SalesRepsPageClient({
     [],
   );
 
-  const fetchSalesReps = useCallback(async () => {
-    setLoading(true);
-    setLoadError("");
-
-    try {
+  const salesRepsQuery = useQuery<SalesRep[], Error>({
+    queryKey: ["sales-reps-list"],
+    queryFn: async () => {
       const response = await fetch("/api/sales-reps", { cache: "no-store" });
       if (!response.ok) {
         const error = await getApiError(response, "Failed to load sales reps.");
         throw new Error(error);
       }
-
       const data = (await response.json()) as SalesRepsApiResponse;
-      setSalesReps(data.salesReps ?? []);
-    } catch (error: unknown) {
-      setLoadError(
-        error instanceof Error ? error.message : "Failed to load sales reps.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void fetchSalesReps();
-  }, [fetchSalesReps]);
+      return data.salesReps ?? [];
+    },
+  });
 
   const handleCreateSalesRep = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -156,7 +141,7 @@ export default function SalesRepsPageClient({
       setCreateForm(DEFAULT_CREATE_FORM);
       setIsCreateOpen(false);
       setSuccessMessage("Sales rep created successfully.");
-      await fetchSalesReps();
+      await salesRepsQuery.refetch();
     } catch (error: unknown) {
       setCreateError(
         error instanceof Error ? error.message : "Failed to create sales rep.",
@@ -200,20 +185,20 @@ export default function SalesRepsPageClient({
         </div>
       )}
 
-      {loadError && (
+      {salesRepsQuery.error && (
         <div className="px-4 py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 text-[13px] [font-family:var(--font-dmsans)]">
-          {loadError}
+          {salesRepsQuery.error.message}
         </div>
       )}
 
       <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden">
         
 
-        {loading ? (
+        {salesRepsQuery.isLoading ? (
           <div className="px-4 py-8 text-[13px] text-stone-500">Loading sales reps...</div>
         ) : (
           <DataTable
-            data={salesReps}
+            data={salesRepsQuery.data ?? []}
             columns={salesRepColumns}
             minWidth={820}
             searchPlaceholder="Search sales reps..."
