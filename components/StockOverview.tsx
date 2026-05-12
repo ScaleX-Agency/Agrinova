@@ -38,9 +38,9 @@ interface StockOverviewProps {
 }
 
 export default function StockOverview({
-  initialStock = { stock: [], pagination: { total: 0 } },
+  initialStock = { stock: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 1 } },
   initialSummaries = [],
-  initialMovements = { items: [], pagination: { total: 0 } },
+  initialMovements = { items: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 1 } },
 }: StockOverviewProps) {
   const qc = useQueryClient();
   const router = useRouter();
