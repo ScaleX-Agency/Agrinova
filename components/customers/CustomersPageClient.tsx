@@ -204,7 +204,13 @@ export default function CustomersPageClient({
   }, []);
 
   useEffect(() => {
-    void fetchData();
+    const timer = window.setTimeout(() => {
+      void fetchData();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [fetchData]);
 
   const handleCreateCustomer = async (event: FormEvent<HTMLFormElement>) => {
