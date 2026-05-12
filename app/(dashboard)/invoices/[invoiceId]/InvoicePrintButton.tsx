@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import Image from "next/image";
 import PrintButton from "@/components/print/PrintButton";
 
 type InvoicePrintLine = {
@@ -68,7 +69,7 @@ const InvoicePrintButton = ({
             </section>
 
             <section className="flex flex-col items-center justify-start gap-2 pt-0 text-center">
-              <img src="/agrinova-logo.jpeg" alt="Agrinova" className="h-12 w-auto object-contain" />
+              <Image src="/agrinova-logo.jpeg" alt="Agrinova" width={160} height={48} className="h-12 w-auto object-contain" priority />
               <p className="text-[28px] font-semibold tracking-[0.18em] text-[#2b2d7e]">INVOICE</p>
               <p className="text-[11px] uppercase tracking-[0.12em] text-stone-500">Official customer copy</p>
             </section>
