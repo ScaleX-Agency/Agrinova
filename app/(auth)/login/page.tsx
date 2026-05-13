@@ -1,6 +1,6 @@
 "use client";
 
-import { useSignIn, useClerk } from "@clerk/nextjs";
+import { useSignIn } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -32,10 +32,10 @@ type ClerkMethodResult = { error: unknown | null };
 type IdentifierResult =
   | { status: "complete" }
   | { status: "needs_password"; safeIdentifier: string }
-  | { status: "needs_second_factor"; safeIdentifier: string };
+  | { status: "verification"; safeIdentifier: string };
 type PasswordResult =
   | { status: "complete" }
-  | { status: "needs_second_factor"; safeIdentifier: string };
+  | { status: "verification"; safeIdentifier: string };
 
 function getErrorMessage(error: unknown): string {
   if (
@@ -70,12 +70,6 @@ function listFactorStrategies(
   return factors?.map((factor) => factor.strategy).join(", ") ?? "none";
 }
 
-function getEmailCodeSecondFactor(
-  factors: ReadonlyArray<SecondFactorOption> | null | undefined,
-): SecondFactorOption | undefined {
-  return factors?.find((factor) => factor.strategy === "email_code");
-}
-
 function getIdentifierHint(
   factors: ReadonlyArray<FirstFactorOption> | null | undefined,
   fallbackIdentifier: string,
@@ -84,12 +78,83 @@ function getIdentifierHint(
   return firstWithHint?.safeIdentifier ?? fallbackIdentifier;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function logClerkState(label: string, signIn: any, extra?: unknown) {
+  console.group(`[Clerk Debug] ${label}`);
+
+  console.log("status:", signIn?.status);
+  console.log("createdSessionId:", signIn?.createdSessionId);
+
+  console.log(
+    "supportedFirstFactors:",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    signIn?.supportedFirstFactors?.map((factor: any) => ({
+      strategy: factor.strategy,
+      safeIdentifier: factor.safeIdentifier,
+      emailAddressId: factor.emailAddressId,
+      phoneNumberId: factor.phoneNumberId,
+    })),
+  );
+
+  console.log(
+    "supportedSecondFactors:",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    signIn?.supportedSecondFactors?.map((factor: any) => ({
+      strategy: factor.strategy,
+      safeIdentifier: factor.safeIdentifier,
+      emailAddressId: factor.emailAddressId,
+      phoneNumberId: factor.phoneNumberId,
+    })),
+  );
+
+  console.log("has emailCode:", !!signIn?.emailCode);
+  console.log("has mfa:", !!signIn?.mfa);
+  console.log("mfa keys:", signIn?.mfa ? Object.keys(signIn.mfa) : []);
+  console.log(
+    "emailCode keys:",
+    signIn?.emailCode ? Object.keys(signIn.emailCode) : [],
+  );
+
+  if (extra) {
+    console.log("extra:", extra);
+  }
+
+  console.groupEnd();
+}
+
+function logClerkError(label: string, error: unknown) {
+  console.group(`[Clerk Error] ${label}`);
+
+  console.error(error);
+
+  if (
+    error &&
+    typeof error === "object" &&
+    "errors" in error &&
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    Array.isArray((error as any).errors)
+  ) {
+    console.table(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (error as any).errors.map((err: any) => ({
+        code: err.code,
+        message: err.message,
+        longMessage: err.longMessage,
+        meta: JSON.stringify(err.meta ?? {}),
+      })),
+    );
+  }
+
+  console.groupEnd();
+}
+
 export default function LoginPage() {
   const { signIn, fetchStatus } = useSignIn();
-  const { setActive } = useClerk();
   const router = useRouter();
   const [globalError, setGlobalError] = useState("");
-  const [step, setStep] = useState<"identifier" | "password" | "second_factor">("identifier");
+  const [step, setStep] = useState<"identifier" | "password" | "verification">(
+    "identifier",
+  );
   const [verificationNotice, setVerificationNotice] = useState("");
   const [safeIdentifier, setSafeIdentifier] = useState("");
   const [identifierValue, setIdentifierValue] = useState("");
@@ -116,11 +181,44 @@ export default function LoginPage() {
   });
 
   const activateSession = async () => {
-    const createdSessionId = signIn?.createdSessionId;
-    if (!createdSessionId) {
-      throw new Error("Sign in succeeded but no session was created.");
+    if (!signIn) {
+      throw new Error("Clerk sign in resource missing");
     }
-    await setActive({ session: createdSessionId });
+
+    logClerkState("Before activateSession()", signIn);
+
+    if (signIn.status !== "complete") {
+      throw new Error(
+        `Cannot activate session because sign-in is not complete. Current Clerk status: ${signIn.status}`,
+      );
+    }
+
+    if (typeof signIn.finalize === "function") {
+      const finalizeResult = await signIn.finalize({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        navigate: ({ session, decorateUrl }: any) => {
+          if (session?.currentTask) {
+            console.log(
+              "[Clerk Debug] session currentTask:",
+              session.currentTask,
+            );
+            return;
+          }
+
+          const url = decorateUrl("/");
+          if (url.startsWith("http")) {
+            window.location.href = url;
+          } else {
+            router.push(url);
+          }
+        },
+      });
+
+      logClerkState("After activateSession()", signIn, finalizeResult);
+      return;
+    }
+
+    throw new Error("signIn.finalize() is not available.");
   };
 
   const resetSignIn = async () => {
@@ -154,6 +252,24 @@ export default function LoginPage() {
         const hasPasswordFactor = !!firstFactors?.some(
           (factor) => factor.strategy === "password",
         );
+        const emailCodeFactor = firstFactors?.find(
+          (factor) => factor.strategy === "email_code",
+        );
+
+        // If no password factor exists but email code does, try email code.
+        if (!hasPasswordFactor && emailCodeFactor) {
+          const prepareResult = await signIn.emailCode.sendCode({
+            emailAddressId: (emailCodeFactor as { emailAddressId?: string })
+              .emailAddressId,
+          });
+          throwIfClerkError(prepareResult);
+
+          return {
+            status: "verification",
+            safeIdentifier:
+              emailCodeFactor.safeIdentifier ?? values.identifier.trim(),
+          };
+        }
 
         if (!hasPasswordFactor) {
           throw new Error(
@@ -171,24 +287,58 @@ export default function LoginPage() {
       }
 
       if (status === "needs_second_factor") {
+        logClerkState(
+          "needs_second_factor detected in identifierMutation",
+          signIn,
+        );
         const secondFactors =
           signIn.supportedSecondFactors as ReadonlyArray<SecondFactorOption>;
-        const emailCodeFactor = getEmailCodeSecondFactor(secondFactors);
 
-        if (!emailCodeFactor) {
-          throw new Error(
-            `Second-factor verification is required, but email code is not available. Supported factors: ${listFactorStrategies(secondFactors)}`,
+        const strategies =
+          secondFactors?.map((factor) => factor.strategy) ?? [];
+        console.log("[Clerk Debug] second factor strategies:", strategies);
+
+        if (strategies.includes("phone_code") && signIn.mfa?.sendPhoneCode) {
+          logClerkState("Before sending second factor code (phone)", signIn);
+          const sendCodeResult = await signIn.mfa.sendPhoneCode();
+          throwIfClerkError(sendCodeResult);
+          const phoneCodeFactor = secondFactors?.find(
+            (f) => f.strategy === "phone_code",
           );
+          return {
+            status: "verification",
+            safeIdentifier:
+              phoneCodeFactor?.safeIdentifier ?? values.identifier.trim(),
+          };
+        } else if (
+          strategies.includes("email_code") &&
+          signIn.mfa?.sendEmailCode
+        ) {
+          const emailCodeFactor = secondFactors?.find(
+            (f) => f.strategy === "email_code",
+          );
+
+          logClerkState(
+            "Before sending second factor code using MFA email",
+            signIn,
+            {
+              safeIdentifier: emailCodeFactor?.safeIdentifier,
+            },
+          );
+
+          const sendCodeResult = await signIn.mfa.sendEmailCode();
+          throwIfClerkError(sendCodeResult);
+
+          return {
+            status: "verification",
+            safeIdentifier:
+              emailCodeFactor?.safeIdentifier || values.identifier.trim(),
+          };
         }
 
-        const sendCodeResult = await signIn.mfa.sendEmailCode();
-        throwIfClerkError(sendCodeResult);
-
-        return {
-          status: "needs_second_factor",
-          safeIdentifier:
-            emailCodeFactor.safeIdentifier ?? values.identifier.trim(),
-        };
+        throw new Error(
+          `Second-factor verification is required, but a suitable code strategy is not available. Supported factors: ${listFactorStrategies(secondFactors)}`,
+        );
       }
 
       throw new Error(
@@ -211,9 +361,9 @@ export default function LoginPage() {
         return;
       }
 
-      setStep("second_factor");
+      setStep("verification");
       setSafeIdentifier(result.safeIdentifier);
-      setVerificationNotice("A verification code was sent to your email.");
+      setVerificationNotice("A verification code was sent.");
       verificationForm.reset();
     },
     onError: (error) => {
@@ -225,10 +375,20 @@ export default function LoginPage() {
     mutationFn: async (values: PasswordFormValues): Promise<PasswordResult> => {
       if (!signIn) throw new Error("Clerk sign in resource missing");
 
-      const response = await signIn.password({
-        password: values.password,
-      });
-      throwIfClerkError(response);
+      logClerkState("Before password()", signIn);
+
+      let response;
+      try {
+        response = await signIn.password({
+          password: values.password,
+        });
+        logClerkState("After password()", signIn, response);
+        throwIfClerkError(response);
+      } catch (error) {
+        logClerkError("password() failed", error);
+        throw error;
+      }
+
       const status = signIn.status;
 
       if (status === "complete") {
@@ -237,24 +397,67 @@ export default function LoginPage() {
       }
 
       if (status === "needs_second_factor") {
+        logClerkState(
+          "needs_second_factor detected in passwordMutation",
+          signIn,
+        );
         const secondFactors =
           signIn.supportedSecondFactors as ReadonlyArray<SecondFactorOption>;
-        const emailCodeFactor = getEmailCodeSecondFactor(secondFactors);
 
-        if (!emailCodeFactor) {
-          throw new Error(
-            `Second-factor verification is required, but email code is not available. Supported factors: ${listFactorStrategies(secondFactors)}`,
+        const strategies =
+          secondFactors?.map((factor) => factor.strategy) ?? [];
+        console.log("[Clerk Debug] second factor strategies:", strategies);
+
+        if (strategies.includes("phone_code") && signIn.mfa?.sendPhoneCode) {
+          logClerkState("Before sending second factor code (phone)", signIn);
+          const sendCodeResult = await signIn.mfa.sendPhoneCode();
+          throwIfClerkError(sendCodeResult);
+          const phoneCodeFactor = secondFactors?.find(
+            (f) => f.strategy === "phone_code",
           );
+          return {
+            status: "verification",
+            safeIdentifier:
+              phoneCodeFactor?.safeIdentifier ||
+              safeIdentifier ||
+              identifierValue,
+          };
+        } else if (
+          strategies.includes("email_code") &&
+          signIn.mfa?.sendEmailCode
+        ) {
+          const emailCodeFactor = secondFactors?.find(
+            (f) => f.strategy === "email_code",
+          );
+
+          logClerkState(
+            "Before sending second factor code using MFA email",
+            signIn,
+            {
+              safeIdentifier: emailCodeFactor?.safeIdentifier,
+            },
+          );
+
+          const sendCodeResult = await signIn.mfa.sendEmailCode();
+          throwIfClerkError(sendCodeResult);
+
+          return {
+            status: "verification",
+            safeIdentifier:
+              emailCodeFactor?.safeIdentifier ||
+              safeIdentifier ||
+              identifierValue,
+          };
+        } else if (strategies.includes("totp")) {
+          return {
+            status: "verification",
+            safeIdentifier: safeIdentifier || identifierValue,
+          };
         }
 
-        const sendCodeResult = await signIn.mfa.sendEmailCode();
-        throwIfClerkError(sendCodeResult);
-
-        return {
-          status: "needs_second_factor",
-          safeIdentifier:
-            emailCodeFactor.safeIdentifier || safeIdentifier || identifierValue,
-        };
+        throw new Error(
+          `Second-factor verification is required, but a suitable code strategy is not available. Supported factors: ${listFactorStrategies(secondFactors)}`,
+        );
       }
 
       throw new Error(
@@ -267,9 +470,9 @@ export default function LoginPage() {
         return;
       }
 
-      setStep("second_factor");
+      setStep("verification");
       setSafeIdentifier(result.safeIdentifier);
-      setVerificationNotice("A verification code was sent to your email.");
+      setVerificationNotice("A verification code was sent.");
       verificationForm.reset();
     },
     onError: (error) => {
@@ -277,17 +480,78 @@ export default function LoginPage() {
     },
   });
 
-  const verifySecondFactorMutation = useMutation({
+  const verificationMutation = useMutation({
     mutationFn: async (values: VerificationFormValues) => {
       if (!signIn) throw new Error("Clerk sign in resource missing");
 
-      const response = await signIn.mfa.verifyEmailCode({
-        code: values.code.trim(),
-      });
+      let response;
+      if (signIn.status === "needs_first_factor") {
+        response = await signIn.emailCode.verifyCode({
+          code: values.code.trim(),
+        });
+      } else if (signIn.status === "needs_second_factor") {
+        logClerkState("Before verifying second factor code", signIn, {
+          codeLength: values.code.trim().length,
+        });
+
+        // Attempt phone code first if active, otherwise fallback to email
+        const activeFactors =
+          signIn.supportedSecondFactors as ReadonlyArray<SecondFactorOption>;
+        const hasPhoneCode = activeFactors?.some(
+          (f) => f.strategy === "phone_code",
+        );
+        const hasEmailCode = activeFactors?.some(
+          (f) => f.strategy === "email_code",
+        );
+        const hasTotp = activeFactors?.some((f) => f.strategy === "totp");
+
+        if (hasPhoneCode && signIn.mfa?.verifyPhoneCode) {
+          response = await signIn.mfa.verifyPhoneCode({
+            code: values.code.trim(),
+          });
+        } else if (hasEmailCode && signIn.mfa?.verifyEmailCode) {
+          response = await signIn.mfa.verifyEmailCode({
+            code: values.code.trim(),
+          });
+        } else if (hasTotp && signIn.mfa?.verifyTOTP) {
+          response = await signIn.mfa.verifyTOTP({ code: values.code.trim() });
+        } else {
+          throw new Error("No suitable second factor available to verify.");
+        }
+      } else {
+        throw new Error("Invalid sign in state for verification.");
+      }
+
       throwIfClerkError(response);
 
-      if (signIn.status !== "complete") {
-        throw new Error("Verification code is invalid or expired.");
+      logClerkState("After verification before reload", signIn, response);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (typeof (signIn as any).reload === "function") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (signIn as any).reload();
+      }
+
+      logClerkState("After verification after reload", signIn, response);
+
+      // We should check the response status rather than signIn.status,
+      // as signIn might be stale inside this mutation closure until a re-render.
+      // TypeScript warns because signIn.status inside this block is inferred as
+      // "needs_first_factor" | "needs_second_factor".
+      if (
+        response &&
+        "status" in response &&
+        response.status === "needs_client_trust"
+      ) {
+        throw new Error(
+          "This sign-in requires client trust verification. Disable Client Trust in Clerk Dashboard for now, or implement the Client Trust custom flow.",
+        );
+      }
+
+      if (response && "status" in response && response.status !== "complete") {
+        throw new Error(
+          `Verification succeeded, but sign-in is still not complete after reload. Current Clerk status: ${response.status}`,
+        );
       }
 
       await activateSession();
@@ -304,8 +568,39 @@ export default function LoginPage() {
     mutationFn: async () => {
       if (!signIn) throw new Error("Clerk sign in resource missing");
 
-      const response = await signIn.mfa.sendEmailCode();
-      throwIfClerkError(response);
+      if (signIn.status === "needs_first_factor") {
+        const firstFactors =
+          signIn.supportedFirstFactors as ReadonlyArray<FirstFactorOption>;
+        const emailCodeFactor = firstFactors?.find(
+          (factor) => factor.strategy === "email_code",
+        );
+        if (!emailCodeFactor) throw new Error("Email code not available.");
+
+        const response = await signIn.emailCode.sendCode({
+          emailAddressId: (emailCodeFactor as { emailAddressId?: string })
+            .emailAddressId,
+        });
+        throwIfClerkError(response);
+      } else if (signIn.status === "needs_second_factor") {
+        const secondFactors =
+          signIn.supportedSecondFactors as ReadonlyArray<SecondFactorOption>;
+        const strategies = secondFactors?.map((f) => f.strategy) ?? [];
+
+        if (strategies.includes("phone_code") && signIn.mfa?.sendPhoneCode) {
+          const response = await signIn.mfa.sendPhoneCode();
+          throwIfClerkError(response);
+        } else if (
+          strategies.includes("email_code") &&
+          signIn.mfa?.sendEmailCode
+        ) {
+          const response = await signIn.mfa.sendEmailCode();
+          throwIfClerkError(response);
+        } else {
+          throw new Error("No suitable second factor code to resend.");
+        }
+      } else {
+        throw new Error("Cannot resend code in current state.");
+      }
     },
     onSuccess: () => {
       setGlobalError("");
@@ -337,7 +632,7 @@ export default function LoginPage() {
 
   const onSubmitVerification = (values: VerificationFormValues) => {
     setGlobalError("");
-    verifySecondFactorMutation.mutate(values);
+    verificationMutation.mutate(values);
   };
 
   const goBackToIdentifier = async () => {
@@ -384,7 +679,7 @@ export default function LoginPage() {
           >
             {step === "identifier" && "Sign in to continue"}
             {step === "password" && "Enter your password"}
-            {step === "second_factor" && "Verify your email code"}
+            {step === "verification" && "Verify your code"}
           </p>
         </div>
 
@@ -586,20 +881,18 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={verifySecondFactorMutation.isPending || !signIn}
+              disabled={verificationMutation.isPending || !signIn}
               className="w-full mt-6 py-2.5 rounded-lg flex items-center justify-center transition-colors"
               style={{
                 backgroundColor:
-                  verifySecondFactorMutation.isPending || !signIn
+                  verificationMutation.isPending || !signIn
                     ? "var(--color-green-mid)"
                     : "var(--color-green)",
                 color: "white",
                 fontWeight: 500,
               }}
             >
-              {verifySecondFactorMutation.isPending
-                ? "Verifying..."
-                : "Verify code"}
+              {verificationMutation.isPending ? "Verifying..." : "Verify code"}
             </button>
 
             <div className="flex justify-between items-center pt-1">
