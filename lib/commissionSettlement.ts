@@ -291,7 +291,7 @@ async function createReversalCommission(
 
   // Cap reversal so total doesn't go below 0
   if (currentTotalCommission - totalReversalAmount < 0) {
-    totalReversalAmount = currentTotalCommission;
+    totalReversalAmount = Math.max(0, currentTotalCommission);
   }
 
   // Weighted average rate for display
