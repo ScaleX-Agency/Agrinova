@@ -132,7 +132,7 @@ const RecordPaymentModalButton = ({
       ? snapshot?.outstandingAmount ?? 0
       : amountDraft.trim() === ""
       ? 0
-      : parseCurrencyInput(amountDraft);
+      : Number(amountDraft);
   const paymentCoverageLabel =
     snapshot && resolvedAmountReceived !== null && resolvedAmountReceived > 0
       ? resolvedAmountReceived >= snapshot.outstandingAmount
@@ -343,22 +343,30 @@ const RecordPaymentModalButton = ({
                 <span className="text-[12px] font-medium text-stone-700">
                   Amount Received
                 </span>
-                <div className="flex items-center rounded-lg border border-stone-300 bg-stone-100">
+                <div className="flex items-center rounded-lg border border-stone-300 bg-white">
                   <span className="border-r border-stone-300 px-3 text-[12px] font-semibold text-stone-500">
                     LKR
                   </span>
                   <input
-                    type="text"
-                    inputMode="decimal"
+                    type="number"
+                    min={0}
+                    max={snapshot?.outstandingAmount}
+                    step="0.01"
                     value={
                       amountDraft === null
-                        ? resolvedAmountReceived === null
-                          ? ""
-                          : formatCurrencyInput(resolvedAmountReceived)
+                        ? resolvedAmountReceived ?? ""
                         : amountDraft
                     }
-                    disabled
-                    className="w-full cursor-not-allowed rounded-r-lg bg-stone-100 px-3 py-2 text-[13px] text-stone-600 outline-none"
+                    onChange={(event) => {
+                      const raw = event.target.value;
+                      const parsed = Number(raw);
+                      if (raw !== "" && Number.isFinite(parsed) && snapshot && parsed > snapshot.outstandingAmount) {
+                        setAmountDraft(String(snapshot.outstandingAmount));
+                        return;
+                      }
+                      setAmountDraft(raw);
+                    }}
+                    className="w-full rounded-r-lg bg-white px-3 py-2 text-[13px] text-stone-900 outline-none focus:border-[#1a5c2e] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     placeholder={
                       snapshot
                         ? `Max ${formatCurrencyInput(snapshot.outstandingAmount)}`
