@@ -1,11 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import {
-  getDaysToPay,
-  getOrCreateActiveCommissionConfig,
-  resolveCommissionRate,
-} from "@/lib/commissionConfig";
 import { getReceiptNumber } from "@/lib/commission";
 import type { PendingCommissionsResponse } from "@/types/api";
 
@@ -112,120 +107,133 @@ export async function GET(request: Request) {
     const repIdRaw = search.get("repId");
     const repId = repIdRaw && repIdRaw !== "all" ? Number(repIdRaw) : null;
 
-    const cfg = await getOrCreateActiveCommissionConfig();
-    const settlements = await prisma.invoiceSettlement.findMany({
+    // Query PENDING Commission records directly (not InvoiceSettlements)
+    const pendingCommissions = await prisma.commission.findMany({
       where: {
         is_active: true,
-        commission_issued: false,
-        settlement_type: { in: ["RECEIPT", "CREDIT_NOTE"] },
-        invoice: {
-          invoice_date: { gte: period.startDate, lte: period.endDate },
-          ...(repId ? { rep_id: repId } : {}),
+        status: "PENDING",
+        ...(repId ? { rep_id: repId } : {}),
+        invoiceSettlement: {
+          is: {
+            is_active: true,
+            invoice: {
+              invoice_date: { gte: period.startDate, lte: period.endDate },
+            },
+          },
         },
       },
-      orderBy: [{ settled_date: "desc" }, { settlement_id: "desc" }],
+      orderBy: [{ created_at: "desc" }, { commission_id: "desc" }],
       select: {
-        settlement_id: true,
-        settlement_type: true,
-        settled_date: true,
-        amount: true,
-        invoice: {
+        commission_id: true,
+        commission_rate: true,
+        commission_amount: true,
+        days_to_pay: true,
+        rep_id: true,
+        rep: {
+          select: { full_name: true },
+        },
+        invoiceSettlement: {
           select: {
-            invoice_id: true,
-            invoice_number: true,
-            invoice_date: true,
-            customer: { select: { name: true } },
-            rep: { select: { rep_id: true, full_name: true } },
+            settlement_id: true,
+            settlement_type: true,
+            settled_date: true,
+            amount: true,
+            invoice: {
+              select: {
+                invoice_id: true,
+                invoice_number: true,
+                invoice_date: true,
+                customer: { select: { name: true } },
+                rep: { select: { rep_id: true, full_name: true } },
+              },
+            },
+            receipt: {
+              select: {
+                receipt_id: true,
+                receipt_date: true,
+              },
+            },
           },
         },
-        receipt: {
+        reversalAllocations: {
+          where: { is_active: true },
           select: {
-            receipt_id: true,
-            receipt_date: true,
+            allocation_id: true,
+            source_settlement_id: true,
+            allocated_amount: true,
+            applied_rate: true,
+            reversal_amount: true,
+            sourceSettlement: {
+              select: {
+                settled_date: true,
+                receipt: {
+                  select: {
+                    receipt_id: true,
+                    receipt_date: true,
+                  },
+                },
+              },
+            },
           },
+          orderBy: { allocation_id: "asc" },
         },
       },
     });
 
-    const invoiceIds = Array.from(
-      new Set(settlements.map((s) => s.invoice.invoice_id)),
-    );
-    const receiptSettlements = await prisma.invoiceSettlement.findMany({
-      where: {
-        is_active: true,
-        settlement_type: "RECEIPT",
-        receipt_id: { not: null },
-        invoice_id: { in: invoiceIds },
-      },
-      orderBy: [{ settled_date: "asc" }, { settlement_id: "asc" }],
-      select: {
-        invoice_id: true,
-        commission_issued: true,
-        settled_date: true,
-        receipt: {
-          select: {
-            receipt_id: true,
-            receipt_date: true,
-          },
-        },
-      },
-    });
-    const receiptByInvoiceId = new Map<number, (typeof receiptSettlements)[number]>();
-    for (const r of receiptSettlements) {
-      if (!receiptByInvoiceId.has(r.invoice_id)) {
-        receiptByInvoiceId.set(r.invoice_id, r);
-      }
-    }
+    const rows = pendingCommissions
+      .map((c) => {
+        const settlement = c.invoiceSettlement;
+        if (!settlement) return null;
 
-    const rows = settlements
-      .map((s) => {
-        const receiptSettlementForInvoice = receiptByInvoiceId.get(
-          s.invoice.invoice_id,
-        );
+        const isReceipt = settlement.settlement_type === "RECEIPT";
+        const receiptId = settlement.receipt?.receipt_id ?? null;
+        const receiptDate = settlement.receipt?.receipt_date ?? null;
+        const receiptNo = receiptId && receiptDate
+          ? getReceiptNumber(receiptId, receiptDate)
+          : null;
 
-        if (!receiptSettlementForInvoice || !receiptSettlementForInvoice.receipt) return null;
-        if (
-          s.settlement_type === "CREDIT_NOTE" &&
-          receiptSettlementForInvoice.commission_issued !== true
-        ) {
-          return null;
-        }
+        const settlementAmount = Number(settlement.amount);
+        const signedAmount = isReceipt ? settlementAmount : -settlementAmount;
 
-        const baseReceiptDate = receiptSettlementForInvoice.settled_date;
-        const daysToPay = getDaysToPay(s.invoice.invoice_date, baseReceiptDate);
-        const rate = resolveCommissionRate(daysToPay, cfg);
-        const settlementAmount = Number(s.amount);
-        const signedAmount =
-          s.settlement_type === "CREDIT_NOTE" ? settlementAmount * -1 : settlementAmount;
-        const commissionAmount = signedAmount * rate;
-        const conditionLabel =
-          daysToPay <= 0
-            ? "Same-day"
-            : daysToPay >= cfg.rangeMinDays && daysToPay <= cfg.rangeMaxDays
-              ? `${cfg.rangeMinDays}-${cfg.rangeMaxDays} days`
-              : `>${cfg.rangeMaxDays} days`;
+        // Build reversal allocation details for credit notes
+        const reversalDetails = c.reversalAllocations.map((a) => ({
+          allocationId: a.allocation_id,
+          sourceReceiptId: a.sourceSettlement.receipt?.receipt_id ?? null,
+          sourceReceiptNo: a.sourceSettlement.receipt
+            ? getReceiptNumber(
+                a.sourceSettlement.receipt.receipt_id,
+                a.sourceSettlement.receipt.receipt_date,
+              )
+            : null,
+          allocatedAmount: Number(a.allocated_amount),
+          appliedRate: Number((Number(a.applied_rate) * 100).toFixed(4)),
+          reversalAmount: Number(a.reversal_amount),
+        }));
 
         return {
-          settlementId: s.settlement_id,
-          settlementType: s.settlement_type as "RECEIPT" | "CREDIT_NOTE",
-          invoiceId: s.invoice.invoice_id,
-          invoiceNo: s.invoice.invoice_number ?? "",
-          invoiceDate: s.invoice.invoice_date.toISOString(),
-          receiptId: receiptSettlementForInvoice.receipt!.receipt_id,
-          receiptNo: getReceiptNumber(
-            receiptSettlementForInvoice.receipt!.receipt_id,
-            receiptSettlementForInvoice.receipt!.receipt_date,
-          ),
-          receiptDate: receiptSettlementForInvoice.receipt!.receipt_date.toISOString(),
-          customerName: s.invoice.customer?.name ?? "",
-          repId: s.invoice.rep.rep_id,
-          repName: s.invoice.rep.full_name,
-          settlementDate: s.settled_date.toISOString(),
+          commissionId: c.commission_id,
+          settlementId: settlement.settlement_id,
+          settlementType: settlement.settlement_type as "RECEIPT" | "CREDIT_NOTE",
+          invoiceId: settlement.invoice.invoice_id,
+          invoiceNo: settlement.invoice.invoice_number ?? "",
+          invoiceDate: settlement.invoice.invoice_date.toISOString(),
+          receiptId,
+          receiptNo,
+          receiptDate: receiptDate ? receiptDate.toISOString() : null,
+          customerName: settlement.invoice.customer?.name ?? "",
+          repId: c.rep_id,
+          repName: c.rep.full_name,
+          settlementDate: settlement.settled_date.toISOString(),
           settlementAmount: Number(signedAmount.toFixed(2)),
-          daysToPay,
-          appliedRate: Number((rate * 100).toFixed(4)),
-          computedCommissionAmount: Number(commissionAmount.toFixed(2)),
-          conditionLabel,
+          daysToPay: c.days_to_pay,
+          appliedRate: Number((Number(c.commission_rate) * 100).toFixed(4)),
+          computedCommissionAmount: Number(c.commission_amount),
+          conditionLabel: isReceipt
+            ? c.days_to_pay <= 0
+              ? "Same-day"
+              : `${c.days_to_pay} days`
+            : "Credit reversal",
+          reversalDetails,
         };
       })
       .filter((row): row is NonNullable<typeof row> => Boolean(row));

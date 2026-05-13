@@ -2,10 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import type {
   ApprovePendingCommissionsResponse,
   CommissionConfigResponse,
   PendingCommissionsResponse,
+  PendingCommissionRowDto,
 } from "@/types/api";
 
 type PeriodType = "daily" | "weekly" | "monthly" | "yearly" | "custom";
@@ -44,6 +46,7 @@ export default function PendingCommissionTab({
 }) {
   const qc = useQueryClient();
   const [rateEdits, setRateEdits] = useState<Record<number, number | undefined>>({});
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [configDraft, setConfigDraft] = useState<{
     sameDayRate: number;
     rangeMinDays: number;
@@ -102,7 +105,7 @@ export default function PendingCommissionTab({
 
   const approveMutation = useMutation({
     mutationFn: async (
-      items: Array<{ settlementId: number; rateOverride?: number }>,
+      items: Array<{ commissionId: number; rateOverride?: number }>,
     ) => {
       const payload = { items };
       const response = await fetch("/api/commission/approve", {
@@ -111,15 +114,16 @@ export default function PendingCommissionTab({
         body: JSON.stringify(payload),
       });
       const result = (await response.json()) as ApprovePendingCommissionsResponse;
-      if (!response.ok) throw new Error(result.error ?? "Failed to approve pending commissions.");
+      if (!response.ok) throw new Error(result.error ?? "Failed to approve commissions.");
       return result.data;
     },
     onSuccess: () => {
       setRateEdits({});
       qc.invalidateQueries({ queryKey: ["commission-pending"] });
       qc.invalidateQueries({ queryKey: ["commission-summary"] });
+      qc.invalidateQueries({ queryKey: ["commission-dashboard"] });
       qc.invalidateQueries({ queryKey: ["sales-rep-sales"] });
-      },
+    },
   });
 
   const rows = useMemo(() => pendingQuery.data ?? [], [pendingQuery.data]);
@@ -131,10 +135,15 @@ export default function PendingCommissionTab({
       rangeRate: 2.0,
       overRangeRate: 0,
     };
+
   const totalPending = useMemo(
     () =>
       rows.reduce((sum, row) => {
-        const override = rateEdits[row.settlementId];
+        if (row.settlementType === "CREDIT_NOTE") {
+          // Credit note commissions use their computed amount (negative), no rate edit
+          return sum + Number(row.computedCommissionAmount);
+        }
+        const override = rateEdits[row.commissionId];
         const rate = typeof override === "number" ? override / 100 : row.appliedRate / 100;
         return sum + row.settlementAmount * rate;
       }, 0),
@@ -142,6 +151,24 @@ export default function PendingCommissionTab({
   );
 
   const canSaveConfig = !!configQuery.data && !saveConfigMutation.isPending;
+
+  const toggleExpand = (commissionId: number) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(commissionId)) next.delete(commissionId);
+      else next.add(commissionId);
+      return next;
+    });
+  };
+
+  const getDisplayAmount = (row: PendingCommissionRowDto) => {
+    if (row.settlementType === "CREDIT_NOTE") {
+      return Number(row.computedCommissionAmount);
+    }
+    const override = rateEdits[row.commissionId];
+    const rate = typeof override === "number" ? override / 100 : row.appliedRate / 100;
+    return row.settlementAmount * rate;
+  };
 
   return (
     <section className="space-y-4">
@@ -196,6 +223,7 @@ export default function PendingCommissionTab({
             <thead>
               <tr className="border-b border-stone-200">
                 {[
+                  "",
                   "Invoice #",
                   "Receipt #",
                   "Type",
@@ -217,62 +245,135 @@ export default function PendingCommissionTab({
             </thead>
             <tbody>
               {rows.map((row) => {
-                const rate = rateEdits[row.settlementId] ?? row.appliedRate;
-                const amount = row.settlementAmount * (rate / 100);
+                const isCredit = row.settlementType === "CREDIT_NOTE";
+                const rate = isCredit
+                  ? row.appliedRate
+                  : (rateEdits[row.commissionId] ?? row.appliedRate);
+                const amount = getDisplayAmount(row);
+                const isExpanded = expandedRows.has(row.commissionId);
+                const hasReversals = row.reversalDetails.length > 0;
+
                 return (
-                  <tr key={row.settlementId} className="border-b border-stone-100">
-                    <td className="px-3 py-2 text-[12px] [font-family:var(--font-jetbrains)]">{row.invoiceNo}</td>
-                    <td className="px-3 py-2 text-[12px] [font-family:var(--font-jetbrains)]">{row.receiptNo}</td>
-                    <td className="px-3 py-2 text-[12px]">
-                      <span className="rounded-full border border-stone-200 px-2 py-0.5 text-[11px] font-medium text-stone-700">
-                        {row.settlementType === "RECEIPT" ? "Receipt" : "Credit Note"}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-[12px]">{row.customerName}</td>
-                    <td className="px-3 py-2 text-[12px]">{row.repName}</td>
-                    <td className="px-3 py-2 text-[12px]">{formatDate(row.invoiceDate)}</td>
-                    <td className="px-3 py-2 text-[12px]">{formatDate(row.settlementDate)}</td>
-                    <td className="px-3 py-2 text-[12px]">{row.daysToPay}</td>
-                    <td className="px-3 py-2 text-[12px]">{formatCurrency(row.settlementAmount)}</td>
-                    <td className="px-3 py-2 text-[12px]">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={rate}
-                        disabled={row.settlementType === "CREDIT_NOTE"}
-                        onChange={(event) =>
-                          setRateEdits((prev) => ({
-                            ...prev,
-                            [row.settlementId]: Number(event.target.value),
-                          }))
-                        }
-                        className="w-20 rounded border border-stone-200 px-2 py-1 disabled:bg-stone-100 disabled:text-stone-400"
-                      />
-                    </td>
-                    <td className="px-3 py-2 text-[12px] font-semibold text-[#1a5c2e]">{formatCurrency(amount)}</td>
-                    <td className="px-3 py-2 text-[12px]">
-                      <button
-                        type="button"
-                        disabled={approveMutation.isPending}
-                        onClick={() =>
-                          approveMutation.mutate([
-                            {
-                              settlementId: row.settlementId,
-                              rateOverride: rateEdits[row.settlementId],
-                            },
-                          ])
-                        }
-                        className="rounded-lg border border-[#c0c3f0] px-2 py-1 text-[11px] font-medium text-[#2b2d7e] disabled:opacity-60"
-                      >
-                        Approve
-                      </button>
-                    </td>
-                  </tr>
+                  <>
+                    <tr key={row.commissionId} className={`border-b border-stone-100 ${isCredit ? "bg-red-50/40" : ""}`}>
+                      <td className="px-2 py-2 text-[12px]">
+                        {hasReversals && (
+                          <button
+                            type="button"
+                            onClick={() => toggleExpand(row.commissionId)}
+                            className="rounded p-0.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600"
+                          >
+                            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          </button>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-[12px] [font-family:var(--font-jetbrains)]">{row.invoiceNo}</td>
+                      <td className="px-3 py-2 text-[12px] [font-family:var(--font-jetbrains)]">
+                        {row.receiptNo ?? "—"}
+                      </td>
+                      <td className="px-3 py-2 text-[12px]">
+                        <span
+                          className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                            isCredit
+                              ? "border-red-200 bg-red-50 text-red-700"
+                              : "border-stone-200 text-stone-700"
+                          }`}
+                        >
+                          {isCredit ? "Credit Reversal" : "Receipt"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-[12px]">{row.customerName}</td>
+                      <td className="px-3 py-2 text-[12px]">{row.repName}</td>
+                      <td className="px-3 py-2 text-[12px]">{formatDate(row.invoiceDate)}</td>
+                      <td className="px-3 py-2 text-[12px]">{formatDate(row.settlementDate)}</td>
+                      <td className="px-3 py-2 text-[12px]">{row.daysToPay}</td>
+                      <td className={`px-3 py-2 text-[12px] ${isCredit ? "text-red-700" : ""}`}>
+                        {formatCurrency(row.settlementAmount)}
+                      </td>
+                      <td className="px-3 py-2 text-[12px]">
+                        {isCredit ? (
+                          <span className="inline-block w-20 rounded border border-stone-200 bg-stone-100 px-2 py-1 text-stone-400">
+                            {rate.toFixed(2)}
+                          </span>
+                        ) : (
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={rate}
+                            onChange={(event) =>
+                              setRateEdits((prev) => ({
+                                ...prev,
+                                [row.commissionId]: Number(event.target.value),
+                              }))
+                            }
+                            className="w-20 rounded border border-stone-200 px-2 py-1"
+                          />
+                        )}
+                      </td>
+                      <td className={`px-3 py-2 text-[12px] font-semibold ${amount < 0 ? "text-red-700" : "text-[#1a5c2e]"}`}>
+                        {formatCurrency(amount)}
+                      </td>
+                      <td className="px-3 py-2 text-[12px]">
+                        <button
+                          type="button"
+                          disabled={approveMutation.isPending}
+                          onClick={() =>
+                            approveMutation.mutate([
+                              {
+                                commissionId: row.commissionId,
+                                rateOverride: isCredit ? undefined : rateEdits[row.commissionId],
+                              },
+                            ])
+                          }
+                          className="rounded-lg border border-[#c0c3f0] px-2 py-1 text-[11px] font-medium text-[#2b2d7e] disabled:opacity-60"
+                        >
+                          Approve
+                        </button>
+                      </td>
+                    </tr>
+                    {hasReversals && isExpanded && (
+                      <tr key={`${row.commissionId}-details`} className="border-b border-stone-100">
+                        <td colSpan={13} className="px-6 py-3 bg-stone-50/50">
+                          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-stone-500">
+                            Reversal Breakdown
+                          </p>
+                          <table className="w-full max-w-[700px] border-collapse">
+                            <thead>
+                              <tr className="border-b border-stone-200">
+                                <th className="px-3 py-1.5 text-left text-[10px] uppercase text-stone-400">Source Receipt</th>
+                                <th className="px-3 py-1.5 text-right text-[10px] uppercase text-stone-400">Allocated</th>
+                                <th className="px-3 py-1.5 text-right text-[10px] uppercase text-stone-400">Rate</th>
+                                <th className="px-3 py-1.5 text-right text-[10px] uppercase text-stone-400">Reversal</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {row.reversalDetails.map((detail) => (
+                                <tr key={detail.allocationId} className="border-b border-stone-100">
+                                  <td className="px-3 py-1.5 text-[12px] [font-family:var(--font-jetbrains)]">
+                                    {detail.sourceReceiptNo ?? "—"}
+                                  </td>
+                                  <td className="px-3 py-1.5 text-right text-[12px]">
+                                    {formatCurrency(detail.allocatedAmount)}
+                                  </td>
+                                  <td className="px-3 py-1.5 text-right text-[12px]">
+                                    {detail.appliedRate.toFixed(2)}%
+                                  </td>
+                                  <td className="px-3 py-1.5 text-right text-[12px] font-semibold text-red-700">
+                                    {formatCurrency(detail.reversalAmount)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 );
               })}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={12} className="px-4 py-8 text-center text-[13px] text-stone-500">
+                  <td colSpan={13} className="px-4 py-8 text-center text-[13px] text-stone-500">
                     No pending commissions.
                   </td>
                 </tr>
@@ -284,4 +385,3 @@ export default function PendingCommissionTab({
     </section>
   );
 }
-

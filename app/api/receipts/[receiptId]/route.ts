@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, isAdminUser } from "@/lib/auth";
+import { recalculateReversalCommissions } from "@/lib/commissionSettlement";
 import type { ReceiptDetailResponse } from "@/types/api";
 
 export async function GET(
@@ -121,6 +122,7 @@ export async function DELETE(
           invoice: {
             select: {
               total_amount: true,
+              rep_id: true,
             },
           },
           invoiceSettlements: {
@@ -137,7 +139,22 @@ export async function DELETE(
         throw new Error("Receipt not found or already inactive.");
       }
 
+      // Track whether any reversal allocations were sourced from this receipt
+      let hasReversalAllocations = false;
+      const settlementIds = receipt.invoiceSettlements.map((s) => s.settlement_id);
+
       for (const settlement of receipt.invoiceSettlements) {
+        // Deactivate reversal allocations where this settlement was a source
+        const updatedAllocations = await tx.commissionReversalAllocation.updateMany({
+          where: {
+            source_settlement_id: settlement.settlement_id,
+            is_active: true,
+          },
+          data: { is_active: false },
+        });
+        if (updatedAllocations.count > 0) hasReversalAllocations = true;
+
+        // Cancel commissions linked to this settlement
         await tx.commission.updateMany({
           where: {
             settlement_id: settlement.settlement_id,
@@ -149,6 +166,7 @@ export async function DELETE(
           },
         });
 
+        // Deactivate the settlement
         await tx.invoiceSettlement.update({
           where: { settlement_id: settlement.settlement_id },
           data: {
@@ -158,6 +176,7 @@ export async function DELETE(
         });
       }
 
+      // Deactivate receipt
       await tx.receipt.update({
         where: { receipt_id: receipt.receipt_id },
         data: {
@@ -166,6 +185,7 @@ export async function DELETE(
         },
       });
 
+      // Recalculate invoice amounts
       const activeReceipts = await tx.receipt.findMany({
         where: {
           invoice_id: receipt.invoice_id,
@@ -197,6 +217,16 @@ export async function DELETE(
           payment_status: nextStatus,
         },
       });
+
+      // If this receipt was a source for any reversal allocations,
+      // recalculate the affected credit note reversal commissions
+      if (hasReversalAllocations) {
+        await recalculateReversalCommissions(
+          tx,
+          receipt.invoice_id,
+          receipt.invoice.rep_id,
+        );
+      }
 
       return receipt;
     });

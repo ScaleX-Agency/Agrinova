@@ -251,15 +251,25 @@ export type UpdateCommissionConfigRequestDto = {
   overRangeRate: number;
 };
 
+export type PendingCommissionReversalDetailDto = {
+  allocationId: number;
+  sourceReceiptId: number | null;
+  sourceReceiptNo: string | null;
+  allocatedAmount: number;
+  appliedRate: number;
+  reversalAmount: number;
+};
+
 export type PendingCommissionRowDto = {
+  commissionId: number;
   settlementId: number;
   settlementType: "RECEIPT" | "CREDIT_NOTE";
   invoiceId: number;
   invoiceNo: string;
   invoiceDate: string;
-  receiptId: number;
-  receiptNo: string;
-  receiptDate: string;
+  receiptId: number | null;
+  receiptNo: string | null;
+  receiptDate: string | null;
   customerName: string;
   repId: number;
   repName: string;
@@ -269,6 +279,7 @@ export type PendingCommissionRowDto = {
   appliedRate: number;
   computedCommissionAmount: number;
   conditionLabel: string;
+  reversalDetails: PendingCommissionReversalDetailDto[];
 };
 
 export type PendingCommissionsResponse = ApiResult<{
@@ -276,7 +287,7 @@ export type PendingCommissionsResponse = ApiResult<{
 }>;
 
 export type ApprovePendingCommissionItemDto = {
-  settlementId: number;
+  commissionId: number;
   rateOverride?: number;
 };
 

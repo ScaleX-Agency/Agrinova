@@ -358,6 +358,7 @@ model InvoiceSettlement {
   receipt           Receipt?       @relation(fields: [receipt_id], references: [receipt_id])
   creditNote        CreditNote?    @relation(fields: [credit_note_id], references: [credit_note_id])
   commissions       Commission[]   @relation("CommissionToInvoiceSettlement")
+  reversalAllocations CommissionReversalAllocation[] @relation("ReversalSourceSettlement")
 
   @@index([invoice_id])
   @@map("INVOICE_SETTLEMENT")
@@ -376,9 +377,27 @@ model Commission {
   is_active         Boolean           @default(true)
   rep               SalesRep          @relation(fields: [rep_id], references: [rep_id])
   invoiceSettlement InvoiceSettlement @relation("CommissionToInvoiceSettlement", fields: [settlement_id], references: [settlement_id])
+  reversalAllocations CommissionReversalAllocation[]
 
   @@index([settlement_id])
   @@map("COMMISSION")
+}
+
+model CommissionReversalAllocation {
+  allocation_id        Int               @id @default(autoincrement())
+  commission_id        Int
+  source_settlement_id Int
+  allocated_amount     Decimal           @db.Decimal(10, 2)
+  applied_rate         Decimal           @db.Decimal(5, 4)
+  reversal_amount      Decimal           @db.Decimal(10, 2)
+  is_active            Boolean           @default(true)
+
+  commission       Commission        @relation(fields: [commission_id], references: [commission_id])
+  sourceSettlement InvoiceSettlement @relation("ReversalSourceSettlement", fields: [source_settlement_id], references: [settlement_id])
+
+  @@index([commission_id])
+  @@index([source_settlement_id])
+  @@map("COMMISSION_REVERSAL_ALLOCATION")
 }
 
 model CommissionConfig {

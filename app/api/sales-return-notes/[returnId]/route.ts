@@ -456,6 +456,26 @@ export async function DELETE(
         totalCreditAmountToReverse += Number(creditNote.amount);
 
         for (const settlement of creditNote.invoiceSettlements) {
+          // Deactivate reversal allocations for commissions linked to this settlement
+          const commissions = await tx.commission.findMany({
+            where: {
+              settlement_id: settlement.settlement_id,
+              is_active: true,
+            },
+            select: { commission_id: true },
+          });
+
+          for (const commission of commissions) {
+            await tx.commissionReversalAllocation.updateMany({
+              where: {
+                commission_id: commission.commission_id,
+                is_active: true,
+              },
+              data: { is_active: false },
+            });
+          }
+
+          // Cancel commissions
           await tx.commission.updateMany({
             where: {
               settlement_id: settlement.settlement_id,
@@ -467,6 +487,7 @@ export async function DELETE(
             },
           });
 
+          // Deactivate settlement
           await tx.invoiceSettlement.update({
             where: { settlement_id: settlement.settlement_id },
             data: {
