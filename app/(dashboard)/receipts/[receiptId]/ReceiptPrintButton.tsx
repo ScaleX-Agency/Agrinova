@@ -1,8 +1,9 @@
 "use client";
 
 import { useRef } from "react";
+import Image from "next/image";
 import PrintButton from "@/components/print/PrintButton";
-import { PrintPage } from "@/components/print/PrintDocuments";
+import { numberToWords } from "@/lib/numberToWords";
 
 type ReceiptPrintButtonProps = {
   receiptNo: string;
@@ -55,67 +56,73 @@ const ReceiptPrintButton = ({
       <PrintButton contentRef={contentRef} documentTitle={receiptNo} label="Print Receipt" />
 
       <div className="hidden" aria-hidden>
-        <div ref={contentRef}>
-          <PrintPage
-            title={`Receipt ${receiptNo}`}
-            subtitle="Payment acknowledgment"
-            rightHeader={<p>Date: {formatDate(receiptDate)}</p>}
-          >
-            <section className="mt-6 grid grid-cols-2 gap-4 text-[13px]">
-              <div>
-                <p className="font-semibold text-stone-800">Received From</p>
-                <p>{customerName}</p>
-                <p className="mt-3 font-semibold text-stone-800">Collected By</p>
-                <p>{collectedBy}</p>
-              </div>
-              <div className="text-right">
-                <p className="font-semibold text-stone-800">Payment Method</p>
-                <p>{paymentMethodLabel}</p>
-                <p className="mt-3 text-[18px] font-semibold text-[#1a5c2e]">{formatCurrency(amountReceived)}</p>
-              </div>
-            </section>
+        <div ref={contentRef} className="print-sheet [font-family:var(--font-dmsans)] text-stone-900 p-6">
+          {/* Header */}
+          <div className="flex flex-col items-center justify-center text-center pb-4 border-b-2 border-stone-800">
+            <Image
+              src="/agrinova-logo.jpeg"
+              alt="Agrinova Logo"
+              width={140}
+              height={45}
+              className="object-contain"
+            />
+            <p className="mt-4 text-[14px] font-medium">205 D Kalapaluwawa Road, Koswatta, Battaramulla</p>
+            <p className="text-[14px]">Tel : 0115 635034/5, Fax : 0112 073605</p>
+          </div>
 
-            <section className="mt-6">
-              <table className="print-table w-full border-collapse text-[12px]">
-                <thead>
-                  <tr>
-                    <th>Invoice #</th>
-                    <th>Invoice Date</th>
-                    <th>Sales Rep</th>
-                    <th className="text-right">Amount Received</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>{invoiceNo}</td>
-                    <td>{formatDate(invoiceDate)}</td>
-                    <td>{salesRepName}</td>
-                    <td className="text-right">{formatCurrency(amountReceived)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </section>
+          {/* Title Area */}
+          <div className="mt-4 flex items-center justify-between">
+            <div>
+              <p className="text-[14px]">Date: {formatDate(receiptDate)}</p>
+            </div>
+            <h1 className="text-[28px] font-bold tracking-widest text-stone-900 absolute left-1/2 -translate-x-1/2 uppercase">Receipt</h1>
+            <div className="text-right">
+              <p className="text-[16px] font-bold text-[#a32d2d]">NO: {receiptNo}</p>
+            </div>
+          </div>
 
-            {(chequeNo || chequeDate || bankName) && (
-              <section className="mt-6 text-[13px]">
-                <p className="font-semibold text-stone-800">Bank Details</p>
-                <div className="mt-2 grid grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-stone-500">Cheque No</p>
-                    <p>{chequeNo ?? "-"}</p>
-                  </div>
-                  <div>
-                    <p className="text-stone-500">Cheque Date</p>
-                    <p>{chequeDate ? formatDate(chequeDate) : "-"}</p>
-                  </div>
-                  <div>
-                    <p className="text-stone-500">Bank Name</p>
-                    <p>{bankName ?? "-"}</p>
-                  </div>
-                </div>
-              </section>
-            )}
-          </PrintPage>
+          {/* Form Fields */}
+          <div className="mt-8 space-y-6 text-[15px] leading-relaxed">
+            <div className="flex items-end gap-3">
+              <span className="whitespace-nowrap font-medium min-w-[220px]">Received with thanks from :</span>
+              <div className="flex-1 border-b border-stone-400 pb-1 font-semibold text-[16px] px-2">{customerName}</div>
+            </div>
+            
+            <div className="flex items-end gap-3">
+              <span className="whitespace-nowrap font-medium min-w-[220px]">The sum of Rupees :</span>
+              <div className="flex-1 border-b border-stone-400 pb-1 font-semibold px-2 uppercase text-[14px]">
+                &nbsp;
+              </div>
+            </div>
+
+            <div className="flex items-end gap-3">
+              <span className="whitespace-nowrap font-medium min-w-[220px]">Payment of Invoice Nos :</span>
+              <div className="flex-1 border-b border-stone-400 pb-1 font-semibold px-2">{invoiceNo}</div>
+            </div>
+
+            <div className="flex items-end gap-3">
+              <span className="whitespace-nowrap font-medium min-w-[220px]">Cash / Cheque / Bank :</span>
+              <div className="flex-1 border-b border-stone-400 pb-1 font-semibold px-2">
+                {paymentMethodLabel}
+                {chequeNo ? ` (Cheque No: ${chequeNo}${chequeDate ? ` | Date: ${formatDate(chequeDate)}` : ""})` : ""}
+                {bankName ? ` | Bank: ${bankName}` : ""}
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Area */}
+          <div className="mt-12 flex items-end justify-between">
+            <div className="w-[200px] border border-stone-400 p-3 bg-stone-50">
+              <p className="text-[18px] font-bold text-center">Rs. {formatCurrency(amountReceived).replace("LKR", "").trim()}</p>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="w-[160px] h-[80px] border border-dashed border-stone-300 flex items-center justify-center text-stone-400 text-[13px] mb-2">
+                Stamp
+              </div>
+              <div className="w-[200px] border-b border-stone-400" />
+              <p className="mt-2 text-[14px]">Authorized Signature</p>
+            </div>
+          </div>
         </div>
       </div>
     </>

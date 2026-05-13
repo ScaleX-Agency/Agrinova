@@ -134,6 +134,7 @@ export async function GET(
     if (locationIdRaw && locationIdRaw !== "all" && (!Number.isInteger(locationId) || (locationId as number) <= 0)) {
       return NextResponse.json({ error: "Invalid locationId." }, { status: 400 });
     }
+    const dateFilterBasedOn = search.get("dateFilterBasedOn") === "invoice" ? "invoice" : "settlement";
 
     const now = new Date();
 
@@ -244,7 +245,17 @@ export async function GET(
           invoiceSettlement: {
             is: {
               is_active: true,
-              invoice: locationId ? { location_id: locationId } : undefined,
+              ...(dateFilterBasedOn === "invoice"
+                ? {
+                    invoice: {
+                      ...(locationId ? { location_id: locationId } : {}),
+                      invoice_date: { gte: period.startDate, lte: period.endDate },
+                    },
+                  }
+                : {
+                    settled_date: { gte: period.startDate, lte: period.endDate },
+                    invoice: locationId ? { location_id: locationId } : undefined,
+                  }),
             },
           },
         },

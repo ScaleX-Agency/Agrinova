@@ -273,6 +273,7 @@ export async function DELETE(
                   balance_qty: true,
                   credited_amount: true,
                   balance_amount: true,
+                  net_line_total: true,
                 },
               },
             },
@@ -437,7 +438,10 @@ export async function DELETE(
           0,
           Number(invoiceLine.credited_amount) - aggregate.creditedAmount,
         );
-        const nextBalanceAmount = Number(invoiceLine.balance_amount) + aggregate.creditedAmount;
+        const nextBalanceAmount = Math.min(
+          Number(invoiceLine.net_line_total),
+          Number(invoiceLine.balance_amount) + aggregate.creditedAmount,
+        );
         const nextBalanceQty = Math.max(0, invoiceLine.issued_qty - nextReturnedQty);
 
         await tx.invoiceLine.update({
@@ -456,6 +460,26 @@ export async function DELETE(
         totalCreditAmountToReverse += Number(creditNote.amount);
 
         for (const settlement of creditNote.invoiceSettlements) {
+          // Deactivate reversal allocations for commissions linked to this settlement
+          const commissions = await tx.commission.findMany({
+            where: {
+              settlement_id: settlement.settlement_id,
+              is_active: true,
+            },
+            select: { commission_id: true },
+          });
+
+          for (const commission of commissions) {
+            await tx.commissionReversalAllocation.updateMany({
+              where: {
+                commission_id: commission.commission_id,
+                is_active: true,
+              },
+              data: { is_active: false },
+            });
+          }
+
+          // Cancel commissions
           await tx.commission.updateMany({
             where: {
               settlement_id: settlement.settlement_id,
@@ -467,6 +491,7 @@ export async function DELETE(
             },
           });
 
+          // Deactivate settlement
           await tx.invoiceSettlement.update({
             where: { settlement_id: settlement.settlement_id },
             data: {
@@ -498,7 +523,7 @@ export async function DELETE(
       const paidAmount = Number(srn.invoice.paid_amount);
       const nextInvoiceBalanceAmount = Math.max(
         0,
-        totalAmount - paidAmount - nextInvoiceCreditedAmount,
+        Number((totalAmount - paidAmount - nextInvoiceCreditedAmount).toFixed(2)),
       );
       const nextInvoiceStatus = toInvoiceStatus(
         nextInvoiceBalanceAmount,

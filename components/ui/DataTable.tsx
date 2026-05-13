@@ -41,6 +41,7 @@ type DataTableProps<TData> = {
   hidePagination?: boolean;
   toolbarRight?: React.ReactNode;
   isLoading?: boolean;
+  rowClassName?: (row: TData) => string;
 };
 
 const alignClassName = (align: Alignment) => {
@@ -61,6 +62,7 @@ function DataTable<TData>({
   hidePagination = false,
   toolbarRight,
   isLoading = false,
+  rowClassName,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -193,7 +195,7 @@ function DataTable<TData>({
               </tr>
             ) : (
               table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="border-b border-stone-100 hover:bg-stone-50">
+                <tr key={row.id} className={`border-b border-stone-100 hover:bg-stone-50 ${rowClassName ? rowClassName(row.original) : ""}`}>
                   {row.getVisibleCells().map((cell) => {
                     const meta = cell.column.columnDef.meta;
                     const align = meta?.align ?? "left";

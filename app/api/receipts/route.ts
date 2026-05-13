@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getReceiptNumber } from "@/lib/commission";
 import { getCurrentUser } from "@/lib/auth";
+import { createSettlementCommission } from "@/lib/commissionSettlement";
 import type {
   CreateReceiptRequestDto,
   CreateReceiptResponse,
@@ -207,7 +208,7 @@ export async function POST(request: Request) {
       }
 
       const nextPaidAmount = paidAmount + amountReceived;
-      const nextBalanceAmount = Math.max(0, totalAmount - creditedAmount - nextPaidAmount);
+      const nextBalanceAmount = Math.max(0, Number((totalAmount - creditedAmount - nextPaidAmount).toFixed(2)));
       const nextStatus =
         nextBalanceAmount <= 0
           ? "PAID"
@@ -238,7 +239,7 @@ export async function POST(request: Request) {
       });
 
       // 2. Create InvoiceSettlement
-      await tx.invoiceSettlement.create({
+      const settlement = await tx.invoiceSettlement.create({
         data: {
           invoice_id: invoice.invoice_id,
           receipt_id: receipt.receipt_id,
@@ -259,15 +260,27 @@ export async function POST(request: Request) {
         },
       });
 
+      // 4. Auto-create Commission record
+      const commissionResult = await createSettlementCommission(
+        tx,
+        invoice.invoice_id,
+        settlement.settlement_id,
+        "RECEIPT",
+        invoice.invoice_date,
+        receipt.receipt_date,
+        invoice.rep_id,
+        amountReceived,
+      );
+
       const receiptNo = getReceiptNumber(receipt.receipt_id, receipt.receipt_date);
 
       return {
         receiptId: receipt.receipt_id,
         receiptNo,
-        commissionId: null,
-        daysToPay: null,
-        commissionRate: null,
-        commissionAmount: null,
+        commissionId: commissionResult.commissionId,
+        daysToPay: commissionResult.daysToPay,
+        commissionRate: commissionResult.commissionRate,
+        commissionAmount: commissionResult.commissionAmount,
       };
     });
 
