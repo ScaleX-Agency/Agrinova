@@ -13,13 +13,11 @@ type CommissionRow = {
   repId: number;
   repName: string;
   invoiceCount: number;
-  receiptCount: number;
   totalSales: number;
   cashCollected: number;
   avgDays: number;
   commissionRate: number;
   commissionAmount: number;
-  pendingAmount: number;
 };
 
 type CommissionDashboardResponse = {
@@ -122,15 +120,7 @@ export default function CommissionClient() {
         headerClassName: "border-l border-stone-200",
       },
     },
-    {
-      accessorKey: "receiptCount",
-      header: "Receipts",
-      meta: {
-        align: "right",
-        className: "border-l border-stone-200",
-        headerClassName: "border-l border-stone-200",
-      },
-    },
+
     {
       accessorKey: "totalSales",
       header: "Total Sales",
@@ -181,16 +171,7 @@ export default function CommissionClient() {
         headerClassName: "border-l border-stone-200",
       },
     },
-    {
-      accessorKey: "pendingAmount",
-      header: "Pending",
-      cell: ({ row }) => formatCurrency(row.original.pendingAmount),
-      meta: {
-        align: "right",
-        className: "border-l border-stone-200",
-        headerClassName: "border-l border-stone-200",
-      },
-    },
+
     {
       id: "action",
       header: "",
@@ -338,6 +319,7 @@ export default function CommissionClient() {
             minWidth={1320}
             hideSearch
             emptyMessage="No commission rows found for selected filters."
+            isLoading={commissionQuery.isFetching}
           />
         </>
       )}

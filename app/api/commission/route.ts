@@ -224,7 +224,6 @@ export async function GET(request: Request) {
         return {
           repId: row.repId,
           repName: row.repName,
-          receiptCount: row.receiptIds.size,
           invoiceCount: row.invoiceIds.size,
           totalSales: Number(row.totalSales.toFixed(2)),
           cashCollected: Number(row.cashCollected.toFixed(2)),

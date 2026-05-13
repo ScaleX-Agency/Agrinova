@@ -145,7 +145,24 @@ export default function CommissionRepDetailPage() {
       header: "Days",
       meta: { align: "right", className: "border-l border-stone-200", headerClassName: "border-l border-stone-200" },
     },
-    { accessorKey: "status", header: "Status" },
+    {
+      accessorKey: "settlementType",
+      header: "Type",
+      cell: ({ row }) => {
+        const isCredit = row.original.settlementType === "CREDIT_NOTE";
+        return (
+          <span
+            className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+              isCredit
+                ? "border-red-200 bg-red-50 text-red-700"
+                : "border-stone-200 bg-stone-50 text-stone-700"
+            }`}
+          >
+            {isCredit ? "Return" : "Payment"}
+          </span>
+        );
+      },
+    },
   ];
 
   return (
@@ -225,7 +242,15 @@ export default function CommissionRepDetailPage() {
         </div>
       ) : (
         <>
-          <DataTable data={detailQuery.data.commissionLedger} columns={commissionColumns} minWidth={1300} searchPlaceholder="Search commission, invoice, customer" emptyMessage="No commission records." />
+          <DataTable 
+            data={detailQuery.data.commissionLedger} 
+            columns={commissionColumns} 
+            minWidth={1300} 
+            searchPlaceholder="Search commission, invoice, customer" 
+            emptyMessage="No commission records." 
+            isLoading={detailQuery.isFetching} 
+            rowClassName={(row) => row.settlementType === "CREDIT_NOTE" ? "text-red-700 bg-red-50/40" : ""}
+          />
         </>
       )}
     </div>
