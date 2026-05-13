@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import type {
@@ -254,8 +254,8 @@ export default function PendingCommissionTab({
                 const hasReversals = row.reversalDetails.length > 0;
 
                 return (
-                  <>
-                    <tr key={row.commissionId} className={`border-b border-stone-100 ${isCredit ? "bg-red-50/40" : ""}`}>
+                  <Fragment key={row.commissionId}>
+                    <tr className={`border-b border-stone-100 ${isCredit ? "bg-red-50/40" : ""}`}>
                       <td className="px-2 py-2 text-[12px]">
                         {hasReversals && (
                           <button
@@ -368,7 +368,7 @@ export default function PendingCommissionTab({
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
               {rows.length === 0 && (

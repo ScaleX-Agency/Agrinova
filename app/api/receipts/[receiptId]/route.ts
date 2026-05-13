@@ -204,7 +204,7 @@ export async function DELETE(
       const nextPaidAmount = activeReceipts.reduce((sum, r) => sum + Number(r.amount), 0);
       const nextCreditedAmount = activeCredits.reduce((sum, c) => sum + Number(c.amount), 0);
       const totalAmount = Number(receipt.invoice.total_amount);
-      const nextBalanceAmount = Math.max(0, totalAmount - nextPaidAmount - nextCreditedAmount);
+      const nextBalanceAmount = Math.max(0, Number((totalAmount - nextPaidAmount - nextCreditedAmount).toFixed(2)));
       const nextStatus =
         nextBalanceAmount <= 0 ? "PAID" : nextPaidAmount > 0 || nextCreditedAmount > 0 ? "PARTIAL" : "UNPAID";
 

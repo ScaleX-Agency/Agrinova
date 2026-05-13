@@ -441,7 +441,7 @@ export async function POST(request: Request) {
         const nextCreditedAmount = creditedAmount + Number(creditNote.amount);
         const nextBalanceAmount = Math.max(
           0,
-          totalAmountNumber - paidAmount - nextCreditedAmount,
+          Number((totalAmountNumber - paidAmount - nextCreditedAmount).toFixed(2)),
         );
         const nextPaymentStatus =
           nextBalanceAmount <= 0

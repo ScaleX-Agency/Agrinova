@@ -273,6 +273,7 @@ export async function DELETE(
                   balance_qty: true,
                   credited_amount: true,
                   balance_amount: true,
+                  net_line_total: true,
                 },
               },
             },
@@ -437,7 +438,10 @@ export async function DELETE(
           0,
           Number(invoiceLine.credited_amount) - aggregate.creditedAmount,
         );
-        const nextBalanceAmount = Number(invoiceLine.balance_amount) + aggregate.creditedAmount;
+        const nextBalanceAmount = Math.min(
+          Number(invoiceLine.net_line_total),
+          Number(invoiceLine.balance_amount) + aggregate.creditedAmount,
+        );
         const nextBalanceQty = Math.max(0, invoiceLine.issued_qty - nextReturnedQty);
 
         await tx.invoiceLine.update({
@@ -519,7 +523,7 @@ export async function DELETE(
       const paidAmount = Number(srn.invoice.paid_amount);
       const nextInvoiceBalanceAmount = Math.max(
         0,
-        totalAmount - paidAmount - nextInvoiceCreditedAmount,
+        Number((totalAmount - paidAmount - nextInvoiceCreditedAmount).toFixed(2)),
       );
       const nextInvoiceStatus = toInvoiceStatus(
         nextInvoiceBalanceAmount,
