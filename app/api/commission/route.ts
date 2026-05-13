@@ -115,6 +115,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Invalid repId." }, { status: 400 });
     }
     const searchQuery = (search.get("search") ?? "").trim().toLowerCase();
+    const dateFilterBasedOn = search.get("dateFilterBasedOn") === "invoice" ? "invoice" : "settlement";
 
     const [commissions] = await Promise.all([
       prisma.commission.findMany({
@@ -124,9 +125,15 @@ export async function GET(request: Request) {
           invoiceSettlement: {
             is: {
               is_active: true,
-              invoice: {
-                invoice_date: { gte: period.startDate, lte: period.endDate },
-              },
+              ...(dateFilterBasedOn === "invoice"
+                ? {
+                    invoice: {
+                      invoice_date: { gte: period.startDate, lte: period.endDate },
+                    },
+                  }
+                : {
+                    settled_date: { gte: period.startDate, lte: period.endDate },
+                  }),
             },
           },
         },
@@ -177,8 +184,6 @@ export async function GET(request: Request) {
     };
 
     const byRep = new Map<number, Aggregate>();
-    let receiptCommission = 0;
-    let creditNoteCommission = 0;
 
     for (const commission of commissions) {
       const settlement = commission.invoiceSettlement;
@@ -191,9 +196,6 @@ export async function GET(request: Request) {
       const cashCollected = settlement.receipt ? toNum(settlement.receipt.amount) : 0;
       const commissionAmount = toNum(commission.commission_amount);
       const days = toNum(commission.days_to_pay);
-
-      if (settlement.settlement_type === "CREDIT_NOTE") creditNoteCommission += commissionAmount;
-      else receiptCommission += commissionAmount;
 
       const existing = byRep.get(repIdVal) ?? {
         repId: repIdVal,
@@ -236,7 +238,6 @@ export async function GET(request: Request) {
       .sort((a, b) => b.commissionAmount - a.commissionAmount);
 
     const totalCommission = rows.reduce((sum, row) => sum + row.commissionAmount, 0);
-    const approvedCommission = totalCommission;
 
     return NextResponse.json({
       period: {
@@ -246,9 +247,6 @@ export async function GET(request: Request) {
       },
       totals: {
         totalCommission: Number(totalCommission.toFixed(2)),
-        approvedCommission: Number(approvedCommission.toFixed(2)),
-        receiptCommission: Number(receiptCommission.toFixed(2)),
-        creditNoteCommission: Number(creditNoteCommission.toFixed(2)),
       },
       rows,
     });

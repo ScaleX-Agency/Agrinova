@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { BarChart3, Filter, Search, UserCheck } from "lucide-react";
+import { BarChart3, Filter, Search, Settings } from "lucide-react";
 import DataTable from "@/components/ui/DataTable";
+import CommissionConfigModal from "./CommissionConfigModal";
 
 type PeriodType = "daily" | "weekly" | "monthly" | "yearly" | "custom";
 
@@ -24,9 +25,6 @@ type CommissionDashboardResponse = {
   period: { startDate: string; endDate: string; label: string };
   totals: {
     totalCommission: number;
-    approvedCommission: number;
-    receiptCommission: number;
-    creditNoteCommission: number;
   };
   rows: CommissionRow[];
 };
@@ -60,10 +58,12 @@ export default function CommissionClient() {
   const [to, setTo] = useState(todayISO());
   const [repId, setRepId] = useState("all");
   const [search, setSearch] = useState("");
+  const [dateFilterBasedOn, setDateFilterBasedOn] = useState<"invoice" | "settlement">("settlement");
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
 
   const filters = useMemo(
-    () => ({ periodType, date, month, year, from, to, repId, search }),
-    [periodType, date, month, year, from, to, repId, search],
+    () => ({ periodType, date, month, year, from, to, repId, search, dateFilterBasedOn }),
+    [periodType, date, month, year, from, to, repId, search, dateFilterBasedOn],
   );
 
   const queryString = useMemo(() => {
@@ -77,6 +77,7 @@ export default function CommissionClient() {
       sp.set("to", filters.to);
     }
     if (filters.periodType === "weekly") sp.set("date", filters.date);
+    sp.set("dateFilterBasedOn", filters.dateFilterBasedOn);
     sp.set("repId", filters.repId);
     if (filters.search.trim()) sp.set("search", filters.search.trim());
     return sp.toString();
@@ -142,26 +143,6 @@ export default function CommissionClient() {
       },
     },
     {
-      accessorKey: "avgDays",
-      header: "Avg Days",
-      cell: ({ row }) => row.original.avgDays.toFixed(2),
-      meta: {
-        align: "right",
-        className: "border-l border-stone-200",
-        headerClassName: "border-l border-stone-200",
-      },
-    },
-    {
-      accessorKey: "commissionRate",
-      header: "Rate",
-      cell: ({ row }) => `${row.original.commissionRate.toFixed(2)}%`,
-      meta: {
-        align: "right",
-        className: "border-l border-stone-200",
-        headerClassName: "border-l border-stone-200",
-      },
-    },
-    {
       accessorKey: "commissionAmount",
       header: "Commission",
       cell: ({ row }) => formatCurrency(row.original.commissionAmount),
@@ -213,19 +194,36 @@ export default function CommissionClient() {
             Commission Overview
           </h1>
         </div>
-        <button
-          type="button"
-          onClick={reset}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[12px] font-medium text-stone-700 hover:bg-stone-50"
-        >
-          <Filter size={13} />
-          Reset Filters
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={reset}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[12px] font-medium text-stone-700 hover:bg-stone-50"
+          >
+            <Filter size={13} />
+            Reset Filters
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsConfigModalOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[12px] font-medium text-stone-700 hover:bg-stone-50"
+          >
+            <Settings size={13} />
+            Commission Config
+          </button>
+        </div>
       </div>
 
       <section className="rounded-2xl border border-stone-200 bg-white p-4 lg:p-5 space-y-3">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <label className="space-y-1">
+        <div className="flex flex-col gap-3 md:flex-row md:flex-wrap xl:flex-nowrap">
+          <label className="space-y-1 flex-1">
+            <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Filter By</span>
+            <select className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" value={dateFilterBasedOn} onChange={(e) => setDateFilterBasedOn(e.target.value as "invoice" | "settlement")}>
+              <option value="settlement">Settlement Date</option>
+              <option value="invoice">Invoice Date</option>
+            </select>
+          </label>
+          <label className="space-y-1 flex-1">
             <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Period Type</span>
             <select className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" value={periodType} onChange={(e) => setPeriodType(e.target.value as PeriodType)}>
               <option value="daily">Daily</option>
@@ -242,41 +240,31 @@ export default function CommissionClient() {
             </label>
           )}
           {periodType === "monthly" && (
-            <label className="space-y-1">
+            <label className="space-y-1 flex-1">
               <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Month</span>
               <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" />
             </label>
           )}
           {periodType === "yearly" && (
-            <label className="space-y-1">
+            <label className="space-y-1 flex-1">
               <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Year</span>
               <input type="number" min="2000" max="2100" value={year} onChange={(e) => setYear(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" />
             </label>
           )}
           {periodType === "custom" && (
             <>
-              <label className="space-y-1">
+              <label className="space-y-1 flex-1">
                 <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">From</span>
                 <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" />
               </label>
-              <label className="space-y-1">
+              <label className="space-y-1 flex-1">
                 <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">To</span>
                 <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" />
               </label>
             </>
           )}
-          <label className="space-y-1">
-            <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Sales Rep</span>
-            <select value={repId} onChange={(e) => setRepId(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]">
-              <option value="all">All Reps</option>
-              {repOptions.map((r) => (
-                <option key={r.repId} value={String(r.repId)}>
-                  {r.repName}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="space-y-1 xl:col-span-2">
+
+          <label className="space-y-1 flex-[1.5]">
             <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Search</span>
             <div className="relative">
               <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
@@ -289,7 +277,7 @@ export default function CommissionClient() {
       {commissionQuery.isLoading ? (
         <div className="space-y-4">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-            {Array.from({ length: 5 }).map((_, idx) => (
+            {Array.from({ length: 1 }).map((_, idx) => (
               <div key={idx} className="h-[96px] rounded-2xl border border-stone-200 bg-white animate-pulse" />
             ))}
           </div>
@@ -307,10 +295,6 @@ export default function CommissionClient() {
         <>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             <Metric label="Total Comm." value={formatCurrency(commissionQuery.data.totals.totalCommission)} icon={<BarChart3 size={15} className="text-violet-700" />} />
-
-            <Metric label="Approved Comm." value={formatCurrency(commissionQuery.data.totals.approvedCommission)} icon={<BarChart3 size={15} className="text-emerald-700" />} />
-            <Metric label="Receipt Comm." value={formatCurrency(commissionQuery.data.totals.receiptCommission)} icon={<UserCheck size={15} className="text-blue-700" />} />
-            <Metric label="Credit Adj." value={formatCurrency(commissionQuery.data.totals.creditNoteCommission)} icon={<UserCheck size={15} className="text-red-700" />} />
           </div>
 
           <DataTable
@@ -324,7 +308,7 @@ export default function CommissionClient() {
         </>
       )}
 
-
+      <CommissionConfigModal isOpen={isConfigModalOpen} onClose={() => setIsConfigModalOpen(false)} />
     </section>
   );
 }

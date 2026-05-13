@@ -74,8 +74,9 @@ export default function CommissionRepDetailPage() {
   const [year, setYear] = useState(yearISO());
   const [from, setFrom] = useState(todayISO());
   const [to, setTo] = useState(todayISO());
+  const [dateFilterBasedOn, setDateFilterBasedOn] = useState<"invoice" | "settlement">("settlement");
 
-  const filters = useMemo(() => ({ periodType, date, month, year, from, to }), [periodType, date, month, year, from, to]);
+  const filters = useMemo(() => ({ periodType, date, month, year, from, to, dateFilterBasedOn }), [periodType, date, month, year, from, to, dateFilterBasedOn]);
 
   const queryString = useMemo(() => {
     const sp = new URLSearchParams();
@@ -87,6 +88,7 @@ export default function CommissionRepDetailPage() {
       sp.set("from", filters.from);
       sp.set("to", filters.to);
     }
+    sp.set("dateFilterBasedOn", filters.dateFilterBasedOn);
     return sp.toString();
   }, [filters]);
 
@@ -185,7 +187,14 @@ export default function CommissionRepDetailPage() {
       </div>
 
       <section className="rounded-2xl border border-stone-200 bg-white p-4 lg:p-5">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <label className="space-y-1">
+            <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Filter By</span>
+            <select className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" value={dateFilterBasedOn} onChange={(e) => setDateFilterBasedOn(e.target.value as "invoice" | "settlement")}>
+              <option value="settlement">Settlement Date</option>
+              <option value="invoice">Invoice Date</option>
+            </select>
+          </label>
           <label className="space-y-1">
             <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Period Type</span>
             <select className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" value={periodType} onChange={(e) => setPeriodType(e.target.value as PeriodType)}>
