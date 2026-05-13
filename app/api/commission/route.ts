@@ -116,7 +116,7 @@ export async function GET(request: Request) {
     }
     const searchQuery = (search.get("search") ?? "").trim().toLowerCase();
 
-    const [commissions, pendingSettlements] = await Promise.all([
+    const [commissions] = await Promise.all([
       prisma.commission.findMany({
         where: {
           is_active: true,
@@ -160,33 +160,9 @@ export async function GET(request: Request) {
           },
         },
       }),
-      prisma.invoiceSettlement.findMany({
-        where: {
-          is_active: true,
-          commission_issued: false,
-          settlement_type: { in: ["RECEIPT", "CREDIT_NOTE"] },
-          invoice: {
-            invoice_date: { gte: period.startDate, lte: period.endDate },
-            ...(repId ? { rep_id: repId } : {}),
-          },
-        },
-        select: {
-          settlement_type: true,
-          amount: true,
-          invoice: {
-            select: {
-              rep_id: true,
-            },
-          },
-        },
-      }),
     ]);
 
-    const pendingByRep = new Map<number, number>();
-    for (const row of pendingSettlements) {
-      const signed = row.settlement_type === "CREDIT_NOTE" ? -toNum(row.amount) : toNum(row.amount);
-      pendingByRep.set(row.invoice.rep_id, (pendingByRep.get(row.invoice.rep_id) ?? 0) + signed);
-    }
+
 
     type Aggregate = {
       repId: number;
@@ -255,14 +231,12 @@ export async function GET(request: Request) {
           avgDays: Number(avgDays.toFixed(2)),
           commissionRate: Number(commissionRate.toFixed(2)),
           commissionAmount: Number(row.commissionAmount.toFixed(2)),
-          pendingAmount: Number((pendingByRep.get(row.repId) ?? 0).toFixed(2)),
         };
       })
       .filter((row) => !searchQuery || row.repName.toLowerCase().includes(searchQuery))
       .sort((a, b) => b.commissionAmount - a.commissionAmount);
 
     const totalCommission = rows.reduce((sum, row) => sum + row.commissionAmount, 0);
-    const pendingCommission = rows.reduce((sum, row) => sum + row.pendingAmount, 0);
     const approvedCommission = totalCommission;
 
     return NextResponse.json({
@@ -273,7 +247,6 @@ export async function GET(request: Request) {
       },
       totals: {
         totalCommission: Number(totalCommission.toFixed(2)),
-        pendingCommission: Number(pendingCommission.toFixed(2)),
         approvedCommission: Number(approvedCommission.toFixed(2)),
         receiptCommission: Number(receiptCommission.toFixed(2)),
         creditNoteCommission: Number(creditNoteCommission.toFixed(2)),

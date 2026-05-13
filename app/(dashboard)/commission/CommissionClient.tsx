@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { BarChart3, Filter, Search, UserCheck } from "lucide-react";
 import DataTable from "@/components/ui/DataTable";
-import PendingCommissionTab from "./PendingCommissionTab";
 
 type PeriodType = "daily" | "weekly" | "monthly" | "yearly" | "custom";
 
@@ -27,7 +26,6 @@ type CommissionDashboardResponse = {
   period: { startDate: string; endDate: string; label: string };
   totals: {
     totalCommission: number;
-    pendingCommission: number;
     approvedCommission: number;
     receiptCommission: number;
     creditNoteCommission: number;
@@ -328,7 +326,7 @@ export default function CommissionClient() {
         <>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             <Metric label="Total Comm." value={formatCurrency(commissionQuery.data.totals.totalCommission)} icon={<BarChart3 size={15} className="text-violet-700" />} />
-            <Metric label="Pending Comm." value={formatCurrency(commissionQuery.data.totals.pendingCommission)} icon={<BarChart3 size={15} className="text-amber-700" />} />
+
             <Metric label="Approved Comm." value={formatCurrency(commissionQuery.data.totals.approvedCommission)} icon={<BarChart3 size={15} className="text-emerald-700" />} />
             <Metric label="Receipt Comm." value={formatCurrency(commissionQuery.data.totals.receiptCommission)} icon={<UserCheck size={15} className="text-blue-700" />} />
             <Metric label="Credit Adj." value={formatCurrency(commissionQuery.data.totals.creditNoteCommission)} icon={<UserCheck size={15} className="text-red-700" />} />
@@ -344,15 +342,7 @@ export default function CommissionClient() {
         </>
       )}
 
-      <PendingCommissionTab
-        periodType={periodType}
-        date={date}
-        month={month}
-        year={year}
-        from={from}
-        to={to}
-        repId={repId}
-      />
+
     </section>
   );
 }
