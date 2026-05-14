@@ -15,7 +15,6 @@ import {
   YAxis,
 } from "recharts";
 import {
-  AlertTriangle,
   CalendarRange,
   CheckCircle2,
   Clock3,
@@ -291,11 +290,10 @@ export default function CustomerSalesPage() {
         </div>
       ) : (
         <>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             <Metric label="Net Sales" value={formatCurrency(dashboardQuery.data.totals.netSales)} icon={<TrendingUp size={15} className="text-emerald-600" />} />
             <Metric label="Collections" value={formatCurrency(dashboardQuery.data.totals.collections)} icon={<CheckCircle2 size={15} className="text-blue-600" />} />
             <Metric label="Outstanding" value={formatCurrency(dashboardQuery.data.totals.outstanding)} icon={<HandCoins size={15} className="text-red-600" />} />
-            <Metric label="Overdue" value={formatCurrency(dashboardQuery.data.totals.overdueAmount)} icon={<AlertTriangle size={15} className="text-red-700" />} />
             <Metric label="Active Customers" value={String(dashboardQuery.data.totals.activeCustomers)} icon={<Users size={15} className="text-stone-700" />} />
             <Metric label="Avg Collection Days" value={dashboardQuery.data.totals.avgCollectionDays === null ? "-" : String(dashboardQuery.data.totals.avgCollectionDays)} icon={<Clock3 size={15} className="text-amber-700" />} />
           </div>
