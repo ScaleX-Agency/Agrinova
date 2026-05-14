@@ -104,7 +104,7 @@ export async function GET(
     });
     if (!customer) return NextResponse.json({ error: "Customer not found." }, { status: 404 });
 
-    const [allInvoices, periodInvoices, allReceipts, periodReceipts, periodReturns, periodCreditNotes] = await Promise.all([
+    const [allInvoices, periodInvoices, periodReceipts, periodReturns, periodCreditNotes] = await Promise.all([
       prisma.invoice.findMany({
         where: { customer_id: customerId, is_active: true },
         select: {
@@ -133,16 +133,6 @@ export async function GET(
               product: { select: { product_code: true, product_name: true } },
             },
           },
-        },
-      }),
-      prisma.receipt.findMany({
-        where: { is_active: true, invoice: { customer_id: customerId } },
-        select: {
-          receipt_id: true,
-          receipt_date: true,
-          amount: true,
-          payment_method: true,
-          invoice: { select: { invoice_id: true, invoice_number: true, invoice_date: true } },
         },
       }),
       prisma.receipt.findMany({
@@ -198,12 +188,12 @@ export async function GET(
     const lifetimeSales = allInvoices.reduce((s, i) => s + toNum(i.total_amount) - toNum(i.credited_amount), 0);
     const netSales = periodInvoices.reduce((s, i) => s + toNum(i.total_amount) - toNum(i.credited_amount), 0);
     const collections = periodReceipts.reduce((s, r) => s + toNum(r.amount), 0);
-    const outstanding = allInvoices.reduce((s, i) => s + toNum(i.balance_amount), 0);
-    const overdueAmount = allInvoices
+    const outstanding = periodInvoices.reduce((s, i) => s + toNum(i.balance_amount), 0);
+    const overdueAmount = periodInvoices
       .filter((i) => toNum(i.balance_amount) > 0 && Math.floor((now.getTime() - i.invoice_date.getTime()) / DAY_MS) > 30)
       .reduce((s, i) => s + toNum(i.balance_amount), 0);
-    const lastPurchaseDate = allInvoices.length
-      ? allInvoices.reduce((m, i) => (i.invoice_date > m ? i.invoice_date : m), allInvoices[0].invoice_date)
+    const lastPurchaseDate = periodInvoices.length
+      ? periodInvoices.reduce((m, i) => (i.invoice_date > m ? i.invoice_date : m), periodInvoices[0].invoice_date)
       : null;
 
     const aging = {
@@ -212,7 +202,7 @@ export async function GET(
       "61-90": 0,
       "90+": 0,
     };
-    for (const inv of allInvoices) {
+    for (const inv of periodInvoices) {
       const bal = toNum(inv.balance_amount);
       if (bal <= 0) continue;
       const days = Math.floor((now.getTime() - inv.invoice_date.getTime()) / DAY_MS);
@@ -257,7 +247,7 @@ export async function GET(
       .slice(0, 12)
       .map((p) => ({ ...p, netRevenue: Number(p.netRevenue.toFixed(2)) }));
 
-    const openInvoices = allInvoices
+    const openInvoices = periodInvoices
       .filter((i) => toNum(i.balance_amount) > 0)
       .sort((a, b) => a.invoice_date.getTime() - b.invoice_date.getTime())
       .map((i) => ({
@@ -319,7 +309,7 @@ export async function GET(
     }
     let weightedAmount = 0;
     let weightedDays = 0;
-    for (const r of allReceipts) {
+    for (const r of periodReceipts) {
       const days = Math.max(0, Math.floor((r.receipt_date.getTime() - r.invoice.invoice_date.getTime()) / DAY_MS));
       const amt = toNum(r.amount);
       weightedAmount += amt;
