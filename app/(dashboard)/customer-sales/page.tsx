@@ -28,7 +28,6 @@ import {
 import DataTable from "@/components/ui/DataTable";
 
 type PeriodType = "daily" | "monthly" | "yearly" | "custom";
-type Risk = "all" | "clear" | "watch" | "overdue" | "inactive";
 
 type CustomerRow = {
   customerId: number;
@@ -91,12 +90,11 @@ export default function CustomerSalesPage() {
   const [from, setFrom] = useState(todayISO());
   const [to, setTo] = useState(todayISO());
   const [repId, setRepId] = useState("all");
-  const [risk, setRisk] = useState<Risk>("all");
   const [search, setSearch] = useState("");
 
   const filterState = useMemo(
-    () => ({ periodType, date, month, year, from, to, repId, risk, search }),
-    [periodType, date, month, year, from, to, repId, risk, search],
+    () => ({ periodType, date, month, year, from, to, repId, search }),
+    [periodType, date, month, year, from, to, repId, search],
   );
 
   const queryString = useMemo(() => {
@@ -110,7 +108,6 @@ export default function CustomerSalesPage() {
       sp.set("to", filterState.to);
     }
     sp.set("repId", filterState.repId);
-    sp.set("risk", filterState.risk);
     if (filterState.search.trim()) sp.set("search", filterState.search.trim());
     return sp.toString();
   }, [filterState]);
@@ -191,7 +188,6 @@ export default function CustomerSalesPage() {
     setFrom(todayISO());
     setTo(todayISO());
     setRepId("all");
-    setRisk("all");
     setSearch("");
   };
 
@@ -214,8 +210,8 @@ export default function CustomerSalesPage() {
       </div>
 
       <section className="rounded-2xl border border-stone-200 bg-white p-4 lg:p-5 space-y-3">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <label className="space-y-1">
+        <div className="grid w-full grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <label className="space-y-1 w-full">
             <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Period Type</span>
             <select className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" value={periodType} onChange={(e) => setPeriodType(e.target.value as PeriodType)}>
               <option value="daily">Daily</option>
@@ -225,36 +221,36 @@ export default function CustomerSalesPage() {
             </select>
           </label>
           {periodType === "daily" && (
-            <label className="space-y-1">
+            <label className="space-y-1 w-full">
               <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Date</span>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" />
             </label>
           )}
           {periodType === "monthly" && (
-            <label className="space-y-1">
+            <label className="space-y-1 w-full">
               <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Month</span>
               <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" />
             </label>
           )}
           {periodType === "yearly" && (
-            <label className="space-y-1">
+            <label className="space-y-1 w-full">
               <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Year</span>
               <input type="number" min="2000" max="2100" value={year} onChange={(e) => setYear(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" />
             </label>
           )}
           {periodType === "custom" && (
             <>
-              <label className="space-y-1">
+              <label className="space-y-1 w-full">
                 <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">From</span>
                 <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" />
               </label>
-              <label className="space-y-1">
+              <label className="space-y-1 w-full">
                 <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">To</span>
                 <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" />
               </label>
             </>
           )}
-          <label className="space-y-1">
+          <label className="space-y-1 w-full">
             <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Sales Rep</span>
             <select value={repId} onChange={(e) => setRepId(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]">
               <option value="all">All Reps</option>
@@ -265,17 +261,7 @@ export default function CustomerSalesPage() {
               ))}
             </select>
           </label>
-          <label className="space-y-1">
-            <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Risk</span>
-            <select value={risk} onChange={(e) => setRisk(e.target.value as Risk)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]">
-              <option value="all">All</option>
-              <option value="clear">Clear</option>
-              <option value="watch">Watch</option>
-              <option value="overdue">Overdue</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </label>
-          <label className="space-y-1 xl:col-span-2">
+          <label className="space-y-1 w-full">
             <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Search</span>
             <div className="relative">
               <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
