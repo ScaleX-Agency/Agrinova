@@ -169,7 +169,7 @@ export default function CustomerSalesPage() {
       header: "",
       cell: ({ row }) => (
         <Link
-          href={`/customer-sales/${row.original.customerId}`}
+          href={`/customer-sales/${row.original.customerId}?${queryString}`}
           className="inline-flex items-center rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-stone-700 hover:bg-stone-50"
         >
           View

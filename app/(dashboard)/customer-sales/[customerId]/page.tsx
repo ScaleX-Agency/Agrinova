@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
@@ -93,15 +93,52 @@ function yearISO() {
   return String(new Date().getFullYear());
 }
 
+function isValidDateISO(value: string | null): value is string {
+  return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
+}
+
+function isValidMonthISO(value: string | null): value is string {
+  return Boolean(value && /^\d{4}-\d{2}$/.test(value));
+}
+
+function isValidYear(value: string | null): value is string {
+  return Boolean(value && /^\d{4}$/.test(value));
+}
+
+function getInitialPeriodType(raw: string | null): PeriodType {
+  if (raw === "daily" || raw === "monthly" || raw === "yearly" || raw === "custom") {
+    return raw;
+  }
+  return "monthly";
+}
+
 export default function CustomerSalesDetailPage() {
   const params = useParams<{ customerId: string }>();
+  const searchParams = useSearchParams();
   const customerId = Number(params.customerId);
-  const [periodType, setPeriodType] = useState<PeriodType>("monthly");
-  const [date, setDate] = useState(todayISO());
-  const [month, setMonth] = useState(monthISO());
-  const [year, setYear] = useState(yearISO());
-  const [from, setFrom] = useState(todayISO());
-  const [to, setTo] = useState(todayISO());
+  const [periodType, setPeriodType] = useState<PeriodType>(() =>
+    getInitialPeriodType(searchParams.get("periodType")),
+  );
+  const [date, setDate] = useState(() => {
+    const raw = searchParams.get("date");
+    return isValidDateISO(raw) ? raw : todayISO();
+  });
+  const [month, setMonth] = useState(() => {
+    const raw = searchParams.get("month");
+    return isValidMonthISO(raw) ? raw : monthISO();
+  });
+  const [year, setYear] = useState(() => {
+    const raw = searchParams.get("year");
+    return isValidYear(raw) ? raw : yearISO();
+  });
+  const [from, setFrom] = useState(() => {
+    const raw = searchParams.get("from");
+    return isValidDateISO(raw) ? raw : todayISO();
+  });
+  const [to, setTo] = useState(() => {
+    const raw = searchParams.get("to");
+    return isValidDateISO(raw) ? raw : todayISO();
+  });
 
   const filters = useMemo(() => ({ periodType, date, month, year, from, to }), [periodType, date, month, year, from, to]);
 
