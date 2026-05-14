@@ -477,7 +477,7 @@ export async function createStockTransfer(
     }
 
     return transferCreated;
-  });
+  }, { timeout: 20000, maxWait: 10000 });
 
   revalidateTag("inventory", "max");
   revalidateTag("summaries", "max");
@@ -589,7 +589,7 @@ export async function createProduct(dto: CreateProductDto, userId?: number) {
     }
 
     return createdProduct;
-  });
+  }, { timeout: 20000, maxWait: 10000 });
 
   revalidateTag("inventory", "max");
   return product;
@@ -823,7 +823,7 @@ export async function createStockEntry(
       grn_number: createdNote.grn_number,
       stock_updates: stockUpdates,
     };
-  });
+  }, { timeout: 20000, maxWait: 10000 });
 
   revalidateTag("inventory", "max");
   return result;

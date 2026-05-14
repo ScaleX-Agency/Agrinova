@@ -470,7 +470,7 @@ export async function POST(request: Request) {
       return {
         invoiceId: createdInvoice.invoice_id,
       };
-    });
+    }, { timeout: 20000, maxWait: 10000 });
 
     const responseBody: CreateInvoiceSuccessResponse = {
       success: true,

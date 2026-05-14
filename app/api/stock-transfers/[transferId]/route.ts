@@ -131,7 +131,7 @@ export async function DELETE(
         transfer_id: transfer.transfer_id,
         transfer_no: transfer.transfer_no,
       };
-    });
+    }, { timeout: 20000, maxWait: 10000 });
 
     revalidateTag("inventory", "max");
     revalidateTag("summaries", "max");
