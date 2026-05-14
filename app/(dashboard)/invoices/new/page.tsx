@@ -372,19 +372,20 @@ const NewInvoicePage = () => {
   }, [clearFieldErrors]);
 
   const changeProduct = useCallback((lineId: number, productId: number | null) => {
-    if (
-      typeof productId === "number" &&
-      lines.some((line) => line.id !== lineId && line.productId === productId)
-    ) {
-      setProductsActionError("The same product cannot be selected more than once.");
-      return;
-    }
-
     clearFieldErrors(["lines"]);
-    setProductsActionError("");
     setSubmitError("");
-    setLines((prev) =>
-      prev.map((line) => {
+
+    let hasDuplicateProduct = false;
+    setLines((prev) => {
+      if (
+        typeof productId === "number" &&
+        prev.some((line) => line.id !== lineId && line.productId === productId)
+      ) {
+        hasDuplicateProduct = true;
+        return prev;
+      }
+
+      return prev.map((line) => {
         if (line.id !== lineId) return line;
         const selected = productId ? availableProductsById[productId] : undefined;
         const nextQty = selected ? Math.min(Math.max(1, line.qty), selected.quantityOnHand) : line.qty;
@@ -403,9 +404,15 @@ const NewInvoicePage = () => {
           netLineTotal: 0,
         };
         return recomputeLine(updated);
-      }),
-    );
-  }, [availableProductsById, clearFieldErrors, lines]);
+      });
+    });
+
+    if (hasDuplicateProduct) {
+      setProductsActionError("The same product cannot be selected more than once.");
+      return;
+    }
+    setProductsActionError("");
+  }, [availableProductsById, clearFieldErrors]);
 
   const changeQty = useCallback((lineId: number, qty: number) => {
     clearFieldErrors(["lines"]);

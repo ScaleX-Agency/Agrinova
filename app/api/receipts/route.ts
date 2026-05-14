@@ -282,7 +282,7 @@ export async function POST(request: Request) {
         commissionRate: commissionResult.commissionRate,
         commissionAmount: commissionResult.commissionAmount,
       };
-    });
+    }, { timeout: 20000, maxWait: 10000 });
 
     const responseBody: CreateReceiptResponse = {
       data: {

@@ -172,8 +172,6 @@ export async function DELETE(
           }
         }
 
-        const now = new Date();
-
         for (const [productId, qty] of receivedByProduct.entries()) {
           const stock = stockByProduct.get(productId)!;
 
@@ -184,16 +182,6 @@ export async function DELETE(
             },
           });
 
-          await tx.stockMovement.create({
-            data: {
-              stock_id: stock.stock_id,
-              product_id: productId,
-              created_by: currentUser.user_id,
-              movement_type: "PURCHASE_REVERSAL",
-              quantity: qty,
-              movement_date: now,
-            },
-          });
         }
 
         await tx.goodsReceivingNote.update({

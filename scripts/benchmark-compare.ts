@@ -53,9 +53,8 @@ async function main() {
  
   results.push(await runBenchmark("getAllStock()", inventoryService.getAllStock)); 
   results.push(await runBenchmark("getLocationSummaries()", () => inventoryService.getLocationSummaries())); 
-  results.push(await runBenchmark("getAllMovements()", inventoryService.getAllMovements)); 
   results.push(await runBenchmark("Full page load (parallel)", () => 
-    Promise.all([inventoryService.getAllStock(), inventoryService.getLocationSummaries(), inventoryService.getAllMovements()]) 
+    Promise.all([inventoryService.getAllStock(), inventoryService.getLocationSummaries()]) 
   )); 
  
   results.forEach((r) => 
