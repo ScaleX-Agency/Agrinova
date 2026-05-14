@@ -117,29 +117,6 @@ export async function DELETE(
           },
         });
 
-        await tx.stockMovement.create({
-          data: {
-            stock_id: sourceStock.stock_id,
-            product_id: productId,
-            created_by: currentUser.user_id,
-            movement_type: "TRANSFER_OUT_REVERSAL",
-            quantity,
-            movement_date: new Date(),
-            notes: `Transfer reversal ${transfer.transfer_no} from ${transfer.to_location.code}`,
-          },
-        });
-
-        await tx.stockMovement.create({
-          data: {
-            stock_id: destinationStock.stock_id,
-            product_id: productId,
-            created_by: currentUser.user_id,
-            movement_type: "TRANSFER_IN_REVERSAL",
-            quantity,
-            movement_date: new Date(),
-            notes: `Transfer reversal ${transfer.transfer_no} to ${transfer.from_location.code}`,
-          },
-        });
       }
 
       await tx.stockTransfer.update({

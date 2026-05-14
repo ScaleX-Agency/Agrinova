@@ -5,8 +5,6 @@ import { unstable_cache, revalidateTag } from "next/cache";
 import type {
   StockOverviewRow,
   LocationSummary,
-  MovementRow,
-  CreateMovementDto,
   StockTransferRecord,
   CreateStockTransferDto,
   CreateStockEntryDto,
@@ -25,17 +23,6 @@ function computeStatus(
   return "ok";
 }
 
-function computeQtyDelta(type: string, qty: number): number {
-  if (type === "ISSUE" || type === "ADJUSTMENT") return -qty;
-  if (type === "TRANSFER_OUT") return -qty;
-  if (type === "TRANSFER_IN") return qty;
-  if (type === "TRANSFER_OUT_REVERSAL") return qty;
-  if (type === "TRANSFER_IN_REVERSAL") return -qty;
-  if (type === "ISSUE_REVERSAL") return qty;
-  if (type === "RETURN_REVERSAL" || type === "PURCHASE_REVERSAL") return -qty;
-  if (type === "RETURN_UNUSABLE" || type === "RETURN_UNUSABLE_REVERSAL") return 0;
-  return qty;
-}
 
 // ── Stock ─────────────────────────────────────────────────────
 // unstable_cache: serves repeated page loads from memory, not Supabase.
@@ -258,77 +245,6 @@ export const getLocationSummaries = unstable_cache(
   { revalidate: 30, tags: ["inventory", "summaries"] },
 );
 
-// ── Movements ─────────────────────────────────────────────────
-
-export async function getAllMovements(
-  page: number = 1,
-  pageSize: number = 20,
-   
-  filters?: { movement_type?: string; search?: string; location_id?: number },
-   
-): Promise<PaginatedResult<MovementRow>> {
-  // eslint-disable-next-line
-  const where: any = {};
-  if (filters?.movement_type && filters.movement_type !== "ALL") {
-    where.movement_type = filters.movement_type;
-  }
-  if (filters?.location_id) {
-    where.stock = { ...where.stock, location_id: filters.location_id };
-  }
-  if (filters?.search) {
-    where.OR = [
-      {
-        product: {
-          product_name: { contains: filters.search, mode: "insensitive" },
-        },
-      },
-      {
-        product: {
-          product_code: { contains: filters.search, mode: "insensitive" },
-        },
-      },
-    ];
-  }
-
-  const [total, movs] = await Promise.all([
-    prisma.stockMovement.count({ where }),
-    prisma.stockMovement.findMany({
-      where,
-      include: {
-        stock: { include: { location: true } },
-        product: true,
-        creator: true,
-      },
-      orderBy: { movement_date: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
-  ]);
-
-  const items = movs.map((m) => ({
-    movement_id: m.movement_id,
-    movement_date: m.movement_date.toISOString(),
-    movement_type: m.movement_type as MovementRow["movement_type"],
-    product_name: m.product.product_name,
-    product_code: m.product.product_code,
-    location_code: m.stock.location.code,
-    movement_qty: m.quantity,
-    qty_delta: computeQtyDelta(m.movement_type, m.quantity),
-    notes: m.notes,
-    created_by_name: m.creator.full_name,
-  }));
-
-  return {
-    items,
-    pagination: {
-      page,
-      pageSize,
-      total,
-      totalPages: Math.ceil(total / pageSize) || 1,
-    },
-  };
-}
-
 const getTransferPrefix = (date: Date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -541,7 +457,7 @@ export async function createStockTransfer(
         data: { quantity_on_hand: { decrement: quantity } },
       });
 
-      const destinationStock = await tx.stock.upsert({
+      await tx.stock.upsert({
         where: {
           product_id_location_id: {
             product_id: product.product_id,
@@ -558,29 +474,6 @@ export async function createStockTransfer(
         },
       });
 
-      await tx.stockMovement.create({
-        data: {
-          stock_id: source.stock_id,
-          product_id: product.product_id,
-          created_by: userId,
-          movement_type: "TRANSFER_OUT",
-          quantity,
-          movement_date: transferDate,
-          notes: `Transfer ${transferCreated.transfer_no} to ${toLocation.code}`,
-        },
-      });
-
-      await tx.stockMovement.create({
-        data: {
-          stock_id: destinationStock.stock_id,
-          product_id: product.product_id,
-          created_by: userId,
-          movement_type: "TRANSFER_IN",
-          quantity,
-          movement_date: transferDate,
-          notes: `Transfer ${transferCreated.transfer_no} from ${fromLocation.code}`,
-        },
-      });
     }
 
     return transferCreated;
@@ -591,85 +484,7 @@ export async function createStockTransfer(
   return result;
 }
 
-export async function getMovementsByLocation(
-  locationId: number,
-  page: number = 1,
-  pageSize: number = 20,
-  filters?: { movement_type?: string; search?: string },
-): Promise<PaginatedResult<MovementRow>> {
-  return getAllMovements(page, pageSize, {
-    ...filters,
-    location_id: locationId,
-  });
-}
-
 // ── Mutations (NOT cached — always hit DB) ────────────────────
-
-export async function createMovement(
-  dto: CreateMovementDto,
-  userId: number,
-): Promise<{
-  updatedStock: { stock_id: number; quantity_on_hand: number };
-  movement_id: number;
-}> {
-  const isAdjustment = dto.movement_type === "ADJUSTMENT";
-  const targetQty = isAdjustment
-    ? dto.resulting_quantity ?? dto.quantity
-    : undefined;
-
-  if (isAdjustment) {
-    if (!Number.isInteger(targetQty) || (targetQty as number) < 0) {
-      throw new Error("resulting_quantity must be a non-negative integer");
-    }
-  }
-
-  const { updatedStock, movement } = await prisma.$transaction(async (tx) => {
-    // Using a simple read since we can't do increment logic easily with target quantity (adjustment)
-    // without reading it first inside a transaction or resorting to raw query. Since it's in a single
-    // transaction block, any concurrent writes outside transaction logic might race unless we raw lock,
-    // but the `update` atomically decrements using `increment` below.
-    const stock = await tx.stock.findUniqueOrThrow({
-      where: { stock_id: dto.stock_id },
-    });
-
-    const delta = isAdjustment
-      ? (targetQty as number) - stock.quantity_on_hand
-      : computeQtyDelta(dto.movement_type, dto.quantity);
-
-    if (stock.quantity_on_hand + delta < 0) {
-      throw new Error("Insufficient stock for this movement");
-    }
-
-    const updated = await tx.stock.update({
-      where: { stock_id: dto.stock_id },
-      data: { quantity_on_hand: { increment: delta } },
-    });
-
-    const mov = await tx.stockMovement.create({
-      data: {
-        stock_id: dto.stock_id,
-        product_id: stock.product_id,
-        created_by: userId,
-        movement_type: dto.movement_type,
-        quantity: dto.quantity,
-        movement_date: new Date(),
-      },
-    });
-
-    return { updatedStock: updated, movement: mov };
-  });
-
-  // Bust server-side cache so next RSC render gets fresh data
-  revalidateTag("inventory", "max");
-
-  return {
-    updatedStock: {
-      stock_id: updatedStock.stock_id,
-      quantity_on_hand: updatedStock.quantity_on_hand,
-    },
-    movement_id: movement.movement_id,
-  };
-}
 
 export async function getAllProducts(
   page: number = 1,
@@ -763,7 +578,7 @@ export async function createProduct(dto: CreateProductDto, userId?: number) {
     });
 
     if (dto.initial_qty && dto.initial_qty > 0 && dto.location_id && userId) {
-      const stock = await tx.stock.create({
+      await tx.stock.create({
         data: {
           product_id: createdProduct.product_id,
           location_id: dto.location_id,
@@ -771,16 +586,6 @@ export async function createProduct(dto: CreateProductDto, userId?: number) {
         },
       });
 
-      await tx.stockMovement.create({
-        data: {
-          stock_id: stock.stock_id,
-          product_id: createdProduct.product_id,
-          created_by: userId,
-          movement_type: "PURCHASE",
-          quantity: dto.initial_qty,
-          movement_date: new Date(),
-        },
-      });
     }
 
     return createdProduct;
@@ -1006,17 +811,6 @@ export async function createStockEntry(
             },
           });
 
-      await tx.stockMovement.create({
-        data: {
-          stock_id: stock.stock_id,
-          product_id: productId,
-          created_by: userId,
-          movement_type: "PURCHASE",
-          quantity: qty,
-          movement_date: entryDate,
-        },
-      });
-
       stockUpdates.push({
         stock_id: stock.stock_id,
         product_id: productId,
@@ -1115,76 +909,24 @@ export async function importStock(data: any[], userId: number) {
       },
     });
 
-    let stock;
-    if (existing) {
-      stock = await prisma.stock.update({
+    const stock = existing
+      ? await prisma.stock.update({
         where: { stock_id: existing.stock_id },
         data: { quantity_on_hand: { increment: qty } },
-      });
-    } else {
-      stock = await prisma.stock.create({
+      })
+      : await prisma.stock.create({
         data: {
           product_id: product.product_id,
           location_id: location.location_id,
           quantity_on_hand: qty,
         },
       });
-    }
-
-    await prisma.stockMovement.create({
-      data: {
-        stock_id: stock.stock_id,
-        product_id: product.product_id,
-        created_by: userId,
-        movement_type: row.entry_type || "PURCHASE",
-        quantity: qty,
-        movement_date: row.date ? new Date(row.date) : new Date(),
-      },
-    });
 
     imported.push(stock);
   }
 
   revalidateTag("inventory", "max");
   return imported;
-}
-
-export async function deleteMovement(movementId: number) {
-  const result = await prisma.$transaction(async (tx) => {
-    const movement = await tx.stockMovement.findUnique({
-      where: { movement_id: movementId },
-    });
-    if (!movement) throw new Error("Movement not found");
-
-    const stock = await tx.stock.findUnique({
-      where: { stock_id: movement.stock_id },
-    });
-    if (!stock) throw new Error("Stock not found");
-
-    let stockDeltaToApply = 0;
-    if (movement.movement_type === "ISSUE") {
-        stockDeltaToApply = movement.quantity; // It was subtracted, now add
-    } else if (movement.movement_type === "PURCHASE" || movement.movement_type === "RETURN") {
-        stockDeltaToApply = -movement.quantity; // It was added, now subtract
-    } else if (movement.movement_type === "ADJUSTMENT") {
-        stockDeltaToApply = -movement.quantity; // Reverse exact delta (positive becomes negative, negative becomes positive)
-    }
-
-    if (stock.quantity_on_hand + stockDeltaToApply < 0) {
-      throw new Error("Insufficient stock to revert this movement");
-    }
-
-    await tx.stock.update({
-      where: { stock_id: stock.stock_id },
-      data: { quantity_on_hand: { increment: stockDeltaToApply } },
-    });
-
-    await tx.stockMovement.delete({ where: { movement_id: movementId } });
-    return movement;
-  });
-
-  revalidateTag("inventory", "max");
-  return result;
 }
 
 export async function getAllLocations() {

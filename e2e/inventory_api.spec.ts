@@ -79,9 +79,4 @@ test.describe('Inventory API Routes', () => {
     expect([200, 400, 404]).toContain(response.status());
   });
 
-  test('DELETE /api/stock-movements/[movementId] deletes movement', async ({ request }) => {
-    const response = await request.delete('/api/stock-movements/9999'); 
-    expect([200, 400, 404]).toContain(response.status());
-  });
-
 });

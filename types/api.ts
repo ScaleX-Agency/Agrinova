@@ -514,22 +514,6 @@ export type CreateSalesReturnSuccessResponse = {
 export type CreateSalesReturnResponse =
   ApiResult<CreateSalesReturnSuccessResponse>;
 
-export type UnusableStockSummaryRowDto = {
-  productId: number;
-  productCode: string;
-  productName: string;
-  locationId: number;
-  locationCode: string;
-  quantityOnHand: number;
-};
-
-export type UnusableStockSummaryDto = {
-  totalUnusableQty: number;
-  rows: UnusableStockSummaryRowDto[];
-};
-
-export type UnusableStockSummaryResponse = ApiResult<UnusableStockSummaryDto>;
-
 export type InvoicesResponse = ApiResult<InvoiceOptionDto[]>;
 
 export type InvoiceAggregatedCustomerDto = {

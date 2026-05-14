@@ -23,14 +23,6 @@ async function getLocationSummaries() {
   }));
 }
 
-async function getAllMovements() {
-  return prisma.stockMovement.findMany({
-    include: { stock: { include: { location: true } }, product: true, creator: true },
-    orderBy: { movement_date: "desc" },
-    take: 200,
-  });
-}
-
 async function runBenchmark(label: string, fn: () => Promise<unknown>, iterations = 5) {
   const times: number[] = [];
   for (let i = 0; i < iterations; i++) {
@@ -54,11 +46,9 @@ async function main() {
   // Individual query times
   results.push(await runBenchmark("getAllStock()", getAllStock));
   results.push(await runBenchmark("getLocationSummaries() CURRENT", getLocationSummaries));
-  results.push(await runBenchmark("getAllMovements()", getAllMovements));
-
   // Full page load simulation (all 3 in parallel, as current page.tsx does)
   results.push(await runBenchmark("Full page load (parallel)", () =>
-    Promise.all([getAllStock(), getLocationSummaries(), getAllMovements()])
+    Promise.all([getAllStock(), getLocationSummaries()])
   ));
 
   // Count actual DB queries using Prisma query log
@@ -76,8 +66,6 @@ async function main() {
     (debugPrisma as any).stock.findMany({ include: { product: { include: { category: true } }, location: true } }),
   // eslint-disable-next-line
     (debugPrisma as any).inventoryLocation.findMany({ include: { stocks: true } }),
-  // eslint-disable-next-line
-    (debugPrisma as any).stockMovement.findMany({ include: { stock: { include: { location: true } }, product: true, creator: true }, take: 200 }),
   ]);
   console.log(`Total queries fired: ${queryLog.length}`);
   console.log("Queries:", queryLog);
