@@ -41,6 +41,15 @@ const StockEntryProductsSection = ({
       ),
     [lines],
   );
+  const selectedProductIdsSignature = useMemo(
+    () =>
+      lines
+        .map((line) => line.productId)
+        .filter((productId): productId is number => typeof productId === "number")
+        .sort((a, b) => a - b)
+        .join(","),
+    [lines],
+  );
 
   const columns = useMemo(
     () => [
@@ -100,7 +109,16 @@ const StockEntryProductsSection = ({
       }),
     ],
   // eslint-disable-next-line
-    [productOptions, isProductsLoading, lines.length, selectedProductIds, locationId, onChangeProduct, onChangeQty, onRemoveLine],
+    [
+      productOptions,
+      isProductsLoading,
+      lines.length,
+      selectedProductIdsSignature,
+      locationId,
+      onChangeProduct,
+      onChangeQty,
+      onRemoveLine,
+    ],
   );
 
   return (

@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import SearchableSelect, { type SearchableSelectOption } from "@/components/SearchableSelect";
 import { ClipboardList } from "lucide-react";
 
@@ -56,6 +59,15 @@ const InvoiceDetailsSection = ({
   onCustomerChange,
   onLocationChange,
 }: InvoiceDetailsSectionProps) => {
+  const [invoiceNoDraft, setInvoiceNoDraft] = useState(invoiceNo);
+  const [isInvoiceNoFocused, setIsInvoiceNoFocused] = useState(false);
+
+  useEffect(() => {
+    if (!isInvoiceNoFocused) {
+      setInvoiceNoDraft(invoiceNo);
+    }
+  }, [invoiceNo, isInvoiceNoFocused]);
+
   const editableInputClassName =
     "rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 [font-family:var(--font-dmsans)] outline-none focus:border-[#1a5c2e]";
 
@@ -76,8 +88,14 @@ const InvoiceDetailsSection = ({
           <input
             type="text"
             placeholder="fill"
-            value={invoiceNo}
-            onChange={(event) => onInvoiceNoChange(event.target.value)}
+            value={invoiceNoDraft}
+            onFocus={() => setIsInvoiceNoFocused(true)}
+            onBlur={() => setIsInvoiceNoFocused(false)}
+            onChange={(event) => {
+              const next = event.target.value;
+              setInvoiceNoDraft(next);
+              onInvoiceNoChange(next);
+            }}
             className={editableInputClassName}
           />
           {invoiceNoError && <p className="text-[12px] text-red-700 [font-family:var(--font-dmsans)]">{invoiceNoError}</p>}
