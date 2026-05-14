@@ -1,7 +1,7 @@
 // app/(dashboard)/inventory/[locationId]/page.tsx
 
 import LocationStockPage from "@/components/LocationStockPage";
-import { getStockByLocation, getMovementsByLocation } from "@/lib/inventoryService";
+import { getStockByLocation } from "@/lib/inventoryService";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
@@ -29,8 +29,6 @@ export default async function LocationStockRoute({ params }: Props) {
 
   // Both calls hit unstable_cache — fast on repeated visits
   const stock = await getStockByLocation(id);
-  const movementsResult = await getMovementsByLocation(id);
-
   return (
     <LocationStockPage
       locationId={id}
@@ -38,8 +36,6 @@ export default async function LocationStockRoute({ params }: Props) {
       locationName={loc.name}
   // eslint-disable-next-line
       initialStock={stock as any}
-  // eslint-disable-next-line
-      initialMovements={movementsResult as any}
     />
   );
 }

@@ -3,15 +3,12 @@
   // eslint-disable-next-line
 import { useEffect, useMemo, useState } from "react";
 import { X, Plus } from "lucide-react";
-import { StockOverviewRow, MovementRow } from "@/types/inventory";
+import { StockOverviewRow } from "@/types/inventory";
 import type { CreateStockEntryDto } from "@/types/inventory";
 
 interface Props {
   onClose: () => void;
-  onSaved: (
-    updatedRows: StockOverviewRow[],
-    newMovements: MovementRow[],
-  ) => void;
+  onSaved: (updatedRows: StockOverviewRow[]) => void;
 }
 
 type EntryItem = {
@@ -192,7 +189,7 @@ export default function NewStockEntryModal({ onClose, onSaved }: Props) {
         throw new Error(result.error ?? "Failed to save stock entry.");
       }
 
-      onSaved([], []);
+      onSaved([]);
       onClose();
     } catch (saveError: unknown) {
       setError(saveError instanceof Error ? saveError.message : "Failed to save stock entry.");

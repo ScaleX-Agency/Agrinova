@@ -349,15 +349,16 @@ export async function POST(request: Request) {
         for (const [productId, addQty] of stockAddableByProduct.entries()) {
           if (addQty <= 0) continue;
 
-          const stock = stockByProduct.get(productId)
-            ? await tx.stock.update({
+          if (stockByProduct.get(productId)) {
+            await tx.stock.update({
                 where: { stock_id: stockByProduct.get(productId)!.stock_id },
                 data: {
                   quantity_on_hand: { increment: addQty },
                 },
                 select: { stock_id: true },
-              })
-            : await tx.stock.create({
+              });
+          } else {
+            await tx.stock.create({
                 data: {
                   product_id: productId,
                   location_id: invoice.location_id,
@@ -365,25 +366,15 @@ export async function POST(request: Request) {
                 },
                 select: { stock_id: true },
               });
+          }
 
-          await tx.stockMovement.create({
-            data: {
-              stock_id: stock.stock_id,
-              product_id: productId,
-              created_by: currentUser.user_id,
-              movement_type: "RETURN",
-              quantity: addQty,
-              movement_date: returnDate,
-            },
-          });
         }
 
         for (const [productId, unusableQty] of unusableByProduct.entries()) {
           if (unusableQty <= 0) continue;
           const existingStock = stockByProduct.get(productId);
-          const stockForAudit = existingStock
-            ? { stock_id: existingStock.stock_id }
-            : await tx.stock.upsert({
+          if (!existingStock) {
+            await tx.stock.upsert({
                 where: {
                   product_id_location_id: {
                     product_id: productId,
@@ -398,17 +389,8 @@ export async function POST(request: Request) {
                 },
                 select: { stock_id: true },
               });
+          }
 
-          await tx.stockMovement.create({
-            data: {
-              stock_id: stockForAudit.stock_id,
-              product_id: productId,
-              created_by: currentUser.user_id,
-              movement_type: "RETURN_UNUSABLE",
-              quantity: unusableQty,
-              movement_date: returnDate,
-            },
-          });
         }
 
         const creditNote = await tx.creditNote.create({

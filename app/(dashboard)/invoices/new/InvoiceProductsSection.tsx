@@ -64,6 +64,15 @@ const InvoiceProductsSection = ({
     ),
     [lines],
   );
+  const selectedProductIdsSignature = useMemo(
+    () =>
+      lines
+        .map((line) => line.productId)
+        .filter((productId): productId is number => typeof productId === "number")
+        .sort((a, b) => a - b)
+        .join(","),
+    [lines],
+  );
 
   // Build a quick lookup of stock by product id
   const stockByProductId = useMemo(() => {
@@ -292,7 +301,7 @@ const InvoiceProductsSection = ({
       onChangeUnitPrice,
       onRemoveLine,
       productSelectOptions,
-      selectedProductIds,
+      selectedProductIdsSignature,
       stockByProductId,
     ],
   );

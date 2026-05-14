@@ -43,8 +43,6 @@ app/
 │ ├── route.ts # GET - stock overview all locations
 │ └── [locationId]/
 │ ├── route.ts # GET - stock for this location
-│ └── movements/
-│ └── route.ts # GET - movement log | POST - new issue/return
 │
 ├── products/
 │ ├── route.ts # GET - list products | POST - create
@@ -56,8 +54,6 @@ app/
 │ └── [stockId]/
 │ └── route.ts # GET | PATCH - single stock entry
 │
-├── stock-movements/
-│ ├── route.ts # GET - full movement log | POST - new movement
 │ └── [movementId]/
 │ └── route.ts # GET - single movement detail
 │

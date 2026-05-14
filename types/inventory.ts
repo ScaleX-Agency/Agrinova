@@ -1,20 +1,5 @@
 export type StockStatus = "ok" | "low" | "out";
 
-export type MovementType =
-  | "ISSUE"
-  | "RETURN"
-  | "RETURN_UNUSABLE"
-  | "PURCHASE"
-  | "ADJUSTMENT"
-  | "TRANSFER_OUT"
-  | "TRANSFER_IN"
-  | "ISSUE_REVERSAL"
-  | "RETURN_REVERSAL"
-  | "PURCHASE_REVERSAL"
-  | "TRANSFER_OUT_REVERSAL"
-  | "TRANSFER_IN_REVERSAL"
-  | "RETURN_UNUSABLE_REVERSAL";
-
 export interface StockOverviewRow {
   stock_id: number;
   product_id: number;
@@ -52,19 +37,6 @@ export interface PaginatedResult<T> {
   };
 }
 
-export interface MovementRow {
-  movement_id: number;
-  movement_date: string;
-  movement_type: MovementType;
-  product_name: string;
-  product_code: string;
-  location_code: string;
-  movement_qty: number;
-  qty_delta: number;
-  notes?: string | null;
-  created_by_name: string;
-}
-
 export interface StockFilter {
   location_id: number | null;
   search: string;
@@ -79,14 +51,6 @@ export interface CreateProductDto {
   initial_qty?: number;
   location_id?: number;
   reorder_threshold?: number;
-}
-
-export interface CreateMovementDto {
-  stock_id: number;
-  movement_type: MovementType;
-  quantity: number;
-  resulting_quantity?: number;
-  notes?: string;
 }
 
 export interface StockTransferRecord {

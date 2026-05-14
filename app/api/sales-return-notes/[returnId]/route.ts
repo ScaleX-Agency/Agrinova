@@ -371,8 +371,6 @@ export async function DELETE(
         }
       }
 
-      const now = new Date();
-
       for (const [productId, qty] of goodsReturnQtyByProduct.entries()) {
         if (qty <= 0) continue;
         const stock = stockByProduct.get(productId)!;
@@ -384,24 +382,13 @@ export async function DELETE(
           },
         });
 
-        await tx.stockMovement.create({
-          data: {
-            stock_id: stock.stock_id,
-            product_id: productId,
-            created_by: user.user_id,
-            movement_type: "RETURN_REVERSAL",
-            quantity: qty,
-            movement_date: now,
-          },
-        });
       }
 
       for (const [productId, aggregate] of returnedByProduct.entries()) {
         if (aggregate.unusableQty <= 0) continue;
 
-        const stockForAudit =
-          stockByProduct.get(productId) ??
-          (await tx.stock.upsert({
+        if (!stockByProduct.get(productId)) {
+          await tx.stock.upsert({
             where: {
               product_id_location_id: {
                 product_id: productId,
@@ -417,18 +404,9 @@ export async function DELETE(
             select: {
               stock_id: true,
             },
-          }));
+          });
+        }
 
-        await tx.stockMovement.create({
-          data: {
-            stock_id: stockForAudit.stock_id,
-            product_id: productId,
-            created_by: user.user_id,
-            movement_type: "RETURN_UNUSABLE_REVERSAL",
-            quantity: aggregate.unusableQty,
-            movement_date: now,
-          },
-        });
       }
 
       for (const [productId, aggregate] of returnedByProduct.entries()) {

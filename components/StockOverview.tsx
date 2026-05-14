@@ -14,16 +14,11 @@ import {
 } from "lucide-react";
 import LocationCards from "./LocationCards";
 import StockTable from "./StockTable";
-import MovementsLog from "./MovementsLog";
-import RecordMovementModal from "./RecordMovementModal";
 import ImportStockModal from "./ImportStockModal";
 import StockTransferModal from "./StockTransferModal";
-import { useAllMovements, useAllStock, useLocationSummaries } from "@/hooks/useInventory";
+import { useAllStock, useLocationSummaries } from "@/hooks/useInventory";
 import type {
   LocationSummary,
-  MovementRow,
-  MovementType,
-  PaginatedResult,
   StockFilter,
   StockOverviewRow,
 } from "@/types/inventory";
@@ -34,20 +29,15 @@ interface StockOverviewProps {
     pagination: { page: number; pageSize: number; total: number; totalPages: number };
   };
   initialSummaries?: LocationSummary[];
-  initialMovements?: PaginatedResult<MovementRow>;
 }
 
 export default function StockOverview({
   initialStock = { stock: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 1 } },
   initialSummaries = [],
-  initialMovements = { items: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 1 } },
 }: StockOverviewProps) {
   const qc = useQueryClient();
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<"overview" | "movements">(
-    "overview",
-  );
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [filter, setFilter] = useState<StockFilter>({
     location_id: null,
@@ -61,23 +51,6 @@ export default function StockOverview({
     useAllStock({ page: 1, pageSize: 10000 }, initialStock);
   const stock = stockResponse.stock;
   const { data: summaries = [] } = useLocationSummaries(initialSummaries);
-
-  const [movementsPage, setMovementsPage] = useState(1);
-  const movementsPageSize = 20;
-  const [movTypeFilter, setMovTypeFilter] = useState<"ALL" | MovementType>("ALL");
-  const movementsEnabled = activeTab === "movements";
-  const { data: movements = { items: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 1 } } } =
-    useAllMovements(
-      {
-        page: movementsPage,
-        pageSize: movementsPageSize,
-        movement_type: movTypeFilter !== "ALL" ? movTypeFilter : undefined,
-      },
-      initialMovements,
-      movementsEnabled,
-    );
-
-  const [movementTarget, setMovementTarget] = useState<StockOverviewRow | null>(null);
   const [showImport, setShowImport] = useState(false);
 
   const displayStock = useMemo(() => {
@@ -147,11 +120,6 @@ export default function StockOverview({
     [summaries, stockResponse.pagination.total],
   );
 
-  const handleMovementSaved = () => {
-    qc.invalidateQueries({ queryKey: ["stock"] });
-    qc.invalidateQueries({ queryKey: ["movements"] });
-  };
-
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-4 gap-3">
@@ -166,14 +134,8 @@ export default function StockOverview({
         <StatCard
           label="Total Units"
           value={stats.totalUnits.toLocaleString()}
-          delta={
-            movementsEnabled && movements.pagination.total > 0
-              ? `${movements.pagination.total} stock movements recorded`
-              : movementsEnabled
-                ? "No stock movements recorded"
-                : "Open Movements Log to load"
-          }
-          deltaVariant={movementsEnabled && movements.pagination.total > 0 ? "up" : "neutral"}
+          delta="Across active inventory locations"
+          deltaVariant="neutral"
           icon={<TrendingUp size={18} className="text-blue-800" />}
           iconBg="bg-blue-50"
         />
@@ -207,92 +169,46 @@ export default function StockOverview({
         }}
       />
 
-      <div className="flex items-center justify-between">
-        <div className="flex gap-0.5 bg-stone-100 rounded-lg p-1 w-fit">
-          {(["overview", "movements"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
-                activeTab === tab
-                  ? "bg-white text-blue-900 shadow-sm"
-                  : "text-stone-500 hover:text-stone-700"
-              }`}
-            >
-              {tab === "overview"
-                ? "Stock Overview"
-                : "Movements Log"}
-            </button>
-          ))}
-        </div>
-
-        {activeTab === "overview" && (
-          <div className="flex gap-2">
-            <button
-              onClick={() => setShowTransferModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-green-700 rounded-lg hover:bg-green-800 transition-colors"
-            >
-              <ArrowLeftRight size={13} /> Transfer Stock
-            </button>
-            <button
-              onClick={() => setShowImport(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-stone-600 border border-stone-200 rounded-lg hover:bg-stone-50 transition-colors"
-            >
-              <Upload size={13} /> Import Stock
-            </button>
-            <button
-              onClick={() => router.push("/stock-entries/new")}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-green-700 rounded-lg hover:bg-green-800 transition-colors"
-            >
-              <Plus size={13} /> New Stock Entry
-            </button>
-          </div>
-        )}
+      <div className="flex items-center justify-end gap-2">
+        <button
+          onClick={() => setShowTransferModal(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-green-700 rounded-lg hover:bg-green-800 transition-colors"
+        >
+          <ArrowLeftRight size={13} /> Transfer Stock
+        </button>
+        <button
+          onClick={() => setShowImport(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-stone-600 border border-stone-200 rounded-lg hover:bg-stone-50 transition-colors"
+        >
+          <Upload size={13} /> Import Stock
+        </button>
+        <button
+          onClick={() => router.push("/stock-entries/new")}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-green-700 rounded-lg hover:bg-green-800 transition-colors"
+        >
+          <Plus size={13} /> New Stock Entry
+        </button>
       </div>
 
-      {activeTab === "overview" && (
-        <StockTable
-          rows={paginatedStock}
-          filter={filter}
-          onFilterChange={(f) => {
-            setFilter(f);
-            setPage(1);
-          }}
-          onRecordMovement={setMovementTarget}
-          onNewStockEntry={() => router.push("/stock-entries/new")}
-          pagination={{
-            page,
-            pageSize,
-            total: filteredStock.length,
-            setPage,
-          }}
-        />
-      )}
-
-      {activeTab === "movements" && (
-        <MovementsLog
-          movements={movements.items}
-          filterType={movTypeFilter}
-          onFilterChange={(t) => {
-            setMovTypeFilter(t);
-            setMovementsPage(1);
-          }}
-          pagination={{
-            page: movementsPage,
-            pageSize: movementsPageSize,
-            total: movements.pagination.total,
-            setPage: setMovementsPage,
-          }}
-        />
-      )}
-
-      {movementTarget && (
-        <RecordMovementModal
-          row={movementTarget}
-          onClose={() => setMovementTarget(null)}
-          onSaved={handleMovementSaved}
-        />
-      )}
+      <StockTable
+        rows={paginatedStock}
+        filter={filter}
+        onFilterChange={(f) => {
+          setFilter(f);
+          setPage(1);
+        }}
+        onNewStockEntry={() => router.push("/stock-entries/new")}
+        onAdjusted={() => {
+          qc.invalidateQueries({ queryKey: ["stock"] });
+          qc.invalidateQueries({ queryKey: ["summaries"] });
+        }}
+        pagination={{
+          page,
+          pageSize,
+          total: filteredStock.length,
+          setPage,
+        }}
+      />
 
       {showImport && (
         <ImportStockModal
@@ -309,7 +225,6 @@ export default function StockOverview({
           onClose={() => setShowTransferModal(false)}
           onSaved={() => {
             qc.invalidateQueries({ queryKey: ["stock"] });
-            qc.invalidateQueries({ queryKey: ["movements"] });
             qc.invalidateQueries({ queryKey: ["stock-transfers"] });
             qc.invalidateQueries({ queryKey: ["summaries"] });
           }}

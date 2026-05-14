@@ -1,6 +1,7 @@
 "use client";
 
-import { Search, ArrowLeftRight, Download } from "lucide-react";
+import { useState } from "react";
+import { Search, Download } from "lucide-react";
 import { StockOverviewRow, StockFilter, StockStatus } from "@/types/inventory";
 import { useLocations } from "@/hooks/useInventory";
 import Pagination from "rc-pagination";
@@ -31,8 +32,8 @@ interface Props {
   rows: StockOverviewRow[];
   filter: StockFilter;
   onFilterChange: (f: StockFilter) => void;
-  onRecordMovement: (row: StockOverviewRow) => void;
   onNewStockEntry: () => void;
+  onAdjusted?: () => void;
   pagination?: {
     page: number;
     pageSize: number;
@@ -45,9 +46,11 @@ export default function StockTable({
   rows,
   filter,
   onFilterChange,
-  onRecordMovement,
+  onAdjusted,
   pagination,
 }: Props) {
+  const [adjustRow, setAdjustRow] = useState<StockOverviewRow | null>(null);
+
   const set = (k: keyof StockFilter, v: StockFilter[keyof StockFilter]) => {
     onFilterChange({ ...filter, [k]: v });
     if (pagination) {
@@ -171,7 +174,7 @@ export default function StockTable({
               ].map((h, i) => (
                 <th
                   key={h}
-                  className={`px-3.5 py-2.5 text-[11px] font-medium uppercase tracking-wide text-stone-400 bg-white ${i === 3 || i === 4 ? "text-right" : "text-left"} ${i === 5 ? "text-left" : ""}`}
+                  className={`px-3.5 py-2.5 text-[11px] font-medium uppercase tracking-wide text-stone-400 bg-white ${i === 3 || i === 4 ? "text-right" : "text-left"}`}
                 >
                   {h}
                 </th>
@@ -236,18 +239,15 @@ export default function StockTable({
                         {cfg.label}
                       </span>
                     </td>
-                    <td className="px-3.5 py-3 text-left">
-                      <div className="flex gap-1.5">
-                        {!row.is_aggregate ? (
-                          <button
-                            title="Record movement"
-                            onClick={() => onRecordMovement(row)}
-                            className="w-7 h-7 flex items-center justify-center rounded-md border border-stone-200 hover:bg-stone-100 text-stone-500 transition-colors"
-                          >
-                            <ArrowLeftRight size={12} />
-                          </button>
-                        ) : null}
-                      </div>
+                    <td className="px-3.5 py-3">
+                      {!row.is_aggregate && (
+                        <button
+                          onClick={() => setAdjustRow(row)}
+                          className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium border border-stone-200 text-stone-600 hover:bg-stone-50"
+                        >
+                          Adjust
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );
@@ -272,6 +272,111 @@ export default function StockTable({
           </div>
         )}
       </div>
+
+      {adjustRow && (
+        <AdjustStockModal
+          row={adjustRow}
+          onClose={() => setAdjustRow(null)}
+          onSaved={() => {
+            setAdjustRow(null);
+            onAdjusted?.();
+          }}
+        />
+      )}
     </>
+  );
+}
+
+function AdjustStockModal({
+  row,
+  onClose,
+  onSaved,
+}: {
+  row: StockOverviewRow;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [qty, setQty] = useState(String(row.quantity_on_hand));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSave = async () => {
+    const parsed = Number(qty);
+    if (!Number.isInteger(parsed) || parsed < 0) {
+      setError("Quantity must be a non-negative integer.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/stock/${row.stock_id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quantity_on_hand: parsed }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body.error ?? "Failed to adjust stock.");
+      }
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("toast", {
+            detail: { msg: "Stock adjusted successfully", type: "success" },
+          }),
+        );
+      }
+      onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to adjust stock.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="w-full max-w-[420px] rounded-xl border border-stone-200 bg-white shadow-md">
+        <div className="border-b border-stone-100 px-5 py-4">
+          <p className="text-[15px] font-semibold text-stone-900">Adjust Stock</p>
+          <p className="mt-1 text-[12px] text-stone-500">
+            {row.product_name} ({row.product_code})
+          </p>
+        </div>
+        <div className="space-y-3 px-5 py-4">
+          <label className="block text-[12px] font-medium text-stone-700">
+            New Quantity
+          </label>
+          <input
+            type="number"
+            min={0}
+            step={1}
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+            className="w-full rounded-lg border border-stone-200 px-3 py-2 text-[14px] text-stone-800 focus:border-blue-400 focus:outline-none"
+          />
+          {error && <p className="text-[12px] text-red-600">{error}</p>}
+        </div>
+        <div className="flex justify-end gap-2 border-t border-stone-100 bg-stone-50 px-5 py-3">
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-stone-200 px-3 py-1.5 text-[12px] text-stone-600 hover:bg-white"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="rounded-lg bg-green-700 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-green-800 disabled:opacity-60"
+          >
+            {saving ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

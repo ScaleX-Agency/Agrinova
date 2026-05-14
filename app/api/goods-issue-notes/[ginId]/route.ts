@@ -218,16 +218,6 @@ export async function DELETE(
           },
         });
 
-        await tx.stockMovement.create({
-          data: {
-            stock_id: stock.stock_id,
-            product_id: productId,
-            created_by: currentUser.user_id,
-            movement_type: "ISSUE_REVERSAL",
-            quantity: qty,
-            movement_date: new Date(),
-          },
-        });
       }
 
       await tx.goodsIssueNote.update({

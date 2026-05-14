@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import SearchableSelect, { type SearchableSelectOption } from "@/components/SearchableSelect";
 
 type StockEntryDetailsSectionProps = {
@@ -36,6 +39,14 @@ const StockEntryDetailsSection = ({
   onLocationChange,
   grnNumberError,
 }: StockEntryDetailsSectionProps) => {
+  const [grnNumberDraft, setGrnNumberDraft] = useState(grnNumber);
+  const [isGrnFocused, setIsGrnFocused] = useState(false);
+
+  useEffect(() => {
+    if (!isGrnFocused) {
+      setGrnNumberDraft(grnNumber);
+    }
+  }, [grnNumber, isGrnFocused]);
 
   const editableInputClassName =
     "rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]";
@@ -91,8 +102,14 @@ const StockEntryDetailsSection = ({
             <span className="text-[12px] font-medium text-stone-600">GRN Number *</span>
             <input
               type="text"
-              value={grnNumber}
-              onChange={(event) => onGrnNumberChange(event.target.value)}
+              value={grnNumberDraft}
+              onFocus={() => setIsGrnFocused(true)}
+              onBlur={() => setIsGrnFocused(false)}
+              onChange={(event) => {
+                const next = event.target.value;
+                setGrnNumberDraft(next);
+                onGrnNumberChange(next);
+              }}
               className={editableInputClassName}
               placeholder="e.g., GRN-202604-001"
             />
