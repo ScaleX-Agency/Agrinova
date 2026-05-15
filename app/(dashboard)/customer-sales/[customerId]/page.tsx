@@ -7,26 +7,24 @@ import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Bar,
-  BarChart,
   CartesianGrid,
   Legend,
+  Pie,
+  PieChart,
+  Cell,
   ResponsiveContainer,
   Tooltip,
-  XAxis,
-  YAxis,
 } from "recharts";
 import {
   ArrowLeft,
-  CalendarRange,
   CheckCircle2,
   Clock3,
   CreditCard,
   FileText,
   HandCoins,
+  PieChart as PieChartIcon,
   Phone,
   RefreshCcw,
-  ShieldAlert,
-  TrendingUp,
 } from "lucide-react";
 import DataTable from "@/components/ui/DataTable";
 
@@ -180,7 +178,7 @@ export default function CustomerSalesDetailPage() {
     { accessorKey: "invoiceDate", header: "Date", cell: ({ row }) => formatDate(row.original.invoiceDate) },
     { accessorKey: "total", header: "Total", cell: ({ row }) => formatCurrency(row.original.total), meta: { align: "right" } },
     { accessorKey: "paid", header: "Paid", cell: ({ row }) => formatCurrency(row.original.paid), meta: { align: "right" } },
-    { accessorKey: "credited", header: "Credited", cell: ({ row }) => formatCurrency(row.original.credited), meta: { align: "right" } },
+    { accessorKey: "credited", header: "Returns", cell: ({ row }) => formatCurrency(row.original.credited), meta: { align: "right" } },
     {
       accessorKey: "balance",
       header: "Balance",
@@ -189,13 +187,29 @@ export default function CustomerSalesDetailPage() {
     },
     { accessorKey: "daysOutstanding", header: "Days", meta: { align: "right" } },
     { accessorKey: "status", header: "Status" },
+    {
+      id: "view",
+      header: "",
+      cell: ({ row }) => (
+        <Link
+          href={`/invoices/${row.original.invoiceId}`}
+          className="inline-flex items-center rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-stone-700 hover:bg-stone-50"
+        >
+          View
+        </Link>
+      ),
+      meta: { align: "right" },
+    },
   ];
 
   const customerComparisonData = useMemo(
     () => [
       {
-        name: detailQuery.data?.customer.name ?? "Customer",
+        name: "Collections",
         collections: detailQuery.data?.kpis.collections ?? 0,
+      },
+      {
+        name: "Outstanding",
         outstanding: detailQuery.data?.kpis.outstanding ?? 0,
       },
     ],
@@ -291,30 +305,44 @@ export default function CustomerSalesDetailPage() {
         </div>
       ) : (
         <>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
-            <Kpi label="Lifetime Sales" value={formatCurrency(detailQuery.data.kpis.lifetimeSales)} icon={<TrendingUp size={14} className="text-emerald-700" />} />
-            <Kpi label="Period Sales" value={formatCurrency(detailQuery.data.kpis.netSales)} icon={<CalendarRange size={14} className="text-blue-700" />} />
-            <Kpi label="Collections" value={formatCurrency(detailQuery.data.kpis.collections)} icon={<CheckCircle2 size={14} className="text-emerald-700" />} />
-            <Kpi label="Outstanding" value={formatCurrency(detailQuery.data.kpis.outstanding)} icon={<HandCoins size={14} className="text-red-700" />} />
-            <Kpi label="Overdue" value={formatCurrency(detailQuery.data.kpis.overdueAmount)} icon={<ShieldAlert size={14} className="text-red-700" />} />
-            <Kpi label="Avg Days To Pay" value={detailQuery.data.kpis.avgDaysToPay === null ? "-" : String(detailQuery.data.kpis.avgDaysToPay)} icon={<Clock3 size={14} className="text-amber-700" />} />
-            <Kpi label="Invoices" value={String(detailQuery.data.kpis.invoiceCount)} icon={<FileText size={14} className="text-stone-700" />} />
-          </div>
-
           <section className="rounded-2xl border border-stone-200 bg-white p-4 lg:p-5">
-            <p className="mb-2 text-[13px] font-medium text-stone-700">Collections vs Outstanding</p>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={customerComparisonData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#edeae1" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6b7280" }} />
-                  <YAxis tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`} tick={{ fontSize: 11, fill: "#6b7280" }} />
-                  <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0))} />
-                  <Legend />
-                  <Bar dataKey="collections" stackId="sales" fill="#1a5c2e" name="Collected" />
-                  <Bar dataKey="outstanding" stackId="sales" fill="#dc2626" name="Outstanding" />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="grid gap-4 xl:grid-cols-5">
+              <div className="xl:col-span-2 rounded-xl border border-stone-200 bg-stone-50 p-3">
+                <p className="mb-2 text-[13px] font-medium text-stone-700 inline-flex items-center gap-2">
+                  <PieChartIcon size={14} />
+                  Collections vs Outstanding
+                </p>
+                <div className="h-[260px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0))} />
+                      <Legend />
+                      <Pie
+                        data={[
+                          { name: "Collections", value: customerComparisonData[0]?.collections ?? 0 },
+                          { name: "Outstanding", value: customerComparisonData[1]?.outstanding ?? 0 },
+                        ]}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                      >
+                        <Cell fill="#1a5c2e" />
+                        <Cell fill="#dc2626" />
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="xl:col-span-3 grid gap-3 sm:grid-cols-2">
+                <Kpi label="Period Sales" value={formatCurrency(detailQuery.data.kpis.netSales)} icon={<FileText size={14} className="text-blue-700" />} />
+                <Kpi label="Collections" value={formatCurrency(detailQuery.data.kpis.collections)} icon={<CheckCircle2 size={14} className="text-emerald-700" />} />
+                <Kpi label="Outstanding" value={formatCurrency(detailQuery.data.kpis.outstanding)} icon={<HandCoins size={14} className="text-red-700" />} />
+                <Kpi label="Avg Days To Pay" value={detailQuery.data.kpis.avgDaysToPay === null ? "-" : String(detailQuery.data.kpis.avgDaysToPay)} icon={<Clock3 size={14} className="text-amber-700" />} />
+                <Kpi label="Invoices" value={String(detailQuery.data.kpis.invoiceCount)} icon={<CreditCard size={14} className="text-stone-700" />} />
+              </div>
             </div>
           </section>
 
