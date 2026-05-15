@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { InvoiceStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, isAdminUser } from "@/lib/auth";
+import { rebuildInvoiceCreditNoteCommissions } from "@/lib/commissionSettlement";
 
 const parsePositiveInt = (value: string) => {
   const parsed = Number(value);
@@ -261,6 +262,7 @@ export async function DELETE(
           invoice: {
             select: {
               invoice_id: true,
+              rep_id: true,
               total_amount: true,
               paid_amount: true,
               credited_amount: true,
@@ -517,6 +519,12 @@ export async function DELETE(
           payment_status: nextInvoiceStatus,
         },
       });
+
+      await rebuildInvoiceCreditNoteCommissions(
+        tx,
+        srn.invoice_id,
+        srn.invoice.rep_id,
+      );
 
       await tx.goodsReturnNote.updateMany({
         where: {

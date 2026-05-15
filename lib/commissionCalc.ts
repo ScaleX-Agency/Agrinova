@@ -30,6 +30,19 @@ export type ReversalResult = {
   cappedReversalAmount: number;
 };
 
+export type IncrementalCreditSettlement = {
+  settlementId: number;
+  amount: number;
+};
+
+export type IncrementalOverpayment = {
+  settlementId: number;
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  incrementalOverpayment: number;
+};
+
 /**
  * Core effective balance calculation.
  */
@@ -92,7 +105,7 @@ export function computeReversalAllocations(
   }
 
   // Calculate totals
-  let totalReversalAmount = allocations.reduce((sum, a) => sum + a.reversalAmount, 0);
+  const totalReversalAmount = allocations.reduce((sum, a) => sum + a.reversalAmount, 0);
   const totalAllocated = allocations.reduce((sum, a) => sum + a.allocatedAmount, 0);
 
   // Cap reversal so total commission doesn't go below 0
@@ -113,6 +126,38 @@ export function computeReversalAllocations(
     weightedRate,
     cappedReversalAmount,
   };
+}
+
+/**
+ * Replays credit notes in settlement order and returns only the new overpaid
+ * amount caused by each credit note.
+ */
+export function computeIncrementalOverpayments(
+  totalAmount: number,
+  paidAmount: number,
+  creditSettlements: IncrementalCreditSettlement[],
+): IncrementalOverpayment[] {
+  let balance = Number((totalAmount - paidAmount).toFixed(2));
+
+  return creditSettlements.map((settlement) => {
+    const balanceBefore = balance;
+    const overpaidBefore = Math.max(0, -balanceBefore);
+    const balanceAfter = Number((balanceBefore - settlement.amount).toFixed(2));
+    const overpaidAfter = Math.max(0, -balanceAfter);
+    const incrementalOverpayment = Number(
+      Math.max(0, overpaidAfter - overpaidBefore).toFixed(2),
+    );
+
+    balance = balanceAfter;
+
+    return {
+      settlementId: settlement.settlementId,
+      amount: settlement.amount,
+      balanceBefore,
+      balanceAfter,
+      incrementalOverpayment,
+    };
+  });
 }
 
 /**

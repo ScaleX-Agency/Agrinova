@@ -58,7 +58,7 @@ export default function CommissionClient() {
   const [to, setTo] = useState(todayISO());
   const [repId, setRepId] = useState("all");
   const [search, setSearch] = useState("");
-  const [dateFilterBasedOn, setDateFilterBasedOn] = useState<"invoice" | "settlement">("settlement");
+  const [dateFilterBasedOn, setDateFilterBasedOn] = useState<"invoice" | "settlement">("invoice");
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
 
   const filters = useMemo(

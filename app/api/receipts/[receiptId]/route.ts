@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, isAdminUser } from "@/lib/auth";
-import { recalculateReversalCommissions } from "@/lib/commissionSettlement";
+import { rebuildInvoiceCreditNoteCommissions } from "@/lib/commissionSettlement";
 import type { ReceiptDetailResponse } from "@/types/api";
 
 export async function GET(
@@ -136,20 +136,15 @@ export async function DELETE(
         throw new Error("Receipt not found or already inactive.");
       }
 
-      // Track whether any reversal allocations were sourced from this receipt
-      let hasReversalAllocations = false;
-      const settlementIds = receipt.invoiceSettlements.map((s) => s.settlement_id);
-
       for (const settlement of receipt.invoiceSettlements) {
         // Deactivate reversal allocations where this settlement was a source
-        const updatedAllocations = await tx.commissionReversalAllocation.updateMany({
+        await tx.commissionReversalAllocation.updateMany({
           where: {
             source_settlement_id: settlement.settlement_id,
             is_active: true,
           },
           data: { is_active: false },
         });
-        if (updatedAllocations.count > 0) hasReversalAllocations = true;
 
         // Cancel commissions linked to this settlement
         await tx.commission.updateMany({
@@ -215,15 +210,11 @@ export async function DELETE(
         },
       });
 
-      // If this receipt was a source for any reversal allocations,
-      // recalculate the affected credit note reversal commissions
-      if (hasReversalAllocations) {
-        await recalculateReversalCommissions(
-          tx,
-          receipt.invoice_id,
-          receipt.invoice.rep_id,
-        );
-      }
+      await rebuildInvoiceCreditNoteCommissions(
+        tx,
+        receipt.invoice_id,
+        receipt.invoice.rep_id,
+      );
 
       return receipt;
     }, { timeout: 20000, maxWait: 10000 });
