@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 export type ActiveCommissionConfig = {
   configId: number;
@@ -12,7 +13,7 @@ export type ActiveCommissionConfig = {
 const DEFAULT_CONFIG = {
   same_day_rate: 0.025,
   range_min_days: 1,
-  range_max_days: 59,
+  range_max_days: 65,
   range_rate: 0.02,
   over_range_rate: 0,
 };
@@ -20,15 +21,22 @@ const DEFAULT_CONFIG = {
 export const getDaysToPay = (invoiceDate: Date, settledDate: Date) =>
   Math.floor((settledDate.getTime() - invoiceDate.getTime()) / (1000 * 60 * 60 * 24));
 
-export const getOrCreateActiveCommissionConfig = async (): Promise<ActiveCommissionConfig> => {
-  const existing = await prisma.commissionConfig.findFirst({
+type CommissionConfigClient = Pick<
+  typeof prisma,
+  "commissionConfig"
+> | Pick<Prisma.TransactionClient, "commissionConfig">;
+
+export const getOrCreateActiveCommissionConfig = async (
+  client: CommissionConfigClient = prisma,
+): Promise<ActiveCommissionConfig> => {
+  const existing = await client.commissionConfig.findFirst({
     where: { is_active: true },
     orderBy: { updated_at: "desc" },
   });
 
   const config =
     existing ??
-    (await prisma.commissionConfig.create({
+    (await client.commissionConfig.create({
       data: DEFAULT_CONFIG,
     }));
 

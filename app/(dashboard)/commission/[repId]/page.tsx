@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import type { ColumnDef } from "@tanstack/react-table";
 import {
   ArrowLeft,
+  Download,
+  Loader2,
   Phone,
   RefreshCcw,
 } from "lucide-react";
-import DataTable from "@/components/ui/DataTable";
 
 type PeriodType = "daily" | "monthly" | "yearly" | "custom";
 
@@ -39,7 +39,7 @@ type DetailResponse = {
   locationBreakdown: Array<{ locationId: number; locationCode: string; locationName: string; netSales: number; collections: number; outstanding: number }>;
   customerPerformance: Array<{ customerId: number; customerName: string; invoiceCount: number; netSales: number; collections: number; outstanding: number; overdueAmount: number; lastInvoiceDate: string | null }>;
   openInvoices: Array<{ invoiceId: number; invoiceNumber: string; customerName: string; invoiceDate: string; total: number; paid: number; credited: number; balance: number; daysOutstanding: number; status: string }>;
-  commissionLedger: Array<{ commissionId: number; settlementId: number | null; settlementType: string | null; settlementDate: string | null; invoiceNo: string | null; customerName: string | null; settlementAmount: number; commissionRate: number; commissionAmount: number; daysToPay: number; status: string; createdAt: string }>;
+  commissionLedger: Array<{ commissionId: number; settlementId: number | null; settlementType: string | null; settlementDate: string | null; invoiceNo: string | null; invoiceDate: string | null; customerName: string | null; receiptNo: string | null; receiptDate: string | null; paymentMethod: "CASH" | "CHEQUE" | "BANK_TRANSFER" | null; salesReturnNo: string | null; settlementAmount: number; commissionRate: number; commissionAmount: number; daysToPay: number; status: string; createdAt: string }>;
   pendingCommissionRows: Array<{ settlementId: number; settlementType: string; invoiceId: number; invoiceNo: string; customerName: string; receiptId: number | null; receiptDate: string | null; settlementDate: string; settlementAmount: number }>;
   transactions: Array<{ type: "invoice" | "receipt" | "credit"; id: number; reference: string; date: string; amount: number; status: string }>;
 };
@@ -74,7 +74,8 @@ export default function CommissionRepDetailPage() {
   const [year, setYear] = useState(yearISO());
   const [from, setFrom] = useState(todayISO());
   const [to, setTo] = useState(todayISO());
-  const [dateFilterBasedOn, setDateFilterBasedOn] = useState<"invoice" | "settlement">("settlement");
+  const [dateFilterBasedOn, setDateFilterBasedOn] = useState<"invoice" | "settlement">("invoice");
+  const [isExporting, setIsExporting] = useState(false);
 
   const filters = useMemo(() => ({ periodType, date, month, year, from, to, dateFilterBasedOn }), [periodType, date, month, year, from, to, dateFilterBasedOn]);
 
@@ -112,60 +113,86 @@ export default function CommissionRepDetailPage() {
     setTo(todayISO());
   };
 
-  const commissionColumns: ColumnDef<DetailResponse["commissionLedger"][number]>[] = [
-    { accessorKey: "commissionId", header: "Commission #" },
-    { accessorKey: "invoiceNo", header: "Invoice" },
-    { accessorKey: "customerName", header: "Customer" },
-    {
-      accessorKey: "settlementAmount",
-      header: "Settlement",
-      cell: ({ row }) => (
-        <span className={row.original.settlementAmount < 0 ? "font-medium text-red-700" : ""}>
-          {formatCurrency(row.original.settlementAmount)}
-        </span>
-      ),
-      meta: { align: "right", className: "border-l border-stone-200", headerClassName: "border-l border-stone-200" },
-    },
-    {
-      accessorKey: "commissionRate",
-      header: "Rate",
-      cell: ({ row }) => `${row.original.commissionRate.toFixed(2)}%`,
-      meta: { align: "right", className: "border-l border-stone-200", headerClassName: "border-l border-stone-200" },
-    },
-    {
-      accessorKey: "commissionAmount",
-      header: "Commission",
-      cell: ({ row }) => (
-        <span className={row.original.commissionAmount < 0 ? "font-medium text-red-700" : ""}>
-          {formatCurrency(row.original.commissionAmount)}
-        </span>
-      ),
-      meta: { align: "right", className: "border-l border-stone-200", headerClassName: "border-l border-stone-200" },
-    },
-    {
-      accessorKey: "daysToPay",
-      header: "Days",
-      meta: { align: "right", className: "border-l border-stone-200", headerClassName: "border-l border-stone-200" },
-    },
-    {
-      accessorKey: "settlementType",
-      header: "Type",
-      cell: ({ row }) => {
-        const isCredit = row.original.settlementType === "CREDIT_NOTE";
-        return (
-          <span
-            className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-              isCredit
-                ? "border-red-200 bg-red-50 text-red-700"
-                : "border-stone-200 bg-stone-50 text-stone-700"
-            }`}
-          >
-            {isCredit ? "Return" : "Payment"}
-          </span>
-        );
-      },
-    },
-  ];
+  const groupedInvoices = useMemo(() => {
+    const ledger = (detailQuery.data?.commissionLedger ?? []).filter((row) => row.commissionAmount !== 0);
+    const byInvoice = new Map<string, {
+      invoiceNo: string;
+      customerName: string;
+      invoiceDate: string;
+      totalCommission: number;
+      rows: typeof ledger;
+    }>();
+
+    for (const row of ledger) {
+      const key = row.invoiceNo ?? `invoice-${row.commissionId}`;
+      const existing = byInvoice.get(key);
+      if (!existing) {
+        byInvoice.set(key, {
+          invoiceNo: row.invoiceNo ?? "-",
+          customerName: row.customerName ?? "-",
+          invoiceDate: row.invoiceDate ?? "",
+          totalCommission: row.commissionAmount,
+          rows: [row],
+        });
+        continue;
+      }
+      existing.totalCommission += row.commissionAmount;
+      existing.rows.push(row);
+    }
+
+    return Array.from(byInvoice.values()).sort((a, b) =>
+      (b.invoiceDate || "").localeCompare(a.invoiceDate || ""),
+    );
+  }, [detailQuery.data]);
+
+  const formatDate = (value: string | null) => {
+    if (!value) return "-";
+    return new Date(value).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const paymentMethodLabel = (method: "CASH" | "CHEQUE" | "BANK_TRANSFER" | null) => {
+    if (method === "CHEQUE") return "Cheque";
+    return "Cash";
+  };
+
+  const handleExportExcel = async () => {
+    if (!detailQuery.data) return;
+    setIsExporting(true);
+    try {
+      const { exportRepCommissionToExcel } = await import("@/lib/exportRepCommission");
+      const groups = groupedInvoices.map((group) => ({
+        invoiceNo: group.invoiceNo,
+        customerName: group.customerName,
+        invoiceDate: formatDate(group.invoiceDate),
+        totalCommission: group.totalCommission,
+        settlements: group.rows.map((row) => {
+          const isNegative = row.commissionAmount < 0;
+          return {
+            receiptDate: formatDate(row.receiptDate ?? row.settlementDate),
+            receiptNumber: isNegative ? row.salesReturnNo ?? "SRN" : row.receiptNo ?? "-",
+            paymentMethod: paymentMethodLabel(row.paymentMethod),
+            amount: row.settlementAmount,
+            dayGap: row.daysToPay,
+            commissionRate: row.commissionRate / 100,
+            commissionAmount: row.commissionAmount,
+          };
+        }),
+      }));
+
+      await exportRepCommissionToExcel({
+        repName: detailQuery.data.rep.repName,
+        fromLabel: formatDate(detailQuery.data.period.startDate),
+        toLabel: formatDate(detailQuery.data.period.endDate),
+        groups,
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -180,6 +207,22 @@ export default function CommissionRepDetailPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            disabled={isExporting || !detailQuery.data}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-green-700 px-3 py-2 text-[12px] font-medium text-white hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-green-700"
+          >
+            {isExporting ? (
+              <>
+                <Loader2 size={13} className="animate-spin" /> Exporting...
+              </>
+            ) : (
+              <>
+                <Download size={13} /> Export Excel
+              </>
+            )}
+          </button>
           <button type="button" onClick={reset} className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[12px] font-medium text-stone-700 hover:bg-stone-50">
             <RefreshCcw size={13} /> Reset
           </button>
@@ -251,15 +294,92 @@ export default function CommissionRepDetailPage() {
         </div>
       ) : (
         <>
-          <DataTable 
-            data={detailQuery.data.commissionLedger} 
-            columns={commissionColumns} 
-            minWidth={1300} 
-            searchPlaceholder="Search commission, invoice, customer" 
-            emptyMessage="No commission records." 
-            isLoading={detailQuery.isFetching} 
-            rowClassName={(row) => row.settlementType === "CREDIT_NOTE" ? "text-red-700 bg-red-50/40" : ""}
-          />
+          <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1320px] border-collapse">
+                <thead>
+                  <tr className="border-b border-stone-100 bg-stone-50">
+                    {[
+                      "Invoice No",
+                      "Customer",
+                      "Invoice Date",
+                      "Receipt Date",
+                      "Receipt Number",
+                      "Payment Method",
+                      "Amount",
+                      "Day Gap",
+                      "Commission Rate",
+                      "Commission Amount",
+                      "Total Commission",
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        className="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide text-stone-500"
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {groupedInvoices.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} className="px-4 py-10 text-center text-[13px] text-stone-400">
+                        No commission records.
+                      </td>
+                    </tr>
+                  ) : (
+                    groupedInvoices.map((group) =>
+                      group.rows.map((row, idx) => {
+                        const isNegative = row.commissionAmount < 0;
+                        const referenceNo = isNegative
+                          ? row.salesReturnNo ?? "SRN"
+                          : row.receiptNo ?? "-";
+                        return (
+                          <tr
+                            key={row.commissionId}
+                            className="border-b border-stone-100"
+                          >
+                            {idx === 0 && (
+                              <>
+                                <td rowSpan={group.rows.length} className="px-3 py-2 align-top text-[12px] font-medium text-[#2b2d7e] [font-family:var(--font-jetbrains)]">
+                                  {group.invoiceNo}
+                                </td>
+                                <td rowSpan={group.rows.length} className="px-3 py-2 align-top text-[12px] text-stone-800">
+                                  {group.customerName}
+                                </td>
+                                <td rowSpan={group.rows.length} className="px-3 py-2 align-top text-[12px] text-stone-700">
+                                  {formatDate(group.invoiceDate)}
+                                </td>
+                              </>
+                            )}
+                            <td className="px-3 py-2 text-[12px] text-stone-700">{formatDate(row.receiptDate ?? row.settlementDate)}</td>
+                            <td className={`px-3 py-2 text-[12px] [font-family:var(--font-jetbrains)] ${isNegative ? "text-red-700 font-medium" : "text-stone-700"}`}>
+                              {referenceNo}
+                            </td>
+                            <td className="px-3 py-2 text-[12px] text-stone-700">{paymentMethodLabel(row.paymentMethod)}</td>
+                            <td className={`px-3 py-2 text-[12px] [font-family:var(--font-jetbrains)] ${row.settlementAmount < 0 ? "text-red-700 font-medium" : "text-stone-800"}`}>
+                              {formatCurrency(row.settlementAmount)}
+                            </td>
+                            <td className="px-3 py-2 text-[12px] text-stone-700">{row.daysToPay}</td>
+                            <td className="px-3 py-2 text-[12px] text-stone-700">{row.commissionRate.toFixed(2)}%</td>
+                            <td className={`px-3 py-2 text-[12px] [font-family:var(--font-jetbrains)] ${isNegative ? "text-red-700 font-medium" : "text-stone-800"}`}>
+                              {formatCurrency(row.commissionAmount)}
+                            </td>
+                            {idx === 0 && (
+                              <td rowSpan={group.rows.length} className={`px-3 py-2 align-top text-[12px] font-semibold [font-family:var(--font-jetbrains)] ${group.totalCommission < 0 ? "text-red-700" : "text-stone-900"}`}>
+                                {formatCurrency(group.totalCommission)}
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      }),
+                    )
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </>
       )}
     </div>

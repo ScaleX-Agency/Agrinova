@@ -4,6 +4,12 @@ import {
   getOrCreateActiveCommissionConfig,
   resolveCommissionRate,
 } from "@/lib/commissionConfig";
+import {
+  computeIncrementalOverpayments,
+  computeReversalAllocations,
+  type ExistingAllocation,
+  type ReceiptSettlementData,
+} from "@/lib/commissionCalc";
 
 type TxClient = Prisma.TransactionClient;
 
@@ -96,7 +102,7 @@ async function createReceiptCommission(
   repId: number,
   settlementAmount: number,
 ): Promise<CommissionResult> {
-  const cfg = await getOrCreateActiveCommissionConfig();
+  const cfg = await getOrCreateActiveCommissionConfig(tx);
   const daysToPay = getDaysToPay(invoiceDate, settledDate);
   const rate = resolveCommissionRate(daysToPay, cfg);
   const commissionAmount = Number((settlementAmount * rate).toFixed(2));
@@ -346,88 +352,234 @@ async function createReversalCommission(
  * 1. Find all active credit-note commission records for this invoice that have reversal allocations
  * 2. For each: deactivate old commission + allocations, re-run reversal algorithm
  */
-export async function recalculateReversalCommissions(
+export async function recalculateReversalCommissionsLegacy(
   tx: TxClient,
   invoiceId: number,
   repId: number,
 ): Promise<void> {
-  // Find credit-note settlements that have active commissions with reversal allocations
-  const creditNoteCommissions = await tx.commission.findMany({
-    where: {
-      is_active: true,
-      invoiceSettlement: {
-        invoice_id: invoiceId,
-        is_active: true,
-        settlement_type: "CREDIT_NOTE",
-      },
-      reversalAllocations: {
-        some: { is_active: true },
-      },
-    },
+  await rebuildInvoiceCreditNoteCommissions(tx, invoiceId, repId);
+}
+
+/**
+ * Rebuilds active credit-note commissions for an invoice from current active settlements.
+ * Receipt commissions are preserved because their stored rates are historical.
+ */
+export async function rebuildInvoiceCreditNoteCommissions(
+  tx: TxClient,
+  invoiceId: number,
+  repId: number,
+): Promise<void> {
+  const invoice = await tx.invoice.findUniqueOrThrow({
+    where: { invoice_id: invoiceId },
     select: {
-      commission_id: true,
-      settlement_id: true,
-      invoiceSettlement: {
-        select: {
-          settlement_id: true,
-          amount: true,
-          settled_date: true,
-          invoice: {
-            select: {
-              invoice_date: true,
-              total_amount: true,
-              paid_amount: true,
-              credited_amount: true,
-            },
-          },
-        },
-      },
+      total_amount: true,
+      paid_amount: true,
     },
-    orderBy: { commission_id: "asc" },
   });
 
-  for (const oldCommission of creditNoteCommissions) {
-    // Deactivate old commission and its allocations
+  const creditNoteSettlements = await tx.invoiceSettlement.findMany({
+    where: {
+      invoice_id: invoiceId,
+      is_active: true,
+      settlement_type: "CREDIT_NOTE",
+      credit_note_id: { not: null },
+    },
+    select: {
+      settlement_id: true,
+      amount: true,
+    },
+    orderBy: [{ settled_date: "asc" }, { settlement_id: "asc" }],
+  });
+
+  if (creditNoteSettlements.length === 0) return;
+
+  const creditSettlementIds = creditNoteSettlements.map((settlement) => settlement.settlement_id);
+  const oldCreditCommissions = await tx.commission.findMany({
+    where: {
+      is_active: true,
+      settlement_id: { in: creditSettlementIds },
+    },
+    select: { commission_id: true },
+  });
+  const oldCommissionIds = oldCreditCommissions.map((commission) => commission.commission_id);
+
+  if (oldCommissionIds.length > 0) {
     await tx.commissionReversalAllocation.updateMany({
       where: {
-        commission_id: oldCommission.commission_id,
+        commission_id: { in: oldCommissionIds },
         is_active: true,
       },
       data: { is_active: false },
     });
 
-    await tx.commission.update({
-      where: { commission_id: oldCommission.commission_id },
+    await tx.commission.updateMany({
+      where: {
+        commission_id: { in: oldCommissionIds },
+        is_active: true,
+      },
       data: {
         is_active: false,
         status: "CANCELLED",
       },
     });
+  }
 
-    // Recalculate: check if this credit note still causes EB < 0
-    const inv = oldCommission.invoiceSettlement.invoice;
-    const totalAmount = Number(inv.total_amount);
-    const paidAmount = Number(inv.paid_amount);
-    const creditedAmount = Number(inv.credited_amount);
-    const effectiveBalance = totalAmount - paidAmount - creditedAmount;
+  await tx.invoiceSettlement.updateMany({
+    where: { settlement_id: { in: creditSettlementIds } },
+    data: { commission_issued: false },
+  });
 
-    if (effectiveBalance >= 0) {
-      // No longer overpaid — create 0 LKR commission
-      await createZeroCommission(
-        tx,
-        oldCommission.settlement_id,
-        repId,
-      );
-    } else {
-      // Still overpaid — re-run reversal
-      const overpayment = Math.abs(effectiveBalance);
-      await createReversalCommission(
-        tx,
-        invoiceId,
-        oldCommission.settlement_id,
-        repId,
-        overpayment,
+  const receiptSettlements = await tx.invoiceSettlement.findMany({
+    where: {
+      invoice_id: invoiceId,
+      is_active: true,
+      settlement_type: "RECEIPT",
+      receipt_id: { not: null },
+    },
+    orderBy: [{ settled_date: "desc" }, { settlement_id: "desc" }],
+    select: {
+      settlement_id: true,
+      amount: true,
+      commissions: {
+        where: { is_active: true },
+        orderBy: { commission_id: "desc" },
+        take: 1,
+        select: {
+          commission_rate: true,
+        },
+      },
+    },
+  });
+
+  const receiptSettlementData: ReceiptSettlementData[] = receiptSettlements.map((settlement) => ({
+    settlementId: settlement.settlement_id,
+    amount: Number(settlement.amount),
+    commissionRate: settlement.commissions[0]
+      ? Number(settlement.commissions[0].commission_rate)
+      : 0,
+  }));
+
+  const replayRows = computeIncrementalOverpayments(
+    Number(invoice.total_amount),
+    Number(invoice.paid_amount),
+    creditNoteSettlements.map((settlement) => ({
+      settlementId: settlement.settlement_id,
+      amount: Number(settlement.amount),
+    })),
+  );
+  const overpaymentBySettlement = new Map(
+    replayRows.map((row) => [row.settlementId, row.incrementalOverpayment]),
+  );
+  const consumedAllocations: ExistingAllocation[] = [];
+
+  for (const settlement of creditNoteSettlements) {
+    const overpayment = overpaymentBySettlement.get(settlement.settlement_id) ?? 0;
+
+    if (overpayment <= 0) {
+      await createZeroCommission(tx, settlement.settlement_id, repId);
+      continue;
+    }
+
+    const currentTotalCommission = await getActiveInvoiceCommissionTotal(tx, invoiceId);
+    const reversalResult = computeReversalAllocations(
+      overpayment,
+      receiptSettlementData,
+      consumedAllocations,
+      currentTotalCommission,
+    );
+    const normalizedAllocations = normalizeAllocationReversalAmounts(
+      reversalResult.allocations,
+      reversalResult.cappedReversalAmount,
+    );
+    const weightedRate = reversalResult.totalAllocated > 0
+      ? reversalResult.cappedReversalAmount / reversalResult.totalAllocated
+      : 0;
+
+    const commission = await tx.commission.create({
+      data: {
+        rep_id: repId,
+        commission_rate: Number(weightedRate.toFixed(4)),
+        commission_amount: Number((-reversalResult.cappedReversalAmount).toFixed(2)),
+        days_to_pay: 0,
+        status: "PAID",
+        settlement_id: settlement.settlement_id,
+      },
+      select: { commission_id: true },
+    });
+
+    if (normalizedAllocations.length > 0) {
+      await tx.commissionReversalAllocation.createMany({
+        data: normalizedAllocations.map((allocation) => ({
+          commission_id: commission.commission_id,
+          source_settlement_id: allocation.sourceSettlementId,
+          allocated_amount: allocation.allocatedAmount,
+          applied_rate: allocation.appliedRate,
+          reversal_amount: Number((-allocation.reversalAmount).toFixed(2)),
+        })),
+      });
+
+      consumedAllocations.push(
+        ...reversalResult.allocations.map((allocation) => ({
+          sourceSettlementId: allocation.sourceSettlementId,
+          allocatedAmount: allocation.allocatedAmount,
+        })),
       );
     }
+
+    await tx.invoiceSettlement.update({
+      where: { settlement_id: settlement.settlement_id },
+      data: { commission_issued: true },
+    });
   }
 }
+
+export async function recalculateReversalCommissions(
+  tx: TxClient,
+  invoiceId: number,
+  repId: number,
+): Promise<void> {
+  await rebuildInvoiceCreditNoteCommissions(tx, invoiceId, repId);
+}
+
+async function getActiveInvoiceCommissionTotal(
+  tx: TxClient,
+  invoiceId: number,
+) {
+  const rows = await tx.commission.findMany({
+    where: {
+      is_active: true,
+      invoiceSettlement: {
+        invoice_id: invoiceId,
+        is_active: true,
+      },
+    },
+    select: { commission_amount: true },
+  });
+
+  return rows.reduce((sum, row) => sum + Number(row.commission_amount), 0);
+}
+
+function normalizeAllocationReversalAmounts(
+  allocations: NonNullable<CommissionResult["reversalAllocations"]>,
+  cappedTotal: number,
+) {
+  const rawTotal = allocations.reduce((sum, allocation) => sum + allocation.reversalAmount, 0);
+  if (rawTotal <= 0 || Math.abs(rawTotal - cappedTotal) < 0.005) {
+    return allocations;
+  }
+
+  let assigned = 0;
+  return allocations.map((allocation, index) => {
+    const isLast = index === allocations.length - 1;
+    const reversalAmount = isLast
+      ? Number((cappedTotal - assigned).toFixed(2))
+      : Number(((allocation.reversalAmount / rawTotal) * cappedTotal).toFixed(2));
+    assigned += reversalAmount;
+
+    return {
+      ...allocation,
+      reversalAmount,
+    };
+  });
+}
+

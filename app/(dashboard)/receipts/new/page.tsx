@@ -12,6 +12,7 @@ import type {
   InvoiceDetailResponse,
   InvoiceOptionDto,
   InvoicesResponse,
+  ReceiptNumberAvailabilityResponse,
   ReceiptMethod,
 } from "@/types/api";
 import SearchableSelect from "@/components/SearchableSelect";
@@ -47,6 +48,7 @@ const NewReceiptPage = () => {
 
   const [invoiceId, setInvoiceId] = useState<number | null>(initialInvoiceId);
   const [receiptDate, setReceiptDate] = useState(getTodayDateInputValue);
+  const [receiptNo, setReceiptNo] = useState("");
   const [amountReceived, setAmountReceived] = useState(0);
   const [amountTouched, setAmountTouched] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<ReceiptMethod>("CASH");
@@ -59,6 +61,19 @@ const NewReceiptPage = () => {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const submitPayload = useRef<CreateReceiptRequestDto | null>(null);
+
+  const checkReceiptNumberAvailability = async (value: string) => {
+    const params = new URLSearchParams({
+      checkReceiptNo: "true",
+      receiptNo: value,
+    });
+
+    const response = await fetch(`/api/receipts?${params.toString()}`);
+    const result = (await response.json()) as ReceiptNumberAvailabilityResponse;
+    if (!response.ok) throw new Error(result.error ?? "Failed to check receipt number.");
+    if (!result.data) throw new Error("Receipt number check response is missing.");
+    return result.data;
+  };
 
   const invoicesQuery = useQuery<InvoiceOptionDto[], Error>({
     queryKey: ["receipt-invoices"],
@@ -122,7 +137,7 @@ const NewReceiptPage = () => {
     ? amountReceived
     : (selectedInvoice?.outstandingAmount ?? amountReceived);
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFieldErrors({});
     setSubmitError("");
@@ -136,6 +151,10 @@ const NewReceiptPage = () => {
 
     if (!receiptDate) {
       nextFieldErrors.receiptDate = "Receipt date is required.";
+    }
+
+    if (!receiptNo.trim()) {
+      nextFieldErrors.receiptNo = "Receipt number is required.";
     }
 
     if (!Number.isFinite(effectiveAmountReceived) || effectiveAmountReceived <= 0) {
@@ -163,8 +182,26 @@ const NewReceiptPage = () => {
       return;
     }
 
+    try {
+      const availability = await checkReceiptNumberAvailability(receiptNo.trim());
+      if (!availability.isUnique) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          receiptNo: "An active receipt with this number already exists.",
+        }));
+        return;
+      }
+    } catch (error) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        receiptNo: error instanceof Error ? error.message : "Failed to check receipt number.",
+      }));
+      return;
+    }
+
     // Prepare payload and open confirmation modal
     submitPayload.current = {
+      receiptNo: receiptNo.trim(),
       invoiceId: effectiveInvoiceId as number,
       collectedBy: 1,
       receiptDate,
@@ -268,6 +305,29 @@ const NewReceiptPage = () => {
                 loading={invoicesQuery.isLoading}
               />
               {fieldErrors.invoice && <p className="text-[12px] text-red-700">{fieldErrors.invoice}</p>}
+            </label>
+
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12px] font-medium text-stone-600">Receipt No</span>
+              <input
+                type="text"
+                value={receiptNo}
+                onChange={(event) => {
+                  setReceiptNo(event.target.value);
+                  setFieldErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.receiptNo;
+                    return next;
+                  });
+                }}
+                className={`rounded-xl border px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e] ${
+                  fieldErrors.receiptNo
+                    ? "border-red-300 bg-red-50"
+                    : "border-stone-200 bg-white"
+                }`}
+                placeholder="e.g. RCP-202605-001"
+              />
+              {fieldErrors.receiptNo && <p className="text-[12px] text-red-700">{fieldErrors.receiptNo}</p>}
             </label>
 
             <label className="flex flex-col gap-1.5">
