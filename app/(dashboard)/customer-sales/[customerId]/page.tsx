@@ -20,8 +20,10 @@ import {
   CheckCircle2,
   Clock3,
   CreditCard,
+  Download,
   FileText,
   HandCoins,
+  Loader2,
   PieChart as PieChartIcon,
   Phone,
   RefreshCcw,
@@ -137,6 +139,7 @@ export default function CustomerSalesDetailPage() {
     const raw = searchParams.get("to");
     return isValidDateISO(raw) ? raw : todayISO();
   });
+  const [isExporting, setIsExporting] = useState(false);
 
   const filters = useMemo(() => ({ periodType, date, month, year, from, to }), [periodType, date, month, year, from, to]);
 
@@ -171,6 +174,50 @@ export default function CustomerSalesDetailPage() {
     setYear(yearISO());
     setFrom(todayISO());
     setTo(todayISO());
+  };
+
+  const handleExportOutstanding = async () => {
+    if (!detailQuery.data) return;
+    setIsExporting(true);
+    try {
+      const { exportCustomerOutstandingToExcel } = await import("@/lib/exportCustomerOutstanding");
+      await exportCustomerOutstandingToExcel({
+        customerName: detailQuery.data.customer.name,
+        periodLabel: detailQuery.data.period.label,
+        periodStart: detailQuery.data.period.startDate,
+        periodEnd: detailQuery.data.period.endDate,
+        rows: detailQuery.data.openInvoices.map((inv) => ({
+          invoiceNumber: inv.invoiceNumber,
+          date: formatDate(inv.invoiceDate),
+          amount: inv.total,
+          balance: inv.balance,
+        })),
+      });
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("toast", {
+            detail: {
+              msg: `Exported ${detailQuery.data.openInvoices.length} outstanding rows to Excel`,
+              type: "success",
+            },
+          }),
+        );
+      }
+    } catch {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("toast", {
+            detail: {
+              msg: "Failed to export outstanding Excel",
+              type: "error",
+            },
+          }),
+        );
+      }
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const openInvoiceColumns: ColumnDef<DetailResponse["openInvoices"][number]>[] = [
@@ -229,6 +276,22 @@ export default function CustomerSalesDetailPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportOutstanding}
+            disabled={isExporting || !detailQuery.data}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-green-700 px-3 py-2 text-[12px] font-medium text-white hover:bg-green-800 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-green-700"
+          >
+            {isExporting ? (
+              <>
+                <Loader2 size={13} className="animate-spin" /> Exporting...
+              </>
+            ) : (
+              <>
+                <Download size={13} /> Export Outstanding
+              </>
+            )}
+          </button>
           <Link href={`/customers/${customerId}`} className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[12px] font-medium text-stone-700 hover:bg-stone-50">
             <FileText size={13} /> Profile
           </Link>
