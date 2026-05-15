@@ -9,17 +9,39 @@ type PrintButtonProps = {
   documentTitle: string;
   label?: string;
   className?: string;
+  pageStyle?: string;
 };
+
+const halfLetterPrintPageStyle = `
+  @page {
+    size: 8.5in 5.5in;
+    margin: 0;
+  }
+
+  @media print {
+    html,
+    body {
+      width: 8.5in;
+      min-width: 8.5in;
+      height: 5.5in;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #fff !important;
+    }
+  }
+`;
 
 const PrintButton = ({
   contentRef,
   documentTitle,
   label = "Print",
   className,
+  pageStyle,
 }: PrintButtonProps) => {
   const handlePrint = useReactToPrint({
     contentRef,
     documentTitle,
+    pageStyle: pageStyle ?? halfLetterPrintPageStyle,
   });
 
   return (
