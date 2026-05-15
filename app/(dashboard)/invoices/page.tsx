@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
    
   // eslint-disable-next-line
-import { Download, Eye, Plus, Printer } from "lucide-react";
+import { Download, Eye, Loader2, Plus, Printer } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { InvoiceOptionDto, InvoicesResponse } from "@/types/api";
@@ -65,6 +65,7 @@ const InvoicesPage = () => {
   const [appliedRange, setAppliedRange] = useState("month");
   const [appliedStart, setAppliedStart] = useState("");
   const [appliedEnd, setAppliedEnd] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
 
   const invoicesQuery = useQuery<InvoiceOptionDto[], Error>({
     queryKey: ["invoices-list", appliedRange, appliedStart, appliedEnd],
@@ -109,6 +110,72 @@ const InvoicesPage = () => {
   const totalValue = filtered.reduce((sum, row) => sum + row.totalAmount, 0);
   const paid = filtered.filter((row) => row.status === "PAID").length;
   const partial = filtered.filter((row) => row.status === "PARTIAL").length;
+
+  const resolvedPeriod = useMemo(() => {
+    const now = new Date();
+    const start = new Date(now);
+    const end = new Date(now);
+    if (appliedRange === "day") {
+      // keep today
+    } else if (appliedRange === "week") {
+      const day = now.getDay();
+      const diffToMonday = day === 0 ? 6 : day - 1;
+      start.setDate(now.getDate() - diffToMonday);
+    } else if (appliedRange === "month") {
+      start.setDate(1);
+    } else if (appliedRange === "year") {
+      start.setMonth(0, 1);
+    } else if (appliedRange === "custom" && appliedStart && appliedEnd) {
+      return { from: appliedStart, to: appliedEnd };
+    } else if (appliedRange === "all") {
+      const dates = filtered.map((x) => new Date(x.invoiceDate)).filter((d) => !Number.isNaN(d.getTime()));
+      if (dates.length === 0) {
+        const today = new Date().toISOString().slice(0, 10);
+        return { from: today, to: today };
+      }
+      const min = new Date(Math.min(...dates.map((d) => d.getTime())));
+      const max = new Date(Math.max(...dates.map((d) => d.getTime())));
+      return { from: min.toISOString().slice(0, 10), to: max.toISOString().slice(0, 10) };
+    }
+    return {
+      from: start.toISOString().slice(0, 10),
+      to: end.toISOString().slice(0, 10),
+    };
+  }, [appliedRange, appliedStart, appliedEnd, filtered]);
+
+  const handleExportExcel = async () => {
+    setIsExporting(true);
+    try {
+      const { exportInvoicesToExcel } = await import("@/lib/exportInvoices");
+      await exportInvoicesToExcel({
+        fromLabel: formatDate(resolvedPeriod.from),
+        toLabel: formatDate(resolvedPeriod.to),
+        rows: filtered.map((row) => ({
+          customerName: row.customerName,
+          invoiceNo: row.invoiceNo,
+          date: formatDate(row.invoiceDate),
+          amount: Math.max(0, row.totalAmount - row.creditedAmount),
+        })),
+      });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("toast", {
+            detail: { msg: `Exported ${filtered.length} invoices to Excel`, type: "success" },
+          }),
+        );
+      }
+    } catch {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("toast", {
+            detail: { msg: "Failed to export invoices", type: "error" },
+          }),
+        );
+      }
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const tableColumns = useMemo<ColumnDef<InvoiceOptionDto>[]>(
     () => [
@@ -198,6 +265,24 @@ const InvoicesPage = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            disabled={isExporting}
+            className="inline-flex items-center gap-2 rounded-xl bg-[#1a5c2e] px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[#2d7a42] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-[#1a5c2e]"
+          >
+            {isExporting ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                Exporting...
+              </>
+            ) : (
+              <>
+                <Download size={14} />
+                Export Excel
+              </>
+            )}
+          </button>
           
           <Link
             href="/invoices/new"

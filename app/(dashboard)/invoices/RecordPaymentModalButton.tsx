@@ -8,6 +8,7 @@ import type {
   CreateReceiptRequestDto,
   CreateReceiptResponse,
   InvoiceDetailResponse,
+  ReceiptNumberAvailabilityResponse,
   ReceiptMethod,
 } from "@/types/api";
 
@@ -70,6 +71,7 @@ const RecordPaymentModalButton = ({
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [receiptDate, setReceiptDate] = useState(getTodayDateInputValue);
+  const [receiptNo, setReceiptNo] = useState("");
   const [amountDraft, setAmountDraft] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<ReceiptMethod>("CASH");
   const [chequeNo, setChequeNo] = useState("");
@@ -112,6 +114,18 @@ const RecordPaymentModalButton = ({
     },
   });
 
+  const checkReceiptNumberAvailability = async (value: string) => {
+    const params = new URLSearchParams({
+      checkReceiptNo: "true",
+      receiptNo: value,
+    });
+    const response = await fetch(`/api/receipts?${params.toString()}`);
+    const result = (await response.json()) as ReceiptNumberAvailabilityResponse;
+    if (!response.ok) throw new Error(result.error ?? "Failed to check receipt number.");
+    if (!result.data) throw new Error("Receipt number check response is missing.");
+    return result.data;
+  };
+
   const snapshot = useMemo<PaymentInvoiceSnapshot | null>(() => {
     if (preloadedSnapshot) return preloadedSnapshot;
     if (!invoiceDetailQuery.data) return null;
@@ -144,6 +158,7 @@ const RecordPaymentModalButton = ({
     if (disabled) return;
     setError("");
     setIsOpen(true);
+    setReceiptNo("");
     setAmountDraft(null);
     setNotes("");
   };
@@ -151,6 +166,10 @@ const RecordPaymentModalButton = ({
   const validate = () => {
     if (!receiptDate || Number.isNaN(new Date(receiptDate).getTime())) {
       setError("Valid receipt date is required.");
+      return false;
+    }
+    if (!receiptNo.trim()) {
+      setError("Receipt number is required.");
       return false;
     }
     if (
@@ -191,7 +210,14 @@ const RecordPaymentModalButton = ({
     if (!validate()) return;
 
     try {
+      const availability = await checkReceiptNumberAvailability(receiptNo.trim());
+      if (!availability.isUnique) {
+        setError("An active receipt with this number already exists.");
+        return;
+      }
+
       const payload: CreateReceiptRequestDto = {
+        receiptNo: receiptNo.trim(),
         invoiceId,
         collectedBy: 0,
         receiptDate,
@@ -327,6 +353,19 @@ const RecordPaymentModalButton = ({
             )}
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <label className="flex flex-col gap-1">
+                <span className="text-[12px] font-medium text-stone-700">
+                  Receipt No
+                </span>
+                <input
+                  type="text"
+                  value={receiptNo}
+                  onChange={(event) => setReceiptNo(event.target.value)}
+                  className="rounded-lg border border-stone-300 px-3 py-2 text-[13px] outline-none focus:border-[#1a5c2e]"
+                  placeholder="e.g. RCP-202605-001"
+                />
+              </label>
+
               <label className="flex flex-col gap-1">
                 <span className="text-[12px] font-medium text-stone-700">
                   Receipt Date

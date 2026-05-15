@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getReceiptNumber } from "@/lib/commission";
 import type { ReceiptCommissionResponse } from "@/types/api";
 
 export async function GET(
@@ -18,6 +17,7 @@ export async function GET(
 			where: { receipt_id: receiptId },
 			select: {
 				receipt_id: true,
+        receipt_number: true,
         is_active: true,
 				receipt_date: true,
 				invoice: {
@@ -76,7 +76,7 @@ export async function GET(
 			data: {
 				commissionId: commission.commission_id,
 				receiptId: receipt.receipt_id,
-				receiptNo: getReceiptNumber(receipt.receipt_id, receipt.receipt_date),
+				receiptNo: receipt.receipt_number,
 				receiptDate: receipt.receipt_date.toISOString(),
 				invoiceId: receipt.invoice.invoice_id,
 				invoiceNo: receipt.invoice.invoice_number ?? "",

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
+  Download,
+  Loader2,
   Phone,
   Plus,
   // eslint-disable-next-line
@@ -90,6 +92,7 @@ export default function CustomersPageClient({
   const [createForm, setCreateForm] =
     useState<CreateCustomerForm>(DEFAULT_CREATE_FORM);
   const [isCreating, setIsCreating] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [createError, setCreateError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -258,6 +261,24 @@ export default function CustomersPageClient({
     }
   };
 
+  const handleExportCustomers = async () => {
+    setIsExporting(true);
+    try {
+      const { exportCustomersToExcel } = await import("@/lib/exportCustomers");
+      await exportCustomersToExcel(
+        customers.map((customer) => ({
+          name: customer.name,
+          address: customer.address?.trim() || "-",
+          contactNo: customer.phone?.trim() || "-",
+        })),
+      );
+    } catch {
+      setLoadError("Failed to export customer details.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3">
@@ -273,17 +294,35 @@ export default function CustomersPageClient({
           </p>
         </div>
 
-        {canEdit && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => {
-              setCreateError("");
-              setIsCreateOpen(true);
-            }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-green-700 text-white text-[13px] font-semibold hover:bg-green-800 transition-colors [font-family:var(--font-dmsans)]"
+            onClick={handleExportCustomers}
+            disabled={isExporting || loading}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-green-700 text-white text-[13px] font-semibold hover:bg-green-800 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-green-700 transition-colors [font-family:var(--font-dmsans)]"
           >
-            <Plus size={14} /> New Customer
+            {isExporting ? (
+              <>
+                <Loader2 size={14} className="animate-spin" /> Exporting...
+              </>
+            ) : (
+              <>
+                <Download size={14} /> Export Excel
+              </>
+            )}
           </button>
-        )}
+
+          {canEdit && (
+            <button
+              onClick={() => {
+                setCreateError("");
+                setIsCreateOpen(true);
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-green-700 text-white text-[13px] font-semibold hover:bg-green-800 transition-colors [font-family:var(--font-dmsans)]"
+            >
+              <Plus size={14} /> New Customer
+            </button>
+          )}
+        </div>
       </div>
 
       {successMessage && (

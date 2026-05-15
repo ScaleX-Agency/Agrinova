@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   computeEffectiveBalance,
+  computeIncrementalOverpayments,
   computeReversalAllocations,
   resolveRate,
   calculateDaysToPay,
@@ -51,7 +52,7 @@ describe("computeEffectiveBalance", () => {
 describe("resolveRate", () => {
   const sameDayRate = 0.025;
   const rangeMinDays = 1;
-  const rangeMaxDays = 59;
+  const rangeMaxDays = 65;
   const rangeRate = 0.02;
   const overRangeRate = 0;
 
@@ -71,12 +72,17 @@ describe("resolveRate", () => {
     expect(resolveRate(30, sameDayRate, rangeMinDays, rangeMaxDays, rangeRate, overRangeRate)).toBe(0.02);
   });
 
-  it("returns range rate for daysToPay = 59 (max boundary)", () => {
-    expect(resolveRate(59, sameDayRate, rangeMinDays, rangeMaxDays, rangeRate, overRangeRate)).toBe(0.02);
+  it("returns range rate for daysToPay = 65 (max boundary)", () => {
+    expect(resolveRate(65, sameDayRate, rangeMinDays, rangeMaxDays, rangeRate, overRangeRate)).toBe(0.02);
   });
 
-  it("returns over-range rate for daysToPay = 60", () => {
-    expect(resolveRate(60, sameDayRate, rangeMinDays, rangeMaxDays, rangeRate, overRangeRate)).toBe(0);
+  it("returns over-range rate for daysToPay = 66", () => {
+    expect(resolveRate(66, sameDayRate, rangeMinDays, rangeMaxDays, rangeRate, overRangeRate)).toBe(0);
+  });
+
+  it("uses custom DB-configured range boundaries", () => {
+    expect(resolveRate(45, sameDayRate, 10, 45, rangeRate, overRangeRate)).toBe(0.02);
+    expect(resolveRate(46, sameDayRate, 10, 45, rangeRate, overRangeRate)).toBe(0);
   });
 
   it("returns over-range rate for daysToPay = 365", () => {
@@ -644,6 +650,54 @@ describe("end-to-end scenarios", () => {
       expect(result.totalReversalAmount).toBe(1250);
       // currentTotal is -100, can't reverse any more → cap to max(0, -100) = 0
       expect(result.cappedReversalAmount).toBe(0);
+    });
+  });
+});
+
+describe("computeIncrementalOverpayments", () => {
+  it("returns zero overpayment while credits stay within the unpaid balance", () => {
+    const rows = computeIncrementalOverpayments(100000, 40000, [
+      { settlementId: 10, amount: 30000 },
+      { settlementId: 11, amount: 30000 },
+    ]);
+
+    expect(rows[0]).toMatchObject({
+      settlementId: 10,
+      balanceBefore: 60000,
+      balanceAfter: 30000,
+      incrementalOverpayment: 0,
+    });
+    expect(rows[1]).toMatchObject({
+      settlementId: 11,
+      balanceBefore: 30000,
+      balanceAfter: 0,
+      incrementalOverpayment: 0,
+    });
+  });
+
+  it("counts only the amount that crosses into overpayment", () => {
+    const rows = computeIncrementalOverpayments(100000, 60000, [
+      { settlementId: 20, amount: 50000 },
+    ]);
+
+    expect(rows[0]).toMatchObject({
+      settlementId: 20,
+      balanceBefore: 40000,
+      balanceAfter: -10000,
+      incrementalOverpayment: 10000,
+    });
+  });
+
+  it("replays multiple SRNs as incremental overpayments instead of cumulative overpayment", () => {
+    const rows = computeIncrementalOverpayments(150000, 150000, [
+      { settlementId: 30, amount: 30000 },
+      { settlementId: 31, amount: 40000 },
+    ]);
+
+    expect(rows.map((row) => row.incrementalOverpayment)).toEqual([30000, 40000]);
+    expect(rows[1]).toMatchObject({
+      balanceBefore: -30000,
+      balanceAfter: -70000,
     });
   });
 });

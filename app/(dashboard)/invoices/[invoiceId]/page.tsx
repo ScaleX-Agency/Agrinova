@@ -170,6 +170,7 @@ const InvoiceDetailPage = async ({
         orderBy: [{ receipt_date: "desc" }, { receipt_id: "desc" }],
         select: {
           receipt_id: true,
+          receipt_number: true,
           receipt_date: true,
           amount: true,
         },
@@ -254,15 +255,7 @@ const InvoiceDetailPage = async ({
     0,
   );
 
-  const receiptsWithNumber = invoice.receipts.map((receipt) => {
-    const year = receipt.receipt_date.getFullYear();
-    const month = String(receipt.receipt_date.getMonth() + 1).padStart(2, "0");
-    return {
-      ...receipt,
-      receipt_number: `RCP-${year}${month}-${String(receipt.receipt_id).padStart(3, "0")}`,
-      amount: receipt.amount,
-    };
-  });
+  const receiptsWithNumber = invoice.receipts;
   const returnedLines = invoice.invoice_lines.filter((line) => line.returned_qty > 0);
 
   return (

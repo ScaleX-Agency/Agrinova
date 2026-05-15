@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getReceiptNumber } from "@/lib/commission";
 import { getCurrentUser } from "@/lib/auth";
 import { createSettlementCommission } from "@/lib/commissionSettlement";
 import type {
   CreateReceiptRequestDto,
   CreateReceiptResponse,
+  ReceiptNumberAvailabilityResponse,
   ReceiptsResponse,
 } from "@/types/api";
 
@@ -28,6 +28,35 @@ const isValidPaymentMethod = (value: unknown): value is "CASH" | "CHEQUE" | "BAN
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+    const checkReceiptNo = searchParams.get("checkReceiptNo") === "true";
+    const receiptNo = searchParams.get("receiptNo")?.trim();
+
+    if (checkReceiptNo) {
+      if (!receiptNo) {
+        return NextResponse.json(
+          { error: "Receipt number is required." },
+          { status: 400 },
+        );
+      }
+
+      const existingReceipt = await prisma.receipt.findFirst({
+        where: {
+          receipt_number: receiptNo,
+          is_active: true,
+        },
+        select: { receipt_id: true },
+      });
+
+      const responseBody: ReceiptNumberAvailabilityResponse = {
+        data: {
+          receiptNo,
+          isUnique: existingReceipt === null,
+        },
+      };
+
+      return NextResponse.json(responseBody);
+    }
+
     const range = searchParams.get("range");
     const startDateParam = searchParams.get("startDate");
     const endDateParam = searchParams.get("endDate");
@@ -82,6 +111,7 @@ export async function GET(request: Request) {
       orderBy: [{ receipt_date: "desc" }, { receipt_id: "desc" }],
       select: {
         receipt_id: true,
+        receipt_number: true,
         receipt_date: true,
           amount: true,
         payment_method: true,
@@ -101,13 +131,9 @@ export async function GET(request: Request) {
 
     const responseBody: ReceiptsResponse = {
       data: receipts.map((receipt) => {
-        const year = receipt.receipt_date.getFullYear();
-        const month = String(receipt.receipt_date.getMonth() + 1).padStart(2, "0");
-        const receiptNo = `RCP-${year}${month}-${String(receipt.receipt_id).padStart(3, "0")}`;
-
         return {
           id: receipt.receipt_id,
-          receiptNo,
+          receiptNo: receipt.receipt_number,
           receiptDate: receipt.receipt_date.toISOString(),
           invoiceId: receipt.invoice.invoice_id,
           invoiceNo: receipt.invoice.invoice_number,
@@ -137,11 +163,12 @@ export async function POST(request: Request) {
     const userId = currentUser.user_id;
 
     const invoiceId = toPositiveInt(body.invoiceId);
+    const receiptNo = body.receiptNo?.trim();
     const amountReceived = toPositiveNumber(body.amountReceived);
     const paymentMethod = body.paymentMethod;
     const receiptDateRaw = body.receiptDate;
 
-    if (!invoiceId || !amountReceived || !isValidPaymentMethod(paymentMethod)) {
+    if (!invoiceId || !amountReceived || !isValidPaymentMethod(paymentMethod) || !receiptNo) {
       return NextResponse.json(
         { error: "Missing or invalid receipt fields." },
         { status: 400 },
@@ -194,6 +221,17 @@ export async function POST(request: Request) {
         throw new Error("Selected invoice is inactive.");
       }
 
+      const existingActiveReceipt = await tx.receipt.findFirst({
+        where: {
+          receipt_number: receiptNo,
+          is_active: true,
+        },
+        select: { receipt_id: true },
+      });
+      if (existingActiveReceipt) {
+        throw new Error("An active receipt with this number already exists.");
+      }
+
       const totalAmount = Number(invoice.total_amount);
       const paidAmount = Number(invoice.paid_amount);
       const creditedAmount = Number(invoice.credited_amount);
@@ -220,6 +258,7 @@ export async function POST(request: Request) {
       const receipt = await tx.receipt.create({
         data: {
           invoice_id: invoice.invoice_id,
+          receipt_number: receiptNo,
           created_by: userId,
           receipt_date: receiptDate,
           amount: amountReceived,
@@ -233,6 +272,7 @@ export async function POST(request: Request) {
         },
         select: {
           receipt_id: true,
+          receipt_number: true,
           receipt_date: true,
           amount: true,
         },
@@ -272,11 +312,9 @@ export async function POST(request: Request) {
         amountReceived,
       );
 
-      const receiptNo = getReceiptNumber(receipt.receipt_id, receipt.receipt_date);
-
       return {
         receiptId: receipt.receipt_id,
-        receiptNo,
+        receiptNo: receipt.receipt_number,
         commissionId: commissionResult.commissionId,
         daysToPay: commissionResult.daysToPay,
         commissionRate: commissionResult.commissionRate,
@@ -301,6 +339,7 @@ export async function POST(request: Request) {
     if (error instanceof Error) {
       const isValidationError =
         error.message.includes("invoice") ||
+        error.message.includes("receipt") ||
         error.message.includes("outstanding") ||
         error.message.includes("paid") ||
         error.message.includes("Amount exceeds");

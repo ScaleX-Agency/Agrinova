@@ -204,6 +204,7 @@ export async function GET(
         },
         select: {
           receipt_id: true,
+          receipt_number: true,
           receipt_date: true,
           amount: true,
           payment_method: true,
@@ -225,6 +226,7 @@ export async function GET(
         },
         select: {
           receipt_id: true,
+          receipt_number: true,
           receipt_date: true,
           amount: true,
           payment_method: true,
@@ -276,7 +278,25 @@ export async function GET(
                 select: {
                   invoice_id: true,
                   invoice_number: true,
+                  invoice_date: true,
                   customer: { select: { name: true } },
+                },
+              },
+              receipt: {
+                select: {
+                  receipt_id: true,
+                  receipt_number: true,
+                  receipt_date: true,
+                  payment_method: true,
+                },
+              },
+              creditNote: {
+                select: {
+                  sales_return_note: {
+                    select: {
+                      return_number: true,
+                    },
+                  },
                 },
               },
             },
@@ -515,7 +535,17 @@ export async function GET(
       settlementType: c.invoiceSettlement?.settlement_type ?? null,
       settlementDate: c.invoiceSettlement?.settled_date ? c.invoiceSettlement.settled_date.toISOString() : null,
       invoiceNo: c.invoiceSettlement?.invoice.invoice_number ?? null,
+      invoiceDate: c.invoiceSettlement?.invoice.invoice_date
+        ? c.invoiceSettlement.invoice.invoice_date.toISOString()
+        : null,
       customerName: c.invoiceSettlement?.invoice.customer?.name ?? null,
+      receiptNo: c.invoiceSettlement?.receipt?.receipt_number ?? null,
+      receiptDate: c.invoiceSettlement?.receipt?.receipt_date
+        ? c.invoiceSettlement.receipt.receipt_date.toISOString()
+        : null,
+      paymentMethod: c.invoiceSettlement?.receipt?.payment_method ?? null,
+      salesReturnNo:
+        c.invoiceSettlement?.creditNote?.sales_return_note?.return_number ?? null,
       settlementAmount: c.invoiceSettlement ? Number(toNum(c.invoiceSettlement.amount).toFixed(2)) : 0,
       commissionRate: Number((toNum(c.commission_rate) * 100).toFixed(2)),
       commissionAmount: Number(toNum(c.commission_amount).toFixed(2)),
@@ -548,7 +578,7 @@ export async function GET(
       ...periodReceipts.map((r) => ({
         type: "receipt" as const,
         id: r.receipt_id,
-        reference: `RCP-${String(r.receipt_id).padStart(4, "0")}`,
+        reference: r.receipt_number,
         date: r.receipt_date.toISOString(),
         amount: Number(toNum(r.amount).toFixed(2)),
         status: r.payment_method,

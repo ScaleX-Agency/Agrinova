@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { createSettlementCommission } from "@/lib/commissionSettlement";
+import { rebuildInvoiceCreditNoteCommissions } from "@/lib/commissionSettlement";
 import type {
   CreateSalesReturnRequestDto,
   ReturnNumberAvailabilityResponse,
@@ -441,29 +441,7 @@ export async function POST(request: Request) {
           },
         });
 
-        // Auto-create Commission record for this credit note
-        // The settlement needs its own settlement_id, so we fetch it
-        const cnSettlement = await tx.invoiceSettlement.findFirst({
-          where: {
-            invoice_id: invoice.invoice_id,
-            credit_note_id: creditNote.credit_note_id,
-            is_active: true,
-          },
-          select: { settlement_id: true },
-        });
-
-        if (cnSettlement) {
-          await createSettlementCommission(
-            tx,
-            invoice.invoice_id,
-            cnSettlement.settlement_id,
-            "CREDIT_NOTE",
-            invoice.invoice_date,
-            returnDate,
-            invoice.rep_id,
-            Number(creditNote.amount),
-          );
-        }
+        await rebuildInvoiceCreditNoteCommissions(tx, invoice.invoice_id, invoice.rep_id);
 
         return {
           salesReturnId: srn.return_id,

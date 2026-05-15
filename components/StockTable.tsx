@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Download } from "lucide-react";
+import { Search } from "lucide-react";
 import { StockOverviewRow, StockFilter, StockStatus } from "@/types/inventory";
 import { useLocations } from "@/hooks/useInventory";
 import Pagination from "rc-pagination";
@@ -105,49 +105,6 @@ export default function StockTable({
           <option value="out">Out of Stock</option>
         </select>
 
-        <button
-          onClick={() => {
-            import("@/lib/exportCsv").then(({ exportToCsv }) => {
-              const headers = [
-                "Product Code",
-                "Product Name",
-                "Pack Size",
-                "Category",
-                "Location",
-                "Qty on Hand",
-                "Status",
-              ];
-              const exportRows = rows.map((r) => [
-                r.product_code,
-                r.product_name,
-                r.pack_size,
-                r.category_name,
-                r.is_aggregate
-                  ? r.location_code
-                  : LOCATIONS.find((l) => l.id === r.location_id)?.code || r.location_code || "",
-                String(r.quantity_on_hand),
-                r.status,
-              ]);
-              exportToCsv(
-                `agrinova-stock-${new Date().toISOString().split("T")[0]}.csv`,
-                headers,
-                exportRows,
-              );
-              if (typeof window !== "undefined") {
-                const event = new CustomEvent("toast", {
-                  detail: {
-                    msg: `Exported ${exportRows.length} rows to CSV`,
-                    type: "success",
-                  },
-                });
-                window.dispatchEvent(event);
-              }
-            });
-          }}
-          className="ml-auto flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-stone-500 border border-stone-200 rounded-lg hover:bg-stone-50 transition-colors"
-        >
-          <Download size={12} /> Export
-        </button>
       </div>
 
       {/* Table */}

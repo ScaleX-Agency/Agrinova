@@ -107,16 +107,7 @@ export async function GET(request: Request) {
     const safeRisk: Risk = ["all", "clear", "watch", "overdue", "inactive"].includes(risk) ? risk : "all";
     const query = (search.get("search") ?? "").trim().toLowerCase();
 
-    const [customers, periodInvoices, openInvoices, periodReceipts] = await Promise.all([
-      prisma.customer.findMany({
-        where: repId ? { assigned_rep_id: repId } : undefined,
-        select: {
-          customer_id: true,
-          name: true,
-          phone: true,
-          assigned_rep: { select: { full_name: true } },
-        },
-      }),
+    const [periodInvoices, openInvoices, periodReceipts] = await Promise.all([
       prisma.invoice.findMany({
         where: {
           is_active: true,
@@ -135,6 +126,7 @@ export async function GET(request: Request) {
         where: {
           is_active: true,
           balance_amount: { gt: 0 },
+          invoice_date: { gte: period.startDate, lte: period.endDate },
           ...(repId ? { rep_id: repId } : {}),
         },
         select: {
@@ -156,6 +148,30 @@ export async function GET(request: Request) {
         },
       }),
     ]);
+
+    const relevantCustomerIds = Array.from(
+      new Set([
+        ...periodInvoices.map((i) => i.customer_id),
+        ...openInvoices.map((i) => i.customer_id),
+        ...periodReceipts.map((r) => r.invoice.customer_id),
+      ]),
+    );
+
+    const customers =
+      relevantCustomerIds.length === 0
+        ? []
+        : await prisma.customer.findMany({
+            where: {
+              customer_id: { in: relevantCustomerIds },
+              ...(repId ? { assigned_rep_id: repId } : {}),
+            },
+            select: {
+              customer_id: true,
+              name: true,
+              phone: true,
+              assigned_rep: { select: { full_name: true } },
+            },
+          });
     const now = new Date();
     const customerRows = customers.map((c) => {
       const invoices = periodInvoices.filter((i) => i.customer_id === c.customer_id);

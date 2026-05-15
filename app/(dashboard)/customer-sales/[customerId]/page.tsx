@@ -2,31 +2,31 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Bar,
-  BarChart,
   CartesianGrid,
   Legend,
+  Pie,
+  PieChart,
+  Cell,
   ResponsiveContainer,
   Tooltip,
-  XAxis,
-  YAxis,
 } from "recharts";
 import {
   ArrowLeft,
-  CalendarRange,
   CheckCircle2,
   Clock3,
   CreditCard,
+  Download,
   FileText,
   HandCoins,
+  Loader2,
+  PieChart as PieChartIcon,
   Phone,
   RefreshCcw,
-  ShieldAlert,
-  TrendingUp,
 } from "lucide-react";
 import DataTable from "@/components/ui/DataTable";
 
@@ -93,15 +93,53 @@ function yearISO() {
   return String(new Date().getFullYear());
 }
 
+function isValidDateISO(value: string | null): value is string {
+  return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
+}
+
+function isValidMonthISO(value: string | null): value is string {
+  return Boolean(value && /^\d{4}-\d{2}$/.test(value));
+}
+
+function isValidYear(value: string | null): value is string {
+  return Boolean(value && /^\d{4}$/.test(value));
+}
+
+function getInitialPeriodType(raw: string | null): PeriodType {
+  if (raw === "daily" || raw === "monthly" || raw === "yearly" || raw === "custom") {
+    return raw;
+  }
+  return "monthly";
+}
+
 export default function CustomerSalesDetailPage() {
   const params = useParams<{ customerId: string }>();
+  const searchParams = useSearchParams();
   const customerId = Number(params.customerId);
-  const [periodType, setPeriodType] = useState<PeriodType>("monthly");
-  const [date, setDate] = useState(todayISO());
-  const [month, setMonth] = useState(monthISO());
-  const [year, setYear] = useState(yearISO());
-  const [from, setFrom] = useState(todayISO());
-  const [to, setTo] = useState(todayISO());
+  const [periodType, setPeriodType] = useState<PeriodType>(() =>
+    getInitialPeriodType(searchParams.get("periodType")),
+  );
+  const [date, setDate] = useState(() => {
+    const raw = searchParams.get("date");
+    return isValidDateISO(raw) ? raw : todayISO();
+  });
+  const [month, setMonth] = useState(() => {
+    const raw = searchParams.get("month");
+    return isValidMonthISO(raw) ? raw : monthISO();
+  });
+  const [year, setYear] = useState(() => {
+    const raw = searchParams.get("year");
+    return isValidYear(raw) ? raw : yearISO();
+  });
+  const [from, setFrom] = useState(() => {
+    const raw = searchParams.get("from");
+    return isValidDateISO(raw) ? raw : todayISO();
+  });
+  const [to, setTo] = useState(() => {
+    const raw = searchParams.get("to");
+    return isValidDateISO(raw) ? raw : todayISO();
+  });
+  const [isExporting, setIsExporting] = useState(false);
 
   const filters = useMemo(() => ({ periodType, date, month, year, from, to }), [periodType, date, month, year, from, to]);
 
@@ -138,12 +176,56 @@ export default function CustomerSalesDetailPage() {
     setTo(todayISO());
   };
 
+  const handleExportOutstanding = async () => {
+    if (!detailQuery.data) return;
+    setIsExporting(true);
+    try {
+      const { exportCustomerOutstandingToExcel } = await import("@/lib/exportCustomerOutstanding");
+      await exportCustomerOutstandingToExcel({
+        customerName: detailQuery.data.customer.name,
+        periodLabel: detailQuery.data.period.label,
+        periodStart: detailQuery.data.period.startDate,
+        periodEnd: detailQuery.data.period.endDate,
+        rows: detailQuery.data.openInvoices.map((inv) => ({
+          invoiceNumber: inv.invoiceNumber,
+          date: formatDate(inv.invoiceDate),
+          amount: inv.total,
+          balance: inv.balance,
+        })),
+      });
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("toast", {
+            detail: {
+              msg: `Exported ${detailQuery.data.openInvoices.length} outstanding rows to Excel`,
+              type: "success",
+            },
+          }),
+        );
+      }
+    } catch {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("toast", {
+            detail: {
+              msg: "Failed to export outstanding Excel",
+              type: "error",
+            },
+          }),
+        );
+      }
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const openInvoiceColumns: ColumnDef<DetailResponse["openInvoices"][number]>[] = [
     { accessorKey: "invoiceNumber", header: "Invoice" },
     { accessorKey: "invoiceDate", header: "Date", cell: ({ row }) => formatDate(row.original.invoiceDate) },
     { accessorKey: "total", header: "Total", cell: ({ row }) => formatCurrency(row.original.total), meta: { align: "right" } },
     { accessorKey: "paid", header: "Paid", cell: ({ row }) => formatCurrency(row.original.paid), meta: { align: "right" } },
-    { accessorKey: "credited", header: "Credited", cell: ({ row }) => formatCurrency(row.original.credited), meta: { align: "right" } },
+    { accessorKey: "credited", header: "Returns", cell: ({ row }) => formatCurrency(row.original.credited), meta: { align: "right" } },
     {
       accessorKey: "balance",
       header: "Balance",
@@ -152,13 +234,29 @@ export default function CustomerSalesDetailPage() {
     },
     { accessorKey: "daysOutstanding", header: "Days", meta: { align: "right" } },
     { accessorKey: "status", header: "Status" },
+    {
+      id: "view",
+      header: "",
+      cell: ({ row }) => (
+        <Link
+          href={`/invoices/${row.original.invoiceId}`}
+          className="inline-flex items-center rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-stone-700 hover:bg-stone-50"
+        >
+          View
+        </Link>
+      ),
+      meta: { align: "right" },
+    },
   ];
 
   const customerComparisonData = useMemo(
     () => [
       {
-        name: detailQuery.data?.customer.name ?? "Customer",
+        name: "Collections",
         collections: detailQuery.data?.kpis.collections ?? 0,
+      },
+      {
+        name: "Outstanding",
         outstanding: detailQuery.data?.kpis.outstanding ?? 0,
       },
     ],
@@ -178,6 +276,22 @@ export default function CustomerSalesDetailPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportOutstanding}
+            disabled={isExporting || !detailQuery.data}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-green-700 px-3 py-2 text-[12px] font-medium text-white hover:bg-green-800 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-green-700"
+          >
+            {isExporting ? (
+              <>
+                <Loader2 size={13} className="animate-spin" /> Exporting...
+              </>
+            ) : (
+              <>
+                <Download size={13} /> Export Outstanding
+              </>
+            )}
+          </button>
           <Link href={`/customers/${customerId}`} className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[12px] font-medium text-stone-700 hover:bg-stone-50">
             <FileText size={13} /> Profile
           </Link>
@@ -254,30 +368,44 @@ export default function CustomerSalesDetailPage() {
         </div>
       ) : (
         <>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
-            <Kpi label="Lifetime Sales" value={formatCurrency(detailQuery.data.kpis.lifetimeSales)} icon={<TrendingUp size={14} className="text-emerald-700" />} />
-            <Kpi label="Period Sales" value={formatCurrency(detailQuery.data.kpis.netSales)} icon={<CalendarRange size={14} className="text-blue-700" />} />
-            <Kpi label="Collections" value={formatCurrency(detailQuery.data.kpis.collections)} icon={<CheckCircle2 size={14} className="text-emerald-700" />} />
-            <Kpi label="Outstanding" value={formatCurrency(detailQuery.data.kpis.outstanding)} icon={<HandCoins size={14} className="text-red-700" />} />
-            <Kpi label="Overdue" value={formatCurrency(detailQuery.data.kpis.overdueAmount)} icon={<ShieldAlert size={14} className="text-red-700" />} />
-            <Kpi label="Avg Days To Pay" value={detailQuery.data.kpis.avgDaysToPay === null ? "-" : String(detailQuery.data.kpis.avgDaysToPay)} icon={<Clock3 size={14} className="text-amber-700" />} />
-            <Kpi label="Invoices" value={String(detailQuery.data.kpis.invoiceCount)} icon={<FileText size={14} className="text-stone-700" />} />
-          </div>
-
           <section className="rounded-2xl border border-stone-200 bg-white p-4 lg:p-5">
-            <p className="mb-2 text-[13px] font-medium text-stone-700">Collections vs Outstanding</p>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={customerComparisonData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#edeae1" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6b7280" }} />
-                  <YAxis tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`} tick={{ fontSize: 11, fill: "#6b7280" }} />
-                  <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0))} />
-                  <Legend />
-                  <Bar dataKey="collections" stackId="sales" fill="#1a5c2e" name="Collected" />
-                  <Bar dataKey="outstanding" stackId="sales" fill="#dc2626" name="Outstanding" />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="grid gap-4 xl:grid-cols-5">
+              <div className="xl:col-span-2 rounded-xl border border-stone-200 bg-stone-50 p-3">
+                <p className="mb-2 text-[13px] font-medium text-stone-700 inline-flex items-center gap-2">
+                  <PieChartIcon size={14} />
+                  Collections vs Outstanding
+                </p>
+                <div className="h-[260px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0))} />
+                      <Legend />
+                      <Pie
+                        data={[
+                          { name: "Collections", value: customerComparisonData[0]?.collections ?? 0 },
+                          { name: "Outstanding", value: customerComparisonData[1]?.outstanding ?? 0 },
+                        ]}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                      >
+                        <Cell fill="#1a5c2e" />
+                        <Cell fill="#dc2626" />
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="xl:col-span-3 grid gap-3 sm:grid-cols-2">
+                <Kpi label="Period Sales" value={formatCurrency(detailQuery.data.kpis.netSales)} icon={<FileText size={14} className="text-blue-700" />} />
+                <Kpi label="Collections" value={formatCurrency(detailQuery.data.kpis.collections)} icon={<CheckCircle2 size={14} className="text-emerald-700" />} />
+                <Kpi label="Outstanding" value={formatCurrency(detailQuery.data.kpis.outstanding)} icon={<HandCoins size={14} className="text-red-700" />} />
+                <Kpi label="Avg Days To Pay" value={detailQuery.data.kpis.avgDaysToPay === null ? "-" : String(detailQuery.data.kpis.avgDaysToPay)} icon={<Clock3 size={14} className="text-amber-700" />} />
+                <Kpi label="Invoices" value={String(detailQuery.data.kpis.invoiceCount)} icon={<CreditCard size={14} className="text-stone-700" />} />
+              </div>
             </div>
           </section>
 

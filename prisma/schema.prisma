@@ -300,6 +300,7 @@ model GoodsReceivingNoteLine {
 
 model Receipt {
   receipt_id   Int      @id @default(autoincrement())
+  receipt_number String
   invoice_id   Int
   receipt_date DateTime
 
