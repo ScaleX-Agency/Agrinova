@@ -301,6 +301,7 @@ const InvoiceDetailPage = async ({
                 productName: line.product.product_name,
                 packSize: line.product.pack_size,
                 quantity: line.quantity,
+                freeQuantity: line.free_quantity,
                 unitPrice: Number(line.unit_price),
                 discount: Number(line.discount),
                 netLineTotal: Number(line.net_line_total),
