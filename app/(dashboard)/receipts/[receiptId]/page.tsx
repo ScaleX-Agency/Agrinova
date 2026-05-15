@@ -76,6 +76,7 @@ const ReceiptDetailPage = async ({
     where: { receipt_id: receiptId },
     select: {
       receipt_id: true,
+      receipt_number: true,
       is_active: true,
       receipt_date: true,
       amount: true,
@@ -115,9 +116,7 @@ const ReceiptDetailPage = async ({
     notFound();
   }
 
-  const year = receipt.receipt_date.getFullYear();
-  const month = String(receipt.receipt_date.getMonth() + 1).padStart(2, "0");
-  const receiptNo = `RCP-${year}${month}-${String(receipt.receipt_id).padStart(3, "0")}`;
+  const receiptNo = receipt.receipt_number;
   const method = receipt.payment_method as "CASH" | "CHEQUE" | "BANK_TRANSFER";
 
   return (

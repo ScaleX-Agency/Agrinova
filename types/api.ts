@@ -111,6 +111,7 @@ export type InvoiceDetailResponse = ApiResult<InvoiceDetailDto>;
 export type ReceiptMethod = "CASH" | "CHEQUE" | "BANK_TRANSFER";
 
 export type CreateReceiptRequestDto = {
+  receiptNo: string;
   invoiceId: number;
   collectedBy: number;
   receiptDate: string;
@@ -133,6 +134,14 @@ export type CreateReceiptSuccessResponse = {
 };
 
 export type CreateReceiptResponse = ApiResult<CreateReceiptSuccessResponse>;
+
+export type ReceiptNumberAvailabilityDto = {
+  receiptNo: string;
+  isUnique: boolean;
+};
+
+export type ReceiptNumberAvailabilityResponse =
+  ApiResult<ReceiptNumberAvailabilityDto>;
 
 export type ReceiptOptionDto = {
   id: number;

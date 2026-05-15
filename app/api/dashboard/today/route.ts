@@ -79,6 +79,7 @@ export async function GET() {
         orderBy: [{ receipt_date: "desc" }, { receipt_id: "desc" }],
         select: {
           receipt_id: true,
+          receipt_number: true,
           receipt_date: true,
           amount: true,
           payment_method: true,
@@ -165,7 +166,7 @@ export async function GET() {
       ...receiptsToday.map((receipt) => ({
         id: `receipt-${receipt.receipt_id}`,
         type: "receipt" as const,
-        refNo: `RCP-${receipt.receipt_id}`,
+        refNo: receipt.receipt_number,
         title: "Receipt Recorded",
         subtitle: `${receipt.invoice.customer.name} · ${receipt.payment_method}`,
         amount: toAmount(receipt.amount),
@@ -229,7 +230,7 @@ export async function GET() {
       })),
       receiptsToday: receiptsToday.map((receipt) => ({
         id: receipt.receipt_id,
-        receiptNo: `RCP-${receipt.receipt_id}`,
+        receiptNo: receipt.receipt_number,
         receiptDate: receipt.receipt_date.toISOString(),
         invoiceNo: receipt.invoice.invoice_number,
         customerName: receipt.invoice.customer.name,

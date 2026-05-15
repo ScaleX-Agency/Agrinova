@@ -204,6 +204,7 @@ export async function GET(
         },
         select: {
           receipt_id: true,
+          receipt_number: true,
           receipt_date: true,
           amount: true,
           payment_method: true,
@@ -225,6 +226,7 @@ export async function GET(
         },
         select: {
           receipt_id: true,
+          receipt_number: true,
           receipt_date: true,
           amount: true,
           payment_method: true,
@@ -548,7 +550,7 @@ export async function GET(
       ...periodReceipts.map((r) => ({
         type: "receipt" as const,
         id: r.receipt_id,
-        reference: `RCP-${String(r.receipt_id).padStart(4, "0")}`,
+        reference: r.receipt_number,
         date: r.receipt_date.toISOString(),
         amount: Number(toNum(r.amount).toFixed(2)),
         status: r.payment_method,

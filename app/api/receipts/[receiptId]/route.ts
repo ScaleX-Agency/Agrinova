@@ -19,6 +19,7 @@ export async function GET(
       where: { receipt_id: receiptId },
       select: {
         receipt_id: true,
+        receipt_number: true,
         is_active: true,
         receipt_date: true,
         amount: true,
@@ -58,14 +59,10 @@ export async function GET(
       return NextResponse.json({ error: "Receipt not found." }, { status: 404 });
     }
 
-    const year = receipt.receipt_date.getFullYear();
-    const month = String(receipt.receipt_date.getMonth() + 1).padStart(2, "0");
-    const receiptNo = `RCP-${year}${month}-${String(receipt.receipt_id).padStart(3, "0")}`;
-
     const responseBody: ReceiptDetailResponse = {
       data: {
         id: receipt.receipt_id,
-        receiptNo,
+        receiptNo: receipt.receipt_number,
         receiptDate: receipt.receipt_date.toISOString(),
         invoiceId: receipt.invoice.invoice_id,
         invoiceNo: receipt.invoice.invoice_number,
