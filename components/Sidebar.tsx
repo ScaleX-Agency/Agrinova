@@ -99,8 +99,8 @@ const NAV_GROUPS: NavGroup[] = [
       {
         href: "/sales-rep-sales",
         icon: <UserCheck size={16} />,
-        label: "Sales Rep Sales",
-        shortLabel: "Rep Sales",
+        label: "Product Sale",
+        shortLabel: "Product Sale",
       },
       {
         href: "/commission",

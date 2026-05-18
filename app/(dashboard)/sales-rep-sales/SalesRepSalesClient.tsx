@@ -1,67 +1,55 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Clock3,
-  Filter,
-  HandCoins,
-  Search,
-  TrendingUp,
-  Users,
-} from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Download, Filter, Play, RotateCcw } from "lucide-react";
 import DataTable from "@/components/ui/DataTable";
 
 type PeriodType = "daily" | "monthly" | "yearly" | "custom";
 
-type RepRow = {
-  repId: number;
-  repName: string;
-  phone: string | null;
-  assignedCustomers: number;
-  activeCustomers: number;
-  invoiceCount: number;
-  netSales: number;
-  collections: number;
-  outstanding: number;
-  overdueAmount: number;
-  oldestOpenInvoiceDate: string | null;
-  daysOutstanding: number;
-  collectionRate: number;
-  avgDaysToCollect: number | null;
-  riskStatus: "clear" | "watch" | "overdue";
+type ReportRow = {
+  productId: number;
+  itemCode: string;
+  name: string;
+  packSize: string;
+  qty: number;
+  freeQty: number;
+  unitPrice: number;
+  grossAmount: number;
+  discount: number;
+  netAmount: number;
 };
 
-type DashboardResponse = {
+type ReportResponse = {
   period: { startDate: string; endDate: string; label: string };
   totals: {
-    netSales: number;
-    collections: number;
-    outstanding: number;
-    overdueAmount: number;
-    activeCustomers: number;
-    avgDaysToCollect: number | null;
-    invoiceCount: number;
+    qty: number;
+    freeQty: number;
+    grossAmount: number;
+    discount: number;
+    netAmount: number;
   };
-  reps: RepRow[];
+  rows: ReportRow[];
 };
 
 type SalesRepOption = { rep_id: number; full_name: string };
-type LocationOption = { location_id: number; code: string; name: string };
+type LocationOption = { id: number; code: string; label: string };
+type CustomerOption = { customer_id: number; name: string };
+type ProductOption = { product_id: number; product_code: string; product_name: string };
+
+type FilterState = {
+  periodType: PeriodType;
+  date: string;
+  month: string;
+  year: string;
+  from: string;
+  to: string;
+  repId: string;
+  locationId: string;
+  customerId: string;
+  productId: string;
+};
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-LK", {
@@ -83,7 +71,24 @@ function yearISO() {
   return String(new Date().getFullYear());
 }
 
-const SalesRepSalesClient = () => {
+const buildQueryString = (filters: FilterState) => {
+  const sp = new URLSearchParams();
+  sp.set("periodType", filters.periodType);
+  if (filters.periodType === "daily") sp.set("date", filters.date);
+  if (filters.periodType === "monthly") sp.set("month", filters.month);
+  if (filters.periodType === "yearly") sp.set("year", filters.year);
+  if (filters.periodType === "custom") {
+    sp.set("from", filters.from);
+    sp.set("to", filters.to);
+  }
+  sp.set("repId", filters.repId);
+  sp.set("locationId", filters.locationId);
+  sp.set("customerId", filters.customerId);
+  sp.set("productId", filters.productId);
+  return sp.toString();
+};
+
+export default function SalesRepSalesClient() {
   const [periodType, setPeriodType] = useState<PeriodType>("monthly");
   const [date, setDate] = useState(todayISO());
   const [month, setMonth] = useState(monthISO());
@@ -92,41 +97,46 @@ const SalesRepSalesClient = () => {
   const [to, setTo] = useState(todayISO());
   const [repId, setRepId] = useState("all");
   const [locationId, setLocationId] = useState("all");
-  const [search, setSearch] = useState("");
+  const [customerId, setCustomerId] = useState("all");
+  const [productId, setProductId] = useState("all");
+  const [appliedFilters, setAppliedFilters] = useState<FilterState | null>(null);
 
-  const filterState = useMemo(
-    () => ({ periodType, date, month, year, from, to, repId, locationId, search }),
-    [periodType, date, month, year, from, to, repId, locationId, search],
+  const currentFilters = useMemo(
+    () => ({
+      periodType,
+      date,
+      month,
+      year,
+      from,
+      to,
+      repId,
+      locationId,
+      customerId,
+      productId,
+    }),
+    [periodType, date, month, year, from, to, repId, locationId, customerId, productId],
   );
 
-  const queryString = useMemo(() => {
-    const sp = new URLSearchParams();
-    sp.set("periodType", filterState.periodType);
-    if (filterState.periodType === "daily") sp.set("date", filterState.date);
-    if (filterState.periodType === "monthly") sp.set("month", filterState.month);
-    if (filterState.periodType === "yearly") sp.set("year", filterState.year);
-    if (filterState.periodType === "custom") {
-      sp.set("from", filterState.from);
-      sp.set("to", filterState.to);
-    }
-    sp.set("repId", filterState.repId);
-    sp.set("locationId", filterState.locationId);
-    if (filterState.search.trim()) sp.set("search", filterState.search.trim());
-    return sp.toString();
-  }, [filterState]);
+  const queryString = useMemo(
+    () => (appliedFilters ? buildQueryString(appliedFilters) : ""),
+    [appliedFilters],
+  );
 
-  const dashboardQuery = useQuery({
-    queryKey: ["sales-rep-sales", filterState],
+  const reportQuery = useQuery({
+    queryKey: ["sales-rep-sales-item-report", queryString],
+    enabled: appliedFilters !== null,
     queryFn: async () => {
       const response = await fetch(`/api/sales-rep-sales?${queryString}`, { cache: "no-store" });
-      const data = (await response.json()) as DashboardResponse | { error?: string };
-      if (!response.ok) throw new Error((data as { error?: string }).error ?? "Failed to load sales rep sales.");
-      return data as DashboardResponse;
+      const data = (await response.json()) as ReportResponse | { error?: string };
+      if (!response.ok) {
+        throw new Error((data as { error?: string }).error ?? "Failed to load sales report.");
+      }
+      return data as ReportResponse;
     },
   });
 
   const repsQuery = useQuery({
-    queryKey: ["sales-reps-filter-sales-rep-sales"],
+    queryKey: ["sales-reps-filter-sales-rep-sales-new"],
     queryFn: async () => {
       const response = await fetch("/api/sales-reps", { cache: "no-store" });
       const data = await response.json();
@@ -136,59 +146,92 @@ const SalesRepSalesClient = () => {
   });
 
   const locationsQuery = useQuery({
-    queryKey: ["inventory-locations-filter-sales-rep-sales"],
+    queryKey: ["inventory-locations-filter-sales-rep-sales-new"],
     queryFn: async () => {
       const response = await fetch("/api/inventory/locations", { cache: "no-store" });
       const data = await response.json();
-      return (data.locations ?? []) as LocationOption[];
+      return (data.data ?? []) as LocationOption[];
     },
     staleTime: 5 * 60 * 1000,
   });
 
-  const columns: ColumnDef<RepRow>[] = [
-    {
-      accessorKey: "repName",
-      header: "Rep Name",
-      cell: ({ row }) => <span className="text-stone-800 font-medium">{row.original.repName}</span>,
+  const customersQuery = useQuery({
+    queryKey: ["customers-filter-sales-rep-sales-new"],
+    queryFn: async () => {
+      const response = await fetch("/api/customers", { cache: "no-store" });
+      const data = await response.json();
+      return (data.customers ?? []) as CustomerOption[];
     },
-    {
-      accessorKey: "netSales",
-      header: "Net Sales",
-      cell: ({ row }) => formatCurrency(row.original.netSales),
-      meta: { align: "right", className: "border-l border-stone-200", headerClassName: "border-l border-stone-200" },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const productsQuery = useQuery({
+    queryKey: ["products-filter-sales-rep-sales-new"],
+    queryFn: async () => {
+      const response = await fetch("/api/products?page=1&pageSize=5000", { cache: "no-store" });
+      const data = await response.json();
+      return (data.products ?? []) as ProductOption[];
     },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const columns: ColumnDef<ReportRow>[] = [
     {
-      accessorKey: "collections",
-      header: "Collections",
-      cell: ({ row }) => <span className="text-emerald-700">{formatCurrency(row.original.collections)}</span>,
-      meta: { align: "right", className: "border-l border-stone-200", headerClassName: "border-l border-stone-200" },
-    },
-    {
-      accessorKey: "outstanding",
-      header: "Outstanding",
+      accessorKey: "itemCode",
+      header: "Item Code",
       cell: ({ row }) => (
-        <span className={row.original.outstanding > 0 ? "text-red-700 font-medium" : "text-emerald-700"}>
-          {formatCurrency(row.original.outstanding)}
-        </span>
+        <span className="text-stone-700 [font-family:var(--font-jetbrains)]">{row.original.itemCode}</span>
       ),
-      meta: { align: "right", className: "border-l border-stone-200", headerClassName: "border-l border-stone-200" },
     },
     {
-      id: "view",
-      header: "",
-      cell: ({ row }) => (
-        <Link
-          href={`/commission/${row.original.repId}`}
-          className="inline-flex items-center rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-stone-700 hover:bg-stone-50"
-        >
-          View
-        </Link>
-      ),
-      meta: { align: "right", className: "border-l border-stone-200", headerClassName: "border-l border-stone-200" },
+      accessorKey: "name",
+      header: "Name",
+      cell: ({ row }) => <span className="text-stone-800 font-medium">{row.original.name}</span>,
+    },
+    {
+      accessorKey: "packSize",
+      header: "Pack Size",
+      cell: ({ row }) => <span className="text-stone-700">{row.original.packSize}</span>,
+    },
+    {
+      accessorKey: "qty",
+      header: "Qty",
+      cell: ({ row }) => <span>{row.original.qty}</span>,
+      meta: { align: "right" },
+    },
+    {
+      accessorKey: "freeQty",
+      header: "Free Qty",
+      cell: ({ row }) => <span>{row.original.freeQty}</span>,
+      meta: { align: "right" },
+    },
+    {
+      accessorKey: "unitPrice",
+      header: "Unit Price",
+      cell: ({ row }) => <span>{formatCurrency(row.original.unitPrice)}</span>,
+      meta: { align: "right" },
+    },
+    {
+      accessorKey: "grossAmount",
+      header: "Gross Amount",
+      cell: ({ row }) => <span>{formatCurrency(row.original.grossAmount)}</span>,
+      meta: { align: "right" },
+    },
+    {
+      accessorKey: "discount",
+      header: "Discount",
+      cell: ({ row }) => <span className="text-amber-700">{formatCurrency(row.original.discount)}</span>,
+      meta: { align: "right" },
+    },
+    {
+      accessorKey: "netAmount",
+      header: "Net Amount",
+      cell: ({ row }) => <span className="text-emerald-700 font-medium">{formatCurrency(row.original.netAmount)}</span>,
+      meta: { align: "right" },
     },
   ];
 
-  const reset = () => {
+  const resetFilters = () => {
     setPeriodType("monthly");
     setDate(todayISO());
     setMonth(monthISO());
@@ -197,183 +240,313 @@ const SalesRepSalesClient = () => {
     setTo(todayISO());
     setRepId("all");
     setLocationId("all");
-    setSearch("");
+    setCustomerId("all");
+    setProductId("all");
+    setAppliedFilters(null);
   };
 
-  const repComparisonData = useMemo(
-    () =>
-      (dashboardQuery.data?.reps ?? []).map((rep) => ({
-        repName: rep.repName,
-        collected: rep.collections,
-        outstanding: rep.outstanding,
+  const applyFilters = () => {
+    setAppliedFilters(currentFilters);
+  };
+
+  const report = reportQuery.data;
+
+  const getLabelById = (
+    id: string,
+    allLabel: string,
+    items: Array<{ id: number; label: string }>,
+  ) => {
+    if (id === "all") return allLabel;
+    const parsed = Number(id);
+    const match = items.find((item) => item.id === parsed);
+    return match?.label ?? allLabel;
+  };
+
+  const exportExcel = async () => {
+    if (!report || !appliedFilters) return;
+    const { exportSalesRepSalesToExcel } = await import("@/lib/exportSalesRepSales");
+
+    const repLabel = getLabelById(
+      appliedFilters.repId,
+      "All Reps",
+      (repsQuery.data ?? []).map((rep) => ({ id: rep.rep_id, label: rep.full_name })),
+    );
+
+    const locationLabel = getLabelById(
+      appliedFilters.locationId,
+      "All Locations",
+      (locationsQuery.data ?? []).map((location) => ({
+        id: location.id,
+        label: `${location.code} - ${location.label}`,
       })),
-    [dashboardQuery.data?.reps],
-  );
+    );
+
+    const customerLabel = getLabelById(
+      appliedFilters.customerId,
+      "All Customers",
+      (customersQuery.data ?? []).map((customer) => ({
+        id: customer.customer_id,
+        label: customer.name,
+      })),
+    );
+
+    const productLabel = getLabelById(
+      appliedFilters.productId,
+      "All Products",
+      (productsQuery.data ?? []).map((product) => ({
+        id: product.product_id,
+        label: `${product.product_code} - ${product.product_name}`,
+      })),
+    );
+
+    await exportSalesRepSalesToExcel({
+      periodLabel: report.period.label,
+      repLabel,
+      locationLabel,
+      customerLabel,
+      productLabel,
+      rows: report.rows,
+    });
+  };
 
   return (
-    <section className="space-y-5 pb-16">
-      <>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.13em] text-stone-400 font-semibold">Sales Rep Sales</p>
-              <h1 className="text-[28px] leading-tight text-stone-900 font-semibold mt-1">Rep Performance and Collections</h1>
-              <p className="text-[13px] text-stone-500 mt-1">Sales, collections, receivables risk, customer coverage, and commission readiness.</p>
-            </div>
-            <button
-              type="button"
-              onClick={reset}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[12px] font-medium text-stone-700 hover:bg-stone-50"
+    <div className="space-y-5 pb-16">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.13em] text-stone-400 font-semibold">Product Sale</p>
+          <h1 className="text-[28px] leading-tight text-stone-900 font-semibold mt-1">Product Sale Details</h1>
+          <p className="text-[13px] text-stone-500 mt-1">
+            Generate invoice-line product sale details by rep, location, customer, and product.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[12px] font-medium text-stone-700 hover:bg-stone-50"
+          >
+            <RotateCcw size={13} />
+            Reset Filters
+          </button>
+          <button
+            type="button"
+            onClick={applyFilters}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[#1a5c2e] px-3 py-2 text-[12px] font-medium text-white hover:bg-[#2d7a42]"
+          >
+            <Play size={13} />
+            Generate
+          </button>
+          <button
+            type="button"
+            onClick={exportExcel}
+            disabled={!report || report.rows.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[12px] font-medium text-stone-700 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Download size={13} />
+            Export Excel
+          </button>
+        </div>
+      </div>
+
+      <section className="rounded-2xl border border-stone-200 bg-white p-4 lg:p-5">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <label className="space-y-1">
+            <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Period Type</span>
+            <select
+              className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]"
+              value={periodType}
+              onChange={(event) => setPeriodType(event.target.value as PeriodType)}
             >
-              <Filter size={13} />
-              Reset Filters
-            </button>
-          </div>
+              <option value="daily">Daily</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+              <option value="custom">Custom</option>
+            </select>
+          </label>
 
-          <section className="rounded-2xl border border-stone-200 bg-white p-4 lg:p-5 space-y-3">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <label className="space-y-1">
-                <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Period Type</span>
-                <select className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" value={periodType} onChange={(e) => setPeriodType(e.target.value as PeriodType)}>
-                  <option value="daily">Daily</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="yearly">Yearly</option>
-                  <option value="custom">Custom</option>
-                </select>
-              </label>
-              {periodType === "daily" && (
-                <label className="space-y-1">
-                  <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Date</span>
-                  <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" />
-                </label>
-              )}
-              {periodType === "monthly" && (
-                <label className="space-y-1">
-                  <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Month</span>
-                  <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" />
-                </label>
-              )}
-              {periodType === "yearly" && (
-                <label className="space-y-1">
-                  <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Year</span>
-                  <input type="number" min="2000" max="2100" value={year} onChange={(e) => setYear(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" />
-                </label>
-              )}
-              {periodType === "custom" && (
-                <>
-                  <label className="space-y-1">
-                    <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">From</span>
-                    <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">To</span>
-                    <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]" />
-                  </label>
-                </>
-              )}
-              <label className="space-y-1">
-                <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Sales Rep</span>
-                <select value={repId} onChange={(e) => setRepId(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]">
-                  <option value="all">All Reps</option>
-                  {(repsQuery.data ?? []).map((r) => (
-                    <option key={r.rep_id} value={String(r.rep_id)}>
-                      {r.full_name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="space-y-1">
-                <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Location</span>
-                <select value={locationId} onChange={(e) => setLocationId(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]">
-                  <option value="all">All Locations</option>
-                  {(locationsQuery.data ?? []).map((l) => (
-                    <option key={l.location_id} value={String(l.location_id)}>
-                      {l.code} - {l.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="space-y-1 xl:col-span-2">
-                <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Search</span>
-                <div className="relative">
-                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
-                  <input value={search} onChange={(e) => setSearch(e.target.value)} className="w-full rounded-lg border border-stone-200 bg-stone-50 px-9 py-2 text-[13px]" placeholder="Rep name or phone..." />
-                </div>
-              </label>
-            </div>
-          </section>
-
-          {dashboardQuery.isLoading ? (
-            <div className="space-y-4">
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
-                {Array.from({ length: 7 }).map((_, idx) => (
-                  <div key={idx} className="h-[96px] rounded-2xl border border-stone-200 bg-white animate-pulse" />
-                ))}
-              </div>
-              <div className="h-[280px] rounded-2xl border border-stone-200 bg-white animate-pulse" />
-              <div className="h-[280px] rounded-2xl border border-stone-200 bg-white animate-pulse" />
-            </div>
-          ) : dashboardQuery.error ? (
-            <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-[13px]">
-              {(dashboardQuery.error as Error).message}
-            </div>
-          ) : !dashboardQuery.data ? (
-            <div className="px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-[13px]">
-              No data available.
-            </div>
-          ) : (
-            <>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
-                <Metric label="Net Sales" value={formatCurrency(dashboardQuery.data.totals.netSales)} icon={<TrendingUp size={15} className="text-emerald-600" />} />
-                <Metric label="Collections" value={formatCurrency(dashboardQuery.data.totals.collections)} icon={<CheckCircle2 size={15} className="text-blue-600" />} />
-                <Metric label="Outstanding" value={formatCurrency(dashboardQuery.data.totals.outstanding)} icon={<HandCoins size={15} className="text-red-600" />} />
-                <Metric label="Overdue" value={formatCurrency(dashboardQuery.data.totals.overdueAmount)} icon={<AlertTriangle size={15} className="text-red-700" />} />
-                <Metric label="Active Cust." value={String(dashboardQuery.data.totals.activeCustomers)} icon={<Users size={15} className="text-stone-700" />} />
-                <Metric label="Avg Collect Days" value={dashboardQuery.data.totals.avgDaysToCollect === null ? "-" : String(dashboardQuery.data.totals.avgDaysToCollect)} icon={<Clock3 size={15} className="text-amber-700" />} />
-              </div>
-
-              <section className="rounded-2xl border border-stone-200 bg-white p-4 lg:p-5">
-                <p className="mb-2 text-[13px] font-medium text-stone-700">Sales Comparison by Rep (Collected vs Outstanding)</p>
-                <div className="h-[320px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={repComparisonData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#edeae1" />
-                      <XAxis dataKey="repName" tick={{ fontSize: 11, fill: "#6b7280" }} />
-                      <YAxis tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`} tick={{ fontSize: 11, fill: "#6b7280" }} />
-                      <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0))} />
-                      <Legend />
-                      <Bar dataKey="collected" stackId="sales" fill="#1a5c2e" name="Collected" />
-                      <Bar dataKey="outstanding" stackId="sales" fill="#dc2626" name="Outstanding" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </section>
-
-              <DataTable
-                data={dashboardQuery.data.reps}
-                columns={columns}
-                minWidth={1040}
-                hideSearch
-                emptyMessage="No sales reps found for selected filters."
+          {periodType === "daily" && (
+            <label className="space-y-1">
+              <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Date</span>
+              <input
+                type="date"
+                value={date}
+                onChange={(event) => setDate(event.target.value)}
+                className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]"
               />
+            </label>
+          )}
+
+          {periodType === "monthly" && (
+            <label className="space-y-1">
+              <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Month</span>
+              <input
+                type="month"
+                value={month}
+                onChange={(event) => setMonth(event.target.value)}
+                className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]"
+              />
+            </label>
+          )}
+
+          {periodType === "yearly" && (
+            <label className="space-y-1">
+              <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Year</span>
+              <input
+                type="number"
+                min="2000"
+                max="2100"
+                value={year}
+                onChange={(event) => setYear(event.target.value)}
+                className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]"
+              />
+            </label>
+          )}
+
+          {periodType === "custom" && (
+            <>
+              <label className="space-y-1">
+                <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">From</span>
+                <input
+                  type="date"
+                  value={from}
+                  onChange={(event) => setFrom(event.target.value)}
+                  className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]"
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">To</span>
+                <input
+                  type="date"
+                  value={to}
+                  onChange={(event) => setTo(event.target.value)}
+                  className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]"
+                />
+              </label>
             </>
           )}
-      </>
-    </section>
-  );
-};
 
-function Metric({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
-  return (
-    <div className="bg-white border border-stone-200 rounded-2xl p-4 flex items-start gap-3">
-      <div className="w-9 h-9 rounded-xl bg-stone-100 flex items-center justify-center">{icon}</div>
-      <div>
-        <p className="text-[10.5px] uppercase tracking-[0.09em] text-stone-400 font-semibold">{label}</p>
-        <p className="text-[18px] leading-tight text-stone-900 font-semibold mt-1">{value}</p>
-      </div>
+          <label className="space-y-1">
+            <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Sales Rep</span>
+            <select
+              value={repId}
+              onChange={(event) => setRepId(event.target.value)}
+              className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]"
+            >
+              <option value="all">All Reps</option>
+              {(repsQuery.data ?? []).map((rep) => (
+                <option key={rep.rep_id} value={String(rep.rep_id)}>
+                  {rep.full_name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="space-y-1">
+            <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Location</span>
+            <select
+              value={locationId}
+              onChange={(event) => setLocationId(event.target.value)}
+              className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]"
+            >
+              <option value="all">All Locations</option>
+              {(locationsQuery.data ?? []).map((location) => (
+                <option key={location.id} value={String(location.id)}>
+                  {location.code} - {location.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="space-y-1">
+            <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Customer</span>
+            <select
+              value={customerId}
+              onChange={(event) => setCustomerId(event.target.value)}
+              className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]"
+            >
+              <option value="all">All Customers</option>
+              {(customersQuery.data ?? []).map((customer) => (
+                <option key={customer.customer_id} value={String(customer.customer_id)}>
+                  {customer.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="space-y-1">
+            <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Product</span>
+            <select
+              value={productId}
+              onChange={(event) => setProductId(event.target.value)}
+              className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]"
+            >
+              <option value="all">All Products</option>
+              {(productsQuery.data ?? []).map((product) => (
+                <option key={product.product_id} value={String(product.product_id)}>
+                  {product.product_code} - {product.product_name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="flex items-end text-[12px] text-stone-500">
+            <div className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2">
+              <Filter size={12} />
+              {report?.period.label ?? "Click Generate to load report"}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {appliedFilters === null ? (
+        <div className="rounded-2xl border border-stone-200 bg-white px-4 py-10 text-center text-[13px] text-stone-500">
+          Set filters and click Generate to load the sales table.
+        </div>
+      ) : reportQuery.isLoading ? (
+        <div className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="h-[90px] rounded-2xl border border-stone-200 bg-white animate-pulse" />
+            ))}
+          </div>
+          <div className="h-[320px] rounded-2xl border border-stone-200 bg-white animate-pulse" />
+        </div>
+      ) : reportQuery.error ? (
+        <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-[13px]">
+          {(reportQuery.error as Error).message}
+        </div>
+      ) : !report ? (
+        <div className="px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-[13px]">
+          No report data available.
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <MetricCard label="Qty" value={String(report.totals.qty)} />
+            <MetricCard label="Free Qty" value={String(report.totals.freeQty)} />
+            <MetricCard label="Gross Amount" value={formatCurrency(report.totals.grossAmount)} />
+            <MetricCard label="Discount" value={formatCurrency(report.totals.discount)} />
+            <MetricCard label="Net Amount" value={formatCurrency(report.totals.netAmount)} />
+          </div>
+
+          <DataTable
+            data={report.rows}
+            columns={columns}
+            minWidth={1300}
+            hideSearch
+            emptyMessage="No items found for selected filters."
+          />
+        </>
+      )}
     </div>
   );
 }
 
-export default SalesRepSalesClient;
-
-
+function MetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-white border border-stone-200 rounded-2xl p-4">
+      <p className="text-[10.5px] uppercase tracking-[0.09em] text-stone-400 font-semibold">{label}</p>
+      <p className="text-[20px] leading-tight text-stone-900 font-semibold mt-1">{value}</p>
+    </div>
+  );
+}
