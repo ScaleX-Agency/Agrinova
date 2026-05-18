@@ -113,12 +113,12 @@ const SEARCH_INDEX: SearchItem[] = [
     keywords: ["sales rep", "representative", "rep"],
   },
   {
-    label: "Sales Rep Sales",
-    description: "Rep performance and collections",
+    label: "Product Sale",
+    description: "Invoice-line product sale details",
     href: "/sales-rep-sales",
     icon: <TrendingUp size={15} />,
     group: "Operations",
-    keywords: ["sales rep sales", "rep performance", "collections"],
+    keywords: ["product sale", "item sales", "sales report"],
   },
   {
     label: "Commission",

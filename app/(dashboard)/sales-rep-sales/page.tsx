@@ -1,7 +1,6 @@
 import SalesRepSalesClient from "./SalesRepSalesClient";
 
-const SalesRepSalesPage = () => {
+export default function SalesRepSalesPage() {
   return <SalesRepSalesClient />;
-};
+}
 
-export default SalesRepSalesPage;
