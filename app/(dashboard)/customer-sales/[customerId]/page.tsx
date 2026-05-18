@@ -268,7 +268,7 @@ export default function CustomerSalesDetailPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Link href="/customer-sales" className="inline-flex items-center gap-1 text-[12px] text-stone-500 hover:text-stone-700">
-            <ArrowLeft size={13} /> Back to Customer Sales
+            <ArrowLeft size={13} /> Back to Customer Sale
           </Link>
           <h1 className="mt-1 text-[28px] leading-tight text-stone-900 font-semibold">{detailQuery.data?.customer.name ?? "Customer"}</h1>
           <p className="text-[13px] text-stone-500 mt-1 inline-flex items-center gap-2">

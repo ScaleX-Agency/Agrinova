@@ -87,7 +87,7 @@ const NAV_GROUPS: NavGroup[] = [
       {
         href: "/customer-sales",
         icon: <BarChart3 size={16} />,
-        label: "Customer Sales",
+        label: "Customer Sale",
       },
       {
         href: "/sales-rep-sales",

@@ -194,8 +194,8 @@ export default function CustomerSalesPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.13em] text-stone-400 font-semibold">Customer Sales</p>
-          <h1 className="text-[28px] leading-tight text-stone-900 font-semibold mt-1">Customer Account Performance</h1>
+          <p className="text-[11px] uppercase tracking-[0.13em] text-stone-400 font-semibold">Customer Sale</p>
+          <h1 className="text-[28px] leading-tight text-stone-900 font-semibold mt-1">Customer Sale</h1>
           <p className="text-[13px] text-stone-500 mt-1">Sales, collections, receivables risk, and buying recency in one view.</p>
         </div>
         <button
