@@ -19,7 +19,6 @@ import {
   ClipboardList,
   UserCheck,
   BarChart3,
-  PackageSearch,
   RotateCcw,
   LogOut,
   ChevronRight,
@@ -88,19 +87,13 @@ const NAV_GROUPS: NavGroup[] = [
       {
         href: "/customer-sales",
         icon: <BarChart3 size={16} />,
-        label: "Customer Sales",
-      },
-      {
-        href: "/product-performance",
-        icon: <PackageSearch size={16} />,
-        label: "Product Performance",
-        shortLabel: "Products",
+        label: "Customer Sale",
       },
       {
         href: "/sales-rep-sales",
         icon: <UserCheck size={16} />,
-        label: "Sales Rep Sales",
-        shortLabel: "Rep Sales",
+        label: "Product Sale",
+        shortLabel: "Product Sale",
       },
       {
         href: "/commission",
