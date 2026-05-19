@@ -292,6 +292,18 @@ export async function GET(
                   payment_method: true,
                 },
               },
+              returnedCheque: {
+                select: {
+                  receipt: {
+                    select: {
+                      receipt_id: true,
+                      receipt_number: true,
+                      receipt_date: true,
+                      payment_method: true,
+                    },
+                  },
+                },
+              },
               creditNote: {
                 select: {
                   sales_return_note: {
@@ -534,6 +546,14 @@ export async function GET(
     }, 0);
 
     const commissionLedger = commissions.map((c) => ({
+      type:
+        c.invoiceSettlement?.settlement_type === "RECEIPT"
+          ? "Receipt"
+          : c.invoiceSettlement?.settlement_type === "CREDIT_NOTE"
+            ? "Sales Return"
+            : c.invoiceSettlement?.settlement_type === "CHEQUE_RETURN"
+              ? "Check Return"
+              : "Unknown",
       commissionId: c.commission_id,
       settlementId: c.invoiceSettlement?.settlement_id ?? null,
       settlementType: c.invoiceSettlement?.settlement_type ?? null,
@@ -543,11 +563,28 @@ export async function GET(
         ? c.invoiceSettlement.invoice.invoice_date.toISOString()
         : null,
       customerName: c.invoiceSettlement?.invoice.customer?.name ?? null,
-      receiptNo: c.invoiceSettlement?.receipt?.receipt_number ?? null,
-      receiptDate: c.invoiceSettlement?.receipt?.receipt_date
-        ? c.invoiceSettlement.receipt.receipt_date.toISOString()
-        : null,
-      paymentMethod: c.invoiceSettlement?.receipt?.payment_method ?? null,
+      receiptNo:
+        c.invoiceSettlement?.settlement_type === "RECEIPT"
+          ? c.invoiceSettlement?.receipt?.receipt_number ?? null
+          : c.invoiceSettlement?.settlement_type === "CHEQUE_RETURN"
+            ? c.invoiceSettlement?.returnedCheque?.receipt?.receipt_number ?? null
+            : null,
+      receiptDate:
+        c.invoiceSettlement?.settlement_type === "RECEIPT"
+          ? c.invoiceSettlement?.receipt?.receipt_date
+            ? c.invoiceSettlement.receipt.receipt_date.toISOString()
+            : null
+          : c.invoiceSettlement?.settlement_type === "CHEQUE_RETURN"
+            ? c.invoiceSettlement?.returnedCheque?.receipt?.receipt_date
+              ? c.invoiceSettlement.returnedCheque.receipt.receipt_date.toISOString()
+              : null
+            : null,
+      paymentMethod:
+        c.invoiceSettlement?.settlement_type === "RECEIPT"
+          ? c.invoiceSettlement?.receipt?.payment_method ?? null
+          : c.invoiceSettlement?.settlement_type === "CHEQUE_RETURN"
+            ? c.invoiceSettlement?.returnedCheque?.receipt?.payment_method ?? "CHEQUE"
+            : null,
       salesReturnNo:
         c.invoiceSettlement?.creditNote?.sales_return_note?.return_number ?? null,
       settlementAmount: c.invoiceSettlement ? Number(toNum(c.invoiceSettlement.amount).toFixed(2)) : 0,
