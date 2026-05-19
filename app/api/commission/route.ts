@@ -156,6 +156,7 @@ export async function GET(request: Request) {
                 select: {
                   receipt_id: true,
                   amount: true,
+                  is_returned: true,
                 },
               },
             },
@@ -193,7 +194,10 @@ export async function GET(request: Request) {
       const receiptId = settlement.receipt?.receipt_id ?? null;
       const invoiceId = settlement.invoice.invoice_id;
       const invoiceAmount = toNum(settlement.invoice.total_amount);
-      const cashCollected = settlement.receipt ? toNum(settlement.receipt.amount) : 0;
+      const cashCollected =
+        settlement.receipt && !settlement.receipt.is_returned
+          ? toNum(settlement.receipt.amount)
+          : 0;
       const commissionAmount = toNum(commission.commission_amount);
       const days = toNum(commission.days_to_pay);
 

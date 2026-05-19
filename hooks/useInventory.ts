@@ -141,7 +141,7 @@ export function useCategories() {
   return useQuery({
     queryKey: ["categories"],
     queryFn: () =>
-      fetchJSON<{ categories: { category_id: number; name: string; tag: string }[] }>("/api/categories").then(
+      fetchJSON<{ categories: { category_id: number; name: string; tag: string | null }[] }>("/api/categories").then(
         (d) => d.categories,
       ),
     staleTime: 300_000,

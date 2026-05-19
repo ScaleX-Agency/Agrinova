@@ -200,6 +200,7 @@ export async function GET(
       prisma.receipt.findMany({
         where: {
           is_active: true,
+          is_returned: false,
           invoice: commonInvoiceWhere,
         },
         select: {
@@ -221,6 +222,7 @@ export async function GET(
       prisma.receipt.findMany({
         where: {
           is_active: true,
+          is_returned: false,
           receipt_date: { gte: period.startDate, lte: period.endDate },
           invoice: commonInvoiceWhere,
         },
@@ -288,6 +290,18 @@ export async function GET(
                   receipt_number: true,
                   receipt_date: true,
                   payment_method: true,
+                },
+              },
+              returnedCheque: {
+                select: {
+                  receipt: {
+                    select: {
+                      receipt_id: true,
+                      receipt_number: true,
+                      receipt_date: true,
+                      payment_method: true,
+                    },
+                  },
                 },
               },
               creditNote: {
@@ -525,11 +539,21 @@ export async function GET(
 
     const approvedCommission = commissions.reduce((sum, c) => sum + toNum(c.commission_amount), 0);
     const pendingCommission = pendingSettlements.reduce((sum, s) => {
-      const signed = s.settlement_type === "CREDIT_NOTE" ? -toNum(s.amount) : toNum(s.amount);
+      const signed = s.settlement_type === "CREDIT_NOTE" || s.settlement_type === "CHEQUE_RETURN"
+        ? -toNum(s.amount)
+        : toNum(s.amount);
       return sum + signed;
     }, 0);
 
     const commissionLedger = commissions.map((c) => ({
+      type:
+        c.invoiceSettlement?.settlement_type === "RECEIPT"
+          ? "Receipt"
+          : c.invoiceSettlement?.settlement_type === "CREDIT_NOTE"
+            ? "Sales Return"
+            : c.invoiceSettlement?.settlement_type === "CHEQUE_RETURN"
+              ? "Check Return"
+              : "Unknown",
       commissionId: c.commission_id,
       settlementId: c.invoiceSettlement?.settlement_id ?? null,
       settlementType: c.invoiceSettlement?.settlement_type ?? null,
@@ -539,11 +563,28 @@ export async function GET(
         ? c.invoiceSettlement.invoice.invoice_date.toISOString()
         : null,
       customerName: c.invoiceSettlement?.invoice.customer?.name ?? null,
-      receiptNo: c.invoiceSettlement?.receipt?.receipt_number ?? null,
-      receiptDate: c.invoiceSettlement?.receipt?.receipt_date
-        ? c.invoiceSettlement.receipt.receipt_date.toISOString()
-        : null,
-      paymentMethod: c.invoiceSettlement?.receipt?.payment_method ?? null,
+      receiptNo:
+        c.invoiceSettlement?.settlement_type === "RECEIPT"
+          ? c.invoiceSettlement?.receipt?.receipt_number ?? null
+          : c.invoiceSettlement?.settlement_type === "CHEQUE_RETURN"
+            ? c.invoiceSettlement?.returnedCheque?.receipt?.receipt_number ?? null
+            : null,
+      receiptDate:
+        c.invoiceSettlement?.settlement_type === "RECEIPT"
+          ? c.invoiceSettlement?.receipt?.receipt_date
+            ? c.invoiceSettlement.receipt.receipt_date.toISOString()
+            : null
+          : c.invoiceSettlement?.settlement_type === "CHEQUE_RETURN"
+            ? c.invoiceSettlement?.returnedCheque?.receipt?.receipt_date
+              ? c.invoiceSettlement.returnedCheque.receipt.receipt_date.toISOString()
+              : null
+            : null,
+      paymentMethod:
+        c.invoiceSettlement?.settlement_type === "RECEIPT"
+          ? c.invoiceSettlement?.receipt?.payment_method ?? null
+          : c.invoiceSettlement?.settlement_type === "CHEQUE_RETURN"
+            ? c.invoiceSettlement?.returnedCheque?.receipt?.payment_method ?? "CHEQUE"
+            : null,
       salesReturnNo:
         c.invoiceSettlement?.creditNote?.sales_return_note?.return_number ?? null,
       settlementAmount: c.invoiceSettlement ? Number(toNum(c.invoiceSettlement.amount).toFixed(2)) : 0,
@@ -563,7 +604,13 @@ export async function GET(
       receiptId: s.receipt?.receipt_id ?? null,
       receiptDate: s.receipt?.receipt_date ? s.receipt.receipt_date.toISOString() : null,
       settlementDate: s.settled_date.toISOString(),
-      settlementAmount: Number((s.settlement_type === "CREDIT_NOTE" ? -toNum(s.amount) : toNum(s.amount)).toFixed(2)),
+      settlementAmount: Number(
+        (
+          s.settlement_type === "CREDIT_NOTE" || s.settlement_type === "CHEQUE_RETURN"
+            ? -toNum(s.amount)
+            : toNum(s.amount)
+        ).toFixed(2),
+      ),
     }));
 
     const transactions = [

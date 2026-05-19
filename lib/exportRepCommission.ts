@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 
 type CommissionExportSettlementRow = {
+  type: "Receipt" | "Sales Return" | "Check Return" | "Unknown";
   receiptDate: string;
   receiptNumber: string;
   paymentMethod: string;
@@ -37,6 +38,7 @@ export async function exportRepCommissionToExcel(
     { header: "Invoice No", key: "invoiceNo", width: 18 },
     { header: "Customer", key: "customerName", width: 28 },
     { header: "Invoice Date", key: "invoiceDate", width: 15 },
+    { header: "Type", key: "type", width: 14 },
     { header: "Receipt Date", key: "receiptDate", width: 15 },
     { header: "Receipt Number", key: "receiptNumber", width: 18 },
     { header: "Payment Method", key: "paymentMethod", width: 16 },
@@ -49,7 +51,7 @@ export async function exportRepCommissionToExcel(
 
   ws.getCell("A1").value = "Rep Commission";
   ws.getCell("A1").font = { bold: true, size: 14 };
-  ws.mergeCells("A1:K1");
+  ws.mergeCells("A1:L1");
 
   ws.getCell("A2").value = "Sales Rep";
   ws.getCell("B2").value = repName;
@@ -64,6 +66,7 @@ export async function exportRepCommissionToExcel(
     "Invoice No",
     "Customer",
     "Invoice Date",
+    "Type",
     "Receipt Date",
     "Receipt Number",
     "Payment Method",
@@ -87,6 +90,7 @@ export async function exportRepCommissionToExcel(
         invoiceNo: group.invoiceNo,
         customerName: group.customerName,
         invoiceDate: group.invoiceDate,
+        type: settlement.type,
         receiptDate: settlement.receiptDate,
         receiptNumber: settlement.receiptNumber,
         paymentMethod: settlement.paymentMethod,
@@ -102,13 +106,13 @@ export async function exportRepCommissionToExcel(
       ws.mergeCells(`A${groupStartRow}:A${groupEndRow}`);
       ws.mergeCells(`B${groupStartRow}:B${groupEndRow}`);
       ws.mergeCells(`C${groupStartRow}:C${groupEndRow}`);
-      ws.mergeCells(`K${groupStartRow}:K${groupEndRow}`);
+      ws.mergeCells(`L${groupStartRow}:L${groupEndRow}`);
 
       for (const col of ["A", "B", "C"] as const) {
         const cell = ws.getCell(`${col}${groupStartRow}`);
         cell.alignment = { vertical: "top", horizontal: "left", wrapText: true };
       }
-      ws.getCell(`K${groupStartRow}`).alignment = {
+      ws.getCell(`L${groupStartRow}`).alignment = {
         vertical: "top",
         horizontal: "right",
       };
@@ -116,15 +120,15 @@ export async function exportRepCommissionToExcel(
   }
 
   for (let r = headerRowIndex + 1; r <= ws.rowCount; r += 1) {
-    ws.getCell(`G${r}`).numFmt = '"LKR" #,##0.00';
-    ws.getCell(`J${r}`).numFmt = '"LKR" #,##0.00';
+    ws.getCell(`H${r}`).numFmt = '"LKR" #,##0.00';
+    ws.getCell(`J${r}`).numFmt = "0.00%";
     ws.getCell(`K${r}`).numFmt = '"LKR" #,##0.00';
-    ws.getCell(`I${r}`).numFmt = "0.00%";
-    ws.getCell(`G${r}`).alignment = { horizontal: "right" };
+    ws.getCell(`L${r}`).numFmt = '"LKR" #,##0.00';
     ws.getCell(`H${r}`).alignment = { horizontal: "right" };
     ws.getCell(`I${r}`).alignment = { horizontal: "right" };
     ws.getCell(`J${r}`).alignment = { horizontal: "right" };
     ws.getCell(`K${r}`).alignment = { horizontal: "right" };
+    ws.getCell(`L${r}`).alignment = { horizontal: "right" };
   }
 
   const thinBorder = {
@@ -142,14 +146,14 @@ export async function exportRepCommissionToExcel(
 
   const tableEndRow = Math.max(ws.rowCount, headerRowIndex);
   for (let r = headerRowIndex; r <= tableEndRow; r += 1) {
-    for (let c = 1; c <= 11; c += 1) {
+    for (let c = 1; c <= 12; c += 1) {
       ws.getCell(r, c).border = thinBorder;
     }
   }
 
   ws.autoFilter = {
     from: { row: headerRowIndex, column: 1 },
-    to: { row: tableEndRow, column: 11 },
+    to: { row: tableEndRow, column: 12 },
   };
 
   const buffer = await wb.xlsx.writeBuffer();

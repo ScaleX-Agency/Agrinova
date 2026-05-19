@@ -8,6 +8,7 @@ import { CreateProductDto } from "../types/inventory";
 import { useCategories } from "@/hooks/useInventory";
 
 interface FormState {
+  product_code: string;
   product_name: string;
   pack_size: string;
   category_id: string;
@@ -95,6 +96,7 @@ export default function AddProductModal({
   onSaved,
 }: Props) {
   const [form, setForm] = useState<FormState>({
+    product_code: initialValues?.product_code || "",
     product_name: initialValues?.product_name || "",
     pack_size: initialValues?.pack_size || "",
     category_id: initialValues?.category_id?.toString() || "",
@@ -103,14 +105,10 @@ export default function AddProductModal({
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [productCodeTouched, setProductCodeTouched] = useState(mode === "edit");
+  const [productCodeStatus, setProductCodeStatus] = useState("");
 
   const { data: categories = [] } = useCategories();
-
-  // Preview the auto-generated product code
-  const categoryTag = categories.find(
-    (c) => String(c.category_id) === form.category_id,
-  )?.tag;
-  const previewCode = categoryTag ? `${categoryTag}XXX` : null;
 
   const set = (k: keyof FormState, v: string) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -121,8 +119,78 @@ export default function AddProductModal({
     });
   };
 
+  useEffect(() => {
+    if (mode !== "add" || !form.category_id || productCodeTouched) return;
+
+    let ignore = false;
+    setProductCodeStatus("Generating code...");
+    fetch(`/api/products?nextCodeCategoryId=${encodeURIComponent(form.category_id)}`)
+      .then(async (res) => {
+        const body = (await res.json()) as { data?: { productCode?: string | null }; error?: string };
+        if (!res.ok) throw new Error(body.error ?? "Failed to generate product code");
+        return body.data?.productCode ?? null;
+      })
+      .then((productCode) => {
+        if (ignore) return;
+        if (productCode) {
+          setForm((current) => ({ ...current, product_code: productCode }));
+          setProductCodeStatus("Suggested code generated.");
+        } else {
+          setForm((current) => ({ ...current, product_code: "" }));
+          setProductCodeStatus("Enter product code manually.");
+        }
+      })
+      .catch((error: unknown) => {
+        if (ignore) return;
+        setProductCodeStatus("");
+        setErrors((current) => ({
+          ...current,
+          product_code: error instanceof Error ? error.message : "Failed to generate product code",
+        }));
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [form.category_id, mode, productCodeTouched]);
+
+  useEffect(() => {
+    const productCode = form.product_code.trim();
+    if (!productCode || mode !== "add") {
+      return;
+    }
+
+    const timeout = window.setTimeout(async () => {
+      try {
+        setProductCodeStatus("Checking code...");
+        const response = await fetch(`/api/products?checkProductCode=${encodeURIComponent(productCode)}`);
+        const result = (await response.json()) as { data?: { isUnique?: boolean }; error?: string };
+        if (!response.ok) throw new Error(result.error ?? "Failed to check product code");
+        setProductCodeStatus(result.data?.isUnique ? "Product code is available." : "");
+        setErrors((current) => {
+          const next = { ...current };
+          if (result.data?.isUnique) {
+            delete next.product_code;
+          } else {
+            next.product_code = "Product code already exists";
+          }
+          return next;
+        });
+      } catch (error) {
+        setProductCodeStatus("");
+        setErrors((current) => ({
+          ...current,
+          product_code: error instanceof Error ? error.message : "Failed to check product code",
+        }));
+      }
+    }, 350);
+
+    return () => window.clearTimeout(timeout);
+  }, [form.product_code, mode]);
+
   const validate = () => {
     const e: Record<string, string> = {};
+    if (mode === "add" && !form.product_code.trim()) e.product_code = "Product code is required";
     if (!form.product_name.trim()) e.product_name = "Product name is required";
     if (!form.pack_size.trim()) e.pack_size = "Pack size is required";
     if (!form.category_id) e.category_id = "Please select a category";
@@ -147,6 +215,7 @@ export default function AddProductModal({
     setSaving(true);
     try {
       const payload: Partial<CreateProductDto> = {
+        product_code: form.product_code.trim().toUpperCase(),
         product_name: form.product_name,
         pack_size: form.pack_size,
         category_id: parseInt(form.category_id),
@@ -230,6 +299,26 @@ export default function AddProductModal({
           )}
 
           {/* Product name — full width */}
+          {mode === "add" && (
+            <div>
+              <FieldLabel label="Product Code" required />
+              <input
+                className={inputCls(!!errors.product_code) + " uppercase [font-family:var(--font-jetbrains)]"}
+                placeholder="Select category to generate"
+                value={form.product_code}
+                onChange={(e) => {
+                  setProductCodeTouched(true);
+                  set("product_code", e.target.value.toUpperCase());
+                  setProductCodeStatus("");
+                }}
+              />
+              {productCodeStatus && !errors.product_code && (
+                <FieldHint>{productCodeStatus}</FieldHint>
+              )}
+              <FieldError msg={errors.product_code} />
+            </div>
+          )}
+
           <div>
             <FieldLabel label="Product Name" required />
             <input
@@ -249,7 +338,10 @@ export default function AddProductModal({
                 <select
                   className={selectCls(!!errors.category_id)}
                   value={form.category_id}
-                  onChange={(e) => set("category_id", e.target.value)}
+                  onChange={(e) => {
+                    setProductCodeTouched(false);
+                    set("category_id", e.target.value);
+                  }}
                 >
                   <option value="">Select…</option>
                   {categories.map((c) => (
@@ -263,16 +355,6 @@ export default function AddProductModal({
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none"
                 />
               </div>
-              {previewCode && (
-                <div className="flex items-center gap-1.5 mt-1.5 px-2.5 py-1.5 bg-blue-50 rounded-lg border border-blue-100">
-                  <span className="text-[10.5px] text-blue-500 [font-family:var(--font-dmsans)]">
-                    Code →
-                  </span>
-                  <span className="text-[12px] font-medium text-blue-700 [font-family:var(--font-jetbrains)]">
-                    {previewCode}
-                  </span>
-                </div>
-              )}
               <FieldError msg={errors.category_id} />
             </div>
 

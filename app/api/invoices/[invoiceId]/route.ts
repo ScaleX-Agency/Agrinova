@@ -163,6 +163,10 @@ export async function DELETE(
             where: { is_active: true },
             select: { receipt_id: true },
           },
+          returnedCheques: {
+            where: { is_active: true },
+            select: { returned_cheque_id: true },
+          },
           salesReturnNotes: {
             where: { is_active: true },
             select: { return_id: true },
@@ -187,6 +191,9 @@ export async function DELETE(
       }
       if (invoice.receipts.length > 0) {
         throw new Error("Cannot delete invoice with active receipts.");
+      }
+      if (invoice.returnedCheques.length > 0) {
+        throw new Error("Cannot delete invoice with active returned cheque records.");
       }
       if (invoice.salesReturnNotes.length > 0) {
         throw new Error("Cannot delete invoice with active sales return notes.");

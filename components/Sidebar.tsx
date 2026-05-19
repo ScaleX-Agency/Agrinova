@@ -116,6 +116,12 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Receipts",
       },
       {
+        href: "/returned-cheques",
+        icon: <RotateCcw size={16} />,
+        label: "Returned Cheques",
+        shortLabel: "Returned Cheques",
+      },
+      {
         href: "/goods-receiving-notes",
         icon: <ClipboardList size={16} />,
         label: "Goods Receiving Notes",

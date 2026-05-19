@@ -39,7 +39,7 @@ type DetailResponse = {
   locationBreakdown: Array<{ locationId: number; locationCode: string; locationName: string; netSales: number; collections: number; outstanding: number }>;
   customerPerformance: Array<{ customerId: number; customerName: string; invoiceCount: number; netSales: number; collections: number; outstanding: number; overdueAmount: number; lastInvoiceDate: string | null }>;
   openInvoices: Array<{ invoiceId: number; invoiceNumber: string; customerName: string; invoiceDate: string; total: number; paid: number; credited: number; balance: number; daysOutstanding: number; status: string }>;
-  commissionLedger: Array<{ commissionId: number; settlementId: number | null; settlementType: string | null; settlementDate: string | null; invoiceNo: string | null; invoiceDate: string | null; customerName: string | null; receiptNo: string | null; receiptDate: string | null; paymentMethod: "CASH" | "CHEQUE" | "BANK_TRANSFER" | null; salesReturnNo: string | null; settlementAmount: number; commissionRate: number; commissionAmount: number; daysToPay: number; status: string; createdAt: string }>;
+  commissionLedger: Array<{ type: "Receipt" | "Sales Return" | "Check Return" | "Unknown"; commissionId: number; settlementId: number | null; settlementType: string | null; settlementDate: string | null; invoiceNo: string | null; invoiceDate: string | null; customerName: string | null; receiptNo: string | null; receiptDate: string | null; paymentMethod: "CASH" | "CHEQUE" | "BANK_TRANSFER" | null; salesReturnNo: string | null; settlementAmount: number; commissionRate: number; commissionAmount: number; daysToPay: number; status: string; createdAt: string }>;
   pendingCommissionRows: Array<{ settlementId: number; settlementType: string; invoiceId: number; invoiceNo: string; customerName: string; receiptId: number | null; receiptDate: string | null; settlementDate: string; settlementAmount: number }>;
   transactions: Array<{ type: "invoice" | "receipt" | "credit"; id: number; reference: string; date: string; amount: number; status: string }>;
 };
@@ -156,7 +156,9 @@ export default function CommissionRepDetailPage() {
 
   const paymentMethodLabel = (method: "CASH" | "CHEQUE" | "BANK_TRANSFER" | null) => {
     if (method === "CHEQUE") return "Cheque";
-    return "Cash";
+    if (method === "BANK_TRANSFER") return "Bank Transfer";
+    if (method === "CASH") return "Cash";
+    return "-";
   };
 
   const handleExportExcel = async () => {
@@ -170,11 +172,22 @@ export default function CommissionRepDetailPage() {
         invoiceDate: formatDate(group.invoiceDate),
         totalCommission: group.totalCommission,
         settlements: group.rows.map((row) => {
-          const isNegative = row.commissionAmount < 0;
+          const referenceNo =
+            row.settlementType === "RECEIPT" || row.settlementType === "CHEQUE_RETURN"
+              ? row.receiptNo ?? "-"
+              : row.settlementType === "CREDIT_NOTE"
+                ? row.salesReturnNo ?? "SRN"
+                : "-";
+          const displayPaymentMethod =
+            row.settlementType === "CREDIT_NOTE"
+              ? "Sales Return"
+              : paymentMethodLabel(row.paymentMethod);
+
           return {
+            type: row.type,
             receiptDate: formatDate(row.receiptDate ?? row.settlementDate),
-            receiptNumber: isNegative ? row.salesReturnNo ?? "SRN" : row.receiptNo ?? "-",
-            paymentMethod: paymentMethodLabel(row.paymentMethod),
+            receiptNumber: referenceNo,
+            paymentMethod: displayPaymentMethod,
             amount: row.settlementAmount,
             dayGap: row.daysToPay,
             commissionRate: row.commissionRate / 100,
@@ -303,6 +316,7 @@ export default function CommissionRepDetailPage() {
                       "Invoice No",
                       "Customer",
                       "Invoice Date",
+                      "Type",
                       "Receipt Date",
                       "Receipt Number",
                       "Payment Method",
@@ -324,7 +338,7 @@ export default function CommissionRepDetailPage() {
                 <tbody>
                   {groupedInvoices.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="px-4 py-10 text-center text-[13px] text-stone-400">
+                      <td colSpan={11} className="px-4 py-10 text-center text-[13px] text-stone-400">
                         No commission records.
                       </td>
                     </tr>
@@ -332,15 +346,12 @@ export default function CommissionRepDetailPage() {
                     groupedInvoices.map((group) =>
                       group.rows.map((row, idx) => {
                         const isNegative = row.commissionAmount < 0;
-                        const referenceNo = isNegative
-                          ? row.salesReturnNo ?? "SRN"
-                          : row.receiptNo ?? "-";
                         return (
                           <tr
                             key={row.commissionId}
                             className="border-b border-stone-100"
                           >
-                            {idx === 0 && (
+                      {idx === 0 && (
                               <>
                                 <td rowSpan={group.rows.length} className="px-3 py-2 align-top text-[12px] font-medium text-[#2b2d7e] [font-family:var(--font-jetbrains)]">
                                   {group.invoiceNo}
@@ -352,12 +363,19 @@ export default function CommissionRepDetailPage() {
                                   {formatDate(group.invoiceDate)}
                                 </td>
                               </>
-                            )}
+                      )}
+                            <td className="px-3 py-2 text-[12px] text-stone-700">{row.type}</td>
                             <td className="px-3 py-2 text-[12px] text-stone-700">{formatDate(row.receiptDate ?? row.settlementDate)}</td>
-                            <td className={`px-3 py-2 text-[12px] [font-family:var(--font-jetbrains)] ${isNegative ? "text-red-700 font-medium" : "text-stone-700"}`}>
-                              {referenceNo}
+                            <td className={`px-3 py-2 text-[12px] [font-family:var(--font-jetbrains)] ${row.settlementType === "CREDIT_NOTE" ? "text-red-700 font-medium" : "text-stone-700"}`}>
+                              {row.settlementType === "RECEIPT" || row.settlementType === "CHEQUE_RETURN"
+                                ? row.receiptNo ?? "-"
+                                : row.settlementType === "CREDIT_NOTE"
+                                  ? row.salesReturnNo ?? "SRN"
+                                  : "-"}
                             </td>
-                            <td className="px-3 py-2 text-[12px] text-stone-700">{paymentMethodLabel(row.paymentMethod)}</td>
+                            <td className="px-3 py-2 text-[12px] text-stone-700">
+                              {row.settlementType === "CREDIT_NOTE" ? "Sales Return" : paymentMethodLabel(row.paymentMethod)}
+                            </td>
                             <td className={`px-3 py-2 text-[12px] [font-family:var(--font-jetbrains)] ${row.settlementAmount < 0 ? "text-red-700 font-medium" : "text-stone-800"}`}>
                               {formatCurrency(row.settlementAmount)}
                             </td>

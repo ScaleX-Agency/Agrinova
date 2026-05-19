@@ -103,6 +103,7 @@ export async function GET(
                 receipt_id: true,
                 receipt_date: true,
                 amount: true,
+                is_returned: true,
               },
             },
           },
@@ -129,7 +130,7 @@ export async function GET(
       const receipt = settlement.receipt;
       
       const invoiceAmount = Number(invoice.total_amount);
-      const cashCollected = receipt ? Number(receipt.amount) : 0;
+      const cashCollected = receipt && !receipt.is_returned ? Number(receipt.amount) : 0;
       const receiptId = receipt?.receipt_id != null ? Number(receipt.receipt_id) : null;
 
       allRows.push({

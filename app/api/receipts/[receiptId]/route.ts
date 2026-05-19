@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import { rebuildInvoiceCreditNoteCommissions } from "@/lib/commissionSettlement";
+import { recalculateInvoiceFinancials } from "@/lib/invoiceFinancials";
 import type { ReceiptDetailResponse } from "@/types/api";
 
 export async function GET(
@@ -23,6 +24,8 @@ export async function GET(
         is_active: true,
         receipt_date: true,
         amount: true,
+        is_returned: true,
+        returned_at: true,
         payment_method: true,
         cheque_no: true,
         cheque_date: true,
@@ -78,6 +81,8 @@ export async function GET(
         createdAt: receipt.created_at.toISOString(),
         updatedAt: receipt.updated_at.toISOString(),
         notes: receipt.notes ?? null,
+        isReturned: receipt.is_returned,
+        returnedAt: receipt.returned_at ? receipt.returned_at.toISOString() : null,
       },
     };
 
@@ -118,7 +123,6 @@ export async function DELETE(
           invoice_id: true,
           invoice: {
             select: {
-              total_amount: true,
               rep_id: true,
             },
           },
@@ -127,6 +131,16 @@ export async function DELETE(
             select: {
               settlement_id: true,
               is_active: true,
+            },
+          },
+          returnedCheques: {
+            where: { is_active: true },
+            select: {
+              returned_cheque_id: true,
+              invoiceSettlements: {
+                where: { is_active: true },
+                select: { settlement_id: true },
+              },
             },
           },
         },
@@ -168,6 +182,45 @@ export async function DELETE(
         });
       }
 
+      for (const returnedCheque of receipt.returnedCheques) {
+        for (const settlement of returnedCheque.invoiceSettlements) {
+          await tx.commissionReversalAllocation.updateMany({
+            where: {
+              source_settlement_id: settlement.settlement_id,
+              is_active: true,
+            },
+            data: { is_active: false },
+          });
+
+          await tx.commission.updateMany({
+            where: {
+              settlement_id: settlement.settlement_id,
+              is_active: true,
+            },
+            data: {
+              is_active: false,
+              status: "CANCELLED",
+            },
+          });
+
+          await tx.invoiceSettlement.update({
+            where: { settlement_id: settlement.settlement_id },
+            data: {
+              is_active: false,
+              commission_issued: false,
+            },
+          });
+        }
+
+        await tx.returnedCheque.update({
+          where: { returned_cheque_id: returnedCheque.returned_cheque_id },
+          data: {
+            is_active: false,
+            deleted_by: currentUser.user_id,
+          },
+        });
+      }
+
       // Deactivate receipt
       await tx.receipt.update({
         where: { receipt_id: receipt.receipt_id },
@@ -177,38 +230,8 @@ export async function DELETE(
         },
       });
 
-      // Recalculate invoice amounts
-      const activeReceipts = await tx.receipt.findMany({
-        where: {
-          invoice_id: receipt.invoice_id,
-          is_active: true,
-        },
-        select: { amount: true },
-      });
-      const activeCredits = await tx.creditNote.findMany({
-        where: {
-          invoice_id: receipt.invoice_id,
-          is_active: true,
-        },
-        select: { amount: true },
-      });
-
-      const nextPaidAmount = activeReceipts.reduce((sum, r) => sum + Number(r.amount), 0);
-      const nextCreditedAmount = activeCredits.reduce((sum, c) => sum + Number(c.amount), 0);
-      const totalAmount = Number(receipt.invoice.total_amount);
-      const nextBalanceAmount = Math.max(0, Number((totalAmount - nextPaidAmount - nextCreditedAmount).toFixed(2)));
-      const nextStatus =
-        nextBalanceAmount <= 0 ? "PAID" : nextPaidAmount > 0 || nextCreditedAmount > 0 ? "PARTIAL" : "UNPAID";
-
-      await tx.invoice.update({
-        where: { invoice_id: receipt.invoice_id },
-        data: {
-          paid_amount: nextPaidAmount,
-          credited_amount: nextCreditedAmount,
-          balance_amount: nextBalanceAmount,
-          payment_status: nextStatus,
-        },
-      });
+      // Recalculate invoice amounts from active records
+      await recalculateInvoiceFinancials(tx, receipt.invoice_id);
 
       await rebuildInvoiceCreditNoteCommissions(
         tx,

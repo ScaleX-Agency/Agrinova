@@ -25,7 +25,7 @@ export async function GET(
         total_amount: true,
         payment_status: true,
         receipts: {
-          where: { is_active: true },
+          where: { is_active: true, is_returned: false },
           select: {
             receipt_id: true,
             receipt_date: true,
