@@ -168,6 +168,23 @@ export async function DELETE(
     return NextResponse.json({ error: "Sales rep not found" }, { status: 404 });
   }
 
+  const activeInvoiceCount = await prisma.invoice.count({
+    where: {
+      rep_id: repId,
+      is_active: true,
+    },
+  });
+
+  if (activeInvoiceCount > 0) {
+    return NextResponse.json(
+      {
+        error:
+          "Cannot delete this sales rep because there are active invoices linked to this sales rep.",
+      },
+      { status: 409 },
+    );
+  }
+
   try {
     await prisma.salesRep.delete({ where: { rep_id: repId } });
     return NextResponse.json({ success: true });
