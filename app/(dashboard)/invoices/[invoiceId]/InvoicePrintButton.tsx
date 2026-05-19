@@ -42,6 +42,41 @@ const formatPrintAmount = (value: number) => {
   });
 };
 
+const invoicePrintPageStyle = `
+  @page {
+    size: 8.5in 5.5in;
+    margin: 0;
+  }
+
+  @media print {
+    html,
+    body {
+      width: 8.5in;
+      min-width: 8.5in;
+      height: 5.5in;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #fff !important;
+    }
+
+    .invoice-print-company-name {
+      font-size: 15px !important;
+      line-height: 1 !important;
+    }
+
+    .invoice-print-company-details,
+    .invoice-print-company-details p {
+      font-size: 7px !important;
+      line-height: 1.05 !important;
+    }
+
+    .invoice-print-title {
+      font-size: 25px !important;
+      line-height: 1 !important;
+    }
+  }
+`;
+
 const InvoicePrintButton = ({
   invoiceNo,
   invoiceDate,
@@ -55,11 +90,16 @@ const InvoicePrintButton = ({
 
   return (
     <>
-      <PrintButton contentRef={contentRef} documentTitle={invoiceNo} label="Print Invoice" />
+      <PrintButton
+        contentRef={contentRef}
+        documentTitle={invoiceNo}
+        label="Print Invoice"
+        pageStyle={invoicePrintPageStyle}
+      />
 
       <div className="hidden" aria-hidden>
         <div ref={contentRef} className="print-sheet invoice-print-sheet [font-family:var(--font-dmsans)] text-[12px] text-stone-900">
-          <header className="invoice-print-header grid grid-cols-[1.35fr_0.8fr_1fr] items-start gap-3 border-b border-stone-300 pb-3">
+          <header className="invoice-print-header grid grid-cols-[1fr_1.45fr_1fr] items-start gap-3 border-b border-stone-300 pb-3">
             <section className="space-y-0.5">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">Customer Details</p>
               <p className="text-[13px] font-semibold leading-tight text-[#2b2d7e]">{customerName}</p>
@@ -67,10 +107,17 @@ const InvoicePrintButton = ({
               {customerAddress && <p className="line-clamp-2 text-stone-700">{customerAddress}</p>}
             </section>
 
-            <section className="invoice-print-brand flex flex-col items-center justify-start gap-1 pt-0 text-center">
-              <Image src="/agrinova-logo.jpeg" alt="Agrinova" width={144} height={42} className="h-10 w-auto object-contain" priority />
-              <p className="text-[24px] font-semibold leading-none tracking-[0.16em] text-[#2b2d7e]">INVOICE</p>
-              <p className="text-[10px] uppercase tracking-[0.08em] text-stone-500">Customer copy</p>
+            <section className="invoice-print-brand flex flex-col items-center justify-start pt-0">
+              <div className="flex items-center justify-center gap-2">
+                <Image src="/agrinova-logo.jpeg" alt="Agrinova" width={42} height={42} className="h-8 w-8 shrink-0 object-contain" priority />
+                <p className="invoice-print-company-name text-[18px] font-semibold leading-none text-[#2b2d7e]">Agrinova (Pvt) Limited</p>
+              </div>
+              <div className="invoice-print-company-details mt-1 space-y-0.5 text-center text-stone-700">
+                <p>205 D, Kalapaluwawa Road, Koswatta, Battaramulla</p>
+                <p>Tel: 0115 635034/5, 0777 687897</p>
+                <p>Fax: 0112 073605</p>
+              </div>
+              <p className="invoice-print-title mt-1 text-center font-semibold text-stone-900">Invoice</p>
             </section>
 
             <section className="space-y-0.5 text-right">
@@ -128,6 +175,19 @@ const InvoicePrintButton = ({
                 </tr>
               </tfoot>
             </table>
+          </section>
+
+          <section className="mt-3 flex justify-start">
+            <div className="w-[4.8in] space-y-1 text-left text-[7.5px] font-medium leading-tight text-stone-800">
+              <p>Maximum Credit Period is 30 Days</p>
+              <p>
+                All cheques should be crossed <span className="font-bold">&quot;Account Payee Only&quot;</span> and drawn in favour of
+                <span className="font-bold"> &quot;Agrinova (PVT) Ltd&quot;</span>
+              </p>
+              <p>
+                Please collect a <span className="font-bold">RECEIPT</span> for your Cheque or cash
+              </p>
+            </div>
           </section>
 
           <section className="invoice-print-signatures mt-8 grid grid-cols-3 gap-7 text-[11px]">
