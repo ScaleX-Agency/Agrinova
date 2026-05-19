@@ -197,6 +197,7 @@ export type ReturnedChequeOptionDto = {
   invoiceNo: string;
   customerName: string;
   chequeNo: string | null;
+  chequeDate: string | null;
   bankName: string | null;
   amount: number;
   returnDate: string;

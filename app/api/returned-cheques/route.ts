@@ -99,6 +99,7 @@ export async function GET(request: Request) {
           select: {
             receipt_number: true,
             cheque_no: true,
+            cheque_date: true,
             bank_name: true,
             invoice: {
               select: {
@@ -122,6 +123,7 @@ export async function GET(request: Request) {
         invoiceNo: row.receipt.invoice.invoice_number,
         customerName: row.receipt.invoice.customer.name,
         chequeNo: row.receipt.cheque_no,
+        chequeDate: row.receipt.cheque_date?.toISOString() ?? null,
         bankName: row.receipt.bank_name,
         amount: Number(row.amount),
         returnDate: row.return_date.toISOString(),

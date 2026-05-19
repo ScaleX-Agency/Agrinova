@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
+import { Download, Loader2 } from "lucide-react";
 import DataTable from "@/components/ui/DataTable";
 import type { ReturnedChequeOptionDto, ReturnedChequesResponse } from "@/types/api";
 
@@ -33,6 +34,7 @@ export default function ReturnedChequesPage() {
   const [appliedRange, setAppliedRange] = useState("month");
   const [appliedStart, setAppliedStart] = useState("");
   const [appliedEnd, setAppliedEnd] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
 
   const returnedChequesQuery = useQuery<ReturnedChequeOptionDto[], Error>({
     queryKey: ["returned-cheques", appliedSearch, appliedRange, appliedStart, appliedEnd],
@@ -131,14 +133,105 @@ export default function ReturnedChequesPage() {
     [],
   );
 
+  const resolvedPeriod = useMemo(() => {
+    const now = new Date();
+    const start = new Date(now);
+    const end = new Date(now);
+    if (appliedRange === "day") {
+      // today
+    } else if (appliedRange === "week") {
+      const day = now.getDay();
+      const diffToMonday = day === 0 ? 6 : day - 1;
+      start.setDate(now.getDate() - diffToMonday);
+    } else if (appliedRange === "month") {
+      start.setDate(1);
+    } else if (appliedRange === "year") {
+      start.setMonth(0, 1);
+    } else if (appliedRange === "custom" && appliedStart && appliedEnd) {
+      return { from: appliedStart, to: appliedEnd };
+    } else if (appliedRange === "all") {
+      const dates = (returnedChequesQuery.data ?? [])
+        .map((x) => new Date(x.returnDate))
+        .filter((d) => !Number.isNaN(d.getTime()));
+      if (dates.length === 0) {
+        const today = new Date().toISOString().slice(0, 10);
+        return { from: today, to: today };
+      }
+      const min = new Date(Math.min(...dates.map((d) => d.getTime())));
+      const max = new Date(Math.max(...dates.map((d) => d.getTime())));
+      return { from: min.toISOString().slice(0, 10), to: max.toISOString().slice(0, 10) };
+    }
+    return {
+      from: start.toISOString().slice(0, 10),
+      to: end.toISOString().slice(0, 10),
+    };
+  }, [appliedRange, appliedStart, appliedEnd, returnedChequesQuery.data]);
+
+  const handleExportExcel = async () => {
+    setIsExporting(true);
+    try {
+      const { exportReturnedChequesToExcel } = await import("@/lib/exportReturnedCheques");
+      const rows = (returnedChequesQuery.data ?? []).map((row) => ({
+        receiptNo: row.receiptNo,
+        chequeNo: row.chequeNo ?? "-",
+        chequeAmount: row.amount,
+        chequeDate: row.chequeDate ? formatDate(row.chequeDate) : "-",
+        returnDate: formatDate(row.returnDate),
+        bankName: row.bankName ?? "-",
+      }));
+      await exportReturnedChequesToExcel({
+        fromLabel: formatDate(resolvedPeriod.from),
+        toLabel: formatDate(resolvedPeriod.to),
+        rows,
+      });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("toast", {
+            detail: { msg: `Exported ${rows.length} returned cheques to Excel`, type: "success" },
+          }),
+        );
+      }
+    } catch {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("toast", {
+            detail: { msg: "Failed to export returned cheques", type: "error" },
+          }),
+        );
+      }
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <section className="space-y-5">
-      <header>
-        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">Sales</p>
-        <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)] font-semibold">
-          Returned Cheques
-        </h1>
-        <p className="text-[13px] text-stone-500">Cheque receipts marked as returned with financial reversals.</p>
+      <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">Sales</p>
+          <h1 className="text-[28px] leading-tight text-[#2b2d7e] [font-family:var(--font-dmsans)] font-semibold">
+            Returned Cheques
+          </h1>
+          <p className="text-[13px] text-stone-500">Cheque receipts marked as returned with financial reversals.</p>
+        </div>
+        <button
+          type="button"
+          onClick={handleExportExcel}
+          disabled={isExporting || returnedChequesQuery.isFetching}
+          className="inline-flex items-center gap-2 rounded-xl bg-[#1a5c2e] px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[#2d7a42] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-[#1a5c2e]"
+        >
+          {isExporting ? (
+            <>
+              <Loader2 size={14} className="animate-spin" />
+              Exporting...
+            </>
+          ) : (
+            <>
+              <Download size={14} />
+              Export Excel
+            </>
+          )}
+        </button>
       </header>
 
       <DataTable
