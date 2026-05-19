@@ -74,6 +74,7 @@ export async function GET() {
       prisma.receipt.findMany({
         where: {
           is_active: true,
+          is_returned: false,
           receipt_date: { gte: start, lt: end },
         },
         orderBy: [{ receipt_date: "desc" }, { receipt_id: "desc" }],

@@ -138,6 +138,7 @@ export async function GET(
       prisma.receipt.findMany({
         where: {
           is_active: true,
+          is_returned: false,
           receipt_date: { gte: period.startDate, lte: period.endDate },
           invoice: { customer_id: customerId },
         },

@@ -200,6 +200,7 @@ export async function GET(
       prisma.receipt.findMany({
         where: {
           is_active: true,
+          is_returned: false,
           invoice: commonInvoiceWhere,
         },
         select: {
@@ -221,6 +222,7 @@ export async function GET(
       prisma.receipt.findMany({
         where: {
           is_active: true,
+          is_returned: false,
           receipt_date: { gte: period.startDate, lte: period.endDate },
           invoice: commonInvoiceWhere,
         },
@@ -525,7 +527,9 @@ export async function GET(
 
     const approvedCommission = commissions.reduce((sum, c) => sum + toNum(c.commission_amount), 0);
     const pendingCommission = pendingSettlements.reduce((sum, s) => {
-      const signed = s.settlement_type === "CREDIT_NOTE" ? -toNum(s.amount) : toNum(s.amount);
+      const signed = s.settlement_type === "CREDIT_NOTE" || s.settlement_type === "CHEQUE_RETURN"
+        ? -toNum(s.amount)
+        : toNum(s.amount);
       return sum + signed;
     }, 0);
 
@@ -563,7 +567,13 @@ export async function GET(
       receiptId: s.receipt?.receipt_id ?? null,
       receiptDate: s.receipt?.receipt_date ? s.receipt.receipt_date.toISOString() : null,
       settlementDate: s.settled_date.toISOString(),
-      settlementAmount: Number((s.settlement_type === "CREDIT_NOTE" ? -toNum(s.amount) : toNum(s.amount)).toFixed(2)),
+      settlementAmount: Number(
+        (
+          s.settlement_type === "CREDIT_NOTE" || s.settlement_type === "CHEQUE_RETURN"
+            ? -toNum(s.amount)
+            : toNum(s.amount)
+        ).toFixed(2),
+      ),
     }));
 
     const transactions = [

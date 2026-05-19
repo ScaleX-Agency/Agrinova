@@ -90,7 +90,9 @@ const ReceiptsClient = () => {
     });
   }, [methodFilter, receipts, searchTerm]);
 
-  const totalCollected = filtered.reduce((sum, receipt) => sum + receipt.amountReceived, 0);
+  const totalValidCollected = filtered
+    .filter((receipt) => !receipt.isReturned)
+    .reduce((sum, receipt) => sum + receipt.amountReceived, 0);
 
   const tableColumns = useMemo<ColumnDef<ReceiptOptionDto>[]>(
     () => [
@@ -132,6 +134,20 @@ const ReceiptsClient = () => {
             {METHOD_LABEL[row.original.paymentMethod]}
           </span>
         ),
+      },
+      {
+        id: "status",
+        header: "Status",
+        cell: ({ row }) =>
+          row.original.isReturned ? (
+            <span className="inline-flex rounded-full border border-red-100 bg-red-50 px-2.5 py-1 text-[11px] font-medium text-red-700">
+              Returned
+            </span>
+          ) : (
+            <span className="inline-flex rounded-full border border-green-100 bg-green-50 px-2.5 py-1 text-[11px] font-medium text-green-700">
+              Active
+            </span>
+          ),
       },
       {
         id: "actions",
@@ -182,7 +198,7 @@ const ReceiptsClient = () => {
         <div className="rounded-2xl border border-stone-200 bg-white p-4 lg:col-span-2">
           <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Total Collected</p>
           <p className="mt-1 text-[26px] leading-none text-[#1a5c2e] [font-family:var(--font-dmsans)]">
-            {formatCurrency(totalCollected)}
+            {formatCurrency(totalValidCollected)}
           </p>
         </div>
         <div className="rounded-2xl border border-stone-200 bg-white p-4">

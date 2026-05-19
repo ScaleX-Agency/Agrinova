@@ -33,7 +33,9 @@ model User {
   created_invoices            Invoice[]            @relation("InvoiceCreatedBy")
   deleted_invoices            Invoice[]            @relation("InvoiceDeletedBy")
   created_receipts            Receipt[]            @relation("ReceiptCreatedBy")
+  created_returnedCheques     ReturnedCheque[]     @relation("ReturnedChequeCreatedBy")
   deleted_receipts            Receipt[]            @relation("ReceiptDeletedBy")
+  deleted_returnedCheques     ReturnedCheque[]     @relation("ReturnedChequeDeletedBy")
   created_salesReturnNotes    SalesReturnNote[]    @relation("SalesReturnNoteCreatedBy")
   deleted_salesReturnNotes    SalesReturnNote[]    @relation("SalesReturnNoteDeletedBy")
   created_stock_transfers     StockTransfer[]      @relation("StockTransferCreatedBy")
@@ -107,6 +109,7 @@ model Invoice {
   invoice_lines      InvoiceLine[]
   invoiceSettlements InvoiceSettlement[]
   receipts           Receipt[]
+  returnedCheques    ReturnedCheque[]
   salesReturnNotes   SalesReturnNote[]
 
   @@map("INVOICE")
@@ -313,12 +316,15 @@ model Receipt {
   created_at DateTime @default(now())
   created_by Int
   is_active  Boolean  @default(true)
+  is_returned Boolean @default(false)
+  returned_at DateTime?
   notes      String?
   updated_at DateTime @default(now()) @updatedAt
   deleted_by Int?
 
   deleter            User?               @relation("ReceiptDeletedBy", fields: [deleted_by], references: [user_id])
   invoiceSettlements InvoiceSettlement[]
+  returnedCheques    ReturnedCheque[]
   creator            User                @relation("ReceiptCreatedBy", fields: [created_by], references: [user_id])
   invoice            Invoice             @relation(fields: [invoice_id], references: [invoice_id])
 
@@ -350,6 +356,7 @@ model InvoiceSettlement {
   invoice_id        Int
   receipt_id        Int?
   credit_note_id    Int?
+  returned_cheque_id Int?
   amount            Decimal        @db.Decimal(10, 2)
   settlement_type   SettlementType
   settled_date      DateTime
@@ -358,11 +365,38 @@ model InvoiceSettlement {
   invoice           Invoice        @relation(fields: [invoice_id], references: [invoice_id])
   receipt           Receipt?       @relation(fields: [receipt_id], references: [receipt_id])
   creditNote        CreditNote?    @relation(fields: [credit_note_id], references: [credit_note_id])
+  returnedCheque    ReturnedCheque? @relation(fields: [returned_cheque_id], references: [returned_cheque_id])
   commissions       Commission[]   @relation("CommissionToInvoiceSettlement")
   reversalAllocations CommissionReversalAllocation[] @relation("ReversalSourceSettlement")
 
   @@index([invoice_id])
   @@map("INVOICE_SETTLEMENT")
+}
+
+model ReturnedCheque {
+  returned_cheque_id Int      @id @default(autoincrement())
+  receipt_id         Int
+  invoice_id         Int
+  return_date        DateTime
+  amount             Decimal  @db.Decimal(10, 2)
+  reason             String
+  bank_reference     String?
+  notes              String?
+  created_by         Int
+  created_at         DateTime @default(now())
+  updated_at         DateTime @default(now()) @updatedAt
+  is_active          Boolean  @default(true)
+  deleted_by         Int?
+
+  receipt            Receipt            @relation(fields: [receipt_id], references: [receipt_id])
+  invoice            Invoice            @relation(fields: [invoice_id], references: [invoice_id])
+  creator            User               @relation("ReturnedChequeCreatedBy", fields: [created_by], references: [user_id])
+  deleter            User?              @relation("ReturnedChequeDeletedBy", fields: [deleted_by], references: [user_id])
+  invoiceSettlements InvoiceSettlement[]
+
+  @@index([receipt_id])
+  @@index([invoice_id])
+  @@map("RETURNED_CHEQUE")
 }
 
 model Commission {
@@ -613,4 +647,5 @@ enum SettlementType {
   RECEIPT
   CREDIT_NOTE
   ADJUSTMENT
+  CHEQUE_RETURN
 }

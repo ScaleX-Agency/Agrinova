@@ -19,3 +19,8 @@ export async function getCurrentUser() {
 export function isAdminUser(user: Awaited<ReturnType<typeof getCurrentUser>>) {
   return user?.role?.role_name?.toLowerCase() === "admin";
 }
+
+export function isAdminOrOperatorUser(user: Awaited<ReturnType<typeof getCurrentUser>>) {
+  const role = user?.role?.role_name?.toLowerCase();
+  return role === "admin" || role === "operator";
+}

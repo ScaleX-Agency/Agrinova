@@ -1,19 +1,13 @@
 import { NextResponse } from "next/server";
-import { InvoiceStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import { rebuildInvoiceCreditNoteCommissions } from "@/lib/commissionSettlement";
+import { recalculateInvoiceFinancials } from "@/lib/invoiceFinancials";
 
 const parsePositiveInt = (value: string) => {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) return null;
   return parsed;
-};
-
-const toInvoiceStatus = (balanceAmount: number, paidAmount: number, creditedAmount: number): InvoiceStatus => {
-  if (balanceAmount <= 0) return "PAID";
-  if (paidAmount > 0 || creditedAmount > 0) return "PARTIAL";
-  return "UNPAID";
 };
 
 const toNum = (value: number | string | { toString(): string } | null | undefined) =>
@@ -495,30 +489,7 @@ export async function DELETE(
         throw new Error("Cannot reverse invoice credits; credited amount mismatch.");
       }
 
-      const nextInvoiceCreditedAmount = Math.max(
-        0,
-        currentInvoiceCreditedAmount - totalCreditAmountToReverse,
-      );
-      const totalAmount = Number(srn.invoice.total_amount);
-      const paidAmount = Number(srn.invoice.paid_amount);
-      const nextInvoiceBalanceAmount = Math.max(
-        0,
-        Number((totalAmount - paidAmount - nextInvoiceCreditedAmount).toFixed(2)),
-      );
-      const nextInvoiceStatus = toInvoiceStatus(
-        nextInvoiceBalanceAmount,
-        paidAmount,
-        nextInvoiceCreditedAmount,
-      );
-
-      await tx.invoice.update({
-        where: { invoice_id: srn.invoice_id },
-        data: {
-          credited_amount: nextInvoiceCreditedAmount,
-          balance_amount: nextInvoiceBalanceAmount,
-          payment_status: nextInvoiceStatus,
-        },
-      });
+      await recalculateInvoiceFinancials(tx, srn.invoice_id);
 
       await rebuildInvoiceCreditNoteCommissions(
         tx,
