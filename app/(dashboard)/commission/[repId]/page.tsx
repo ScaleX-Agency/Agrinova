@@ -184,6 +184,7 @@ export default function CommissionRepDetailPage() {
               : paymentMethodLabel(row.paymentMethod);
 
           return {
+            type: row.type,
             receiptDate: formatDate(row.receiptDate ?? row.settlementDate),
             receiptNumber: referenceNo,
             paymentMethod: displayPaymentMethod,
