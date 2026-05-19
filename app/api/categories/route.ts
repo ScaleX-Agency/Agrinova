@@ -8,10 +8,13 @@ const createCategorySchema = z.object({
   tag: z
     .string()
     .trim()
-    .min(2, "Category tag must be at least 2 characters")
-    .max(10, "Category tag must be 10 characters or fewer")
-    .regex(
-      /^[A-Za-z0-9]+$/,
+    .optional()
+    .or(z.literal(""))
+    .transform((value) => value?.trim() || undefined)
+    .refine((value) => !value || value.length >= 2, "Category tag must be at least 2 characters")
+    .refine((value) => !value || value.length <= 10, "Category tag must be 10 characters or fewer")
+    .refine(
+      (value) => !value || /^[A-Za-z0-9]+$/.test(value),
       "Category tag must contain only letters and numbers",
     ),
 });
@@ -49,13 +52,7 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error("[POST /api/categories]", err);
 
-    const isP2002 =
-      typeof err === "object" &&
-      err !== null &&
-      "code" in err &&
-      (err as { code?: string }).code === "P2002";
-
-    if (isP2002) {
+    if (err instanceof Error && err.message === "Category tag already exists") {
       return NextResponse.json(
         { error: "Category tag already exists" },
         { status: 409 },

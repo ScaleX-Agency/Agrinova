@@ -562,7 +562,7 @@ export async function getNextProductCode(categoryId: number) {
   });
   const tag = category.tag?.trim();
   if (!tag) {
-    throw new Error("Selected category does not have a valid product code tag.");
+    return null;
   }
 
   const products = await prisma.product.findMany({
@@ -593,7 +593,12 @@ export async function createProduct(dto: CreateProductDto, userId?: number) {
   await prisma.category.findUniqueOrThrow({
     where: { category_id: dto.category_id },
   });
-  const product_code = (dto.product_code?.trim() || await getNextProductCode(dto.category_id)).toUpperCase();
+  const generatedProductCode = await getNextProductCode(dto.category_id);
+  const product_code = (dto.product_code?.trim() || generatedProductCode || "").toUpperCase();
+
+  if (!product_code) {
+    throw new Error("Product code is required.");
+  }
 
   if (!(await isProductCodeUnique(product_code))) {
     throw new Error("Product code already exists.");
@@ -881,16 +886,26 @@ export async function getAllCategories() {
   });
 }
 
-export async function createCategory(dto: { name: string; tag: string }) {
+export async function createCategory(dto: { name: string; tag?: string | null }) {
   const name = dto.name.trim();
-  const tag = dto.tag.trim().toUpperCase();
+  const tag = dto.tag?.trim().toUpperCase() || null;
 
   if (!name) {
     throw new Error("Category name is required");
   }
 
-  if (!tag) {
-    throw new Error("Category tag is required");
+  if (tag && !/^[A-Z0-9]{2,10}$/.test(tag)) {
+    throw new Error("Category tag must be 2-10 letters or numbers");
+  }
+
+  if (tag) {
+    const existingTag = await prisma.category.findFirst({
+      where: { tag },
+      select: { category_id: true },
+    });
+    if (existingTag) {
+      throw new Error("Category tag already exists");
+    }
   }
 
   const category = await prisma.category.create({

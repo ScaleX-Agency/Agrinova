@@ -126,14 +126,19 @@ export default function AddProductModal({
     setProductCodeStatus("Generating code...");
     fetch(`/api/products?nextCodeCategoryId=${encodeURIComponent(form.category_id)}`)
       .then(async (res) => {
-        const body = (await res.json()) as { data?: { productCode?: string }; error?: string };
+        const body = (await res.json()) as { data?: { productCode?: string | null }; error?: string };
         if (!res.ok) throw new Error(body.error ?? "Failed to generate product code");
-        return body.data?.productCode ?? "";
+        return body.data?.productCode ?? null;
       })
       .then((productCode) => {
         if (ignore) return;
-        setForm((current) => ({ ...current, product_code: productCode }));
-        setProductCodeStatus(productCode ? "Suggested code generated." : "");
+        if (productCode) {
+          setForm((current) => ({ ...current, product_code: productCode }));
+          setProductCodeStatus("Suggested code generated.");
+        } else {
+          setForm((current) => ({ ...current, product_code: "" }));
+          setProductCodeStatus("Enter product code manually.");
+        }
       })
       .catch((error: unknown) => {
         if (ignore) return;
@@ -152,7 +157,6 @@ export default function AddProductModal({
   useEffect(() => {
     const productCode = form.product_code.trim();
     if (!productCode || mode !== "add") {
-      setProductCodeStatus("");
       return;
     }
 
