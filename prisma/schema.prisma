@@ -464,7 +464,7 @@ model Reminder {
 model Category {
   category_id Int       @id @default(autoincrement())
   name        String
-  tag         String    @unique
+  tag         String?
   products    Product[]
 
   @@map("CATEGORY")
