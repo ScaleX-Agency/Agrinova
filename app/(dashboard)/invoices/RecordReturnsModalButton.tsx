@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { RotateCcw } from "lucide-react";
+import { Boxes, Calculator, ClipboardList, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import SearchableSelect from "@/components/SearchableSelect";
 import type {
   CreateSalesReturnRequestDto,
@@ -191,6 +191,11 @@ const RecordReturnsModalButton = ({
     setError("");
   };
 
+  const handleRemoveProductLine = (lineId: number) => {
+    setLineDrafts((current) => current.filter((line) => line.lineId !== lineId));
+    setError("");
+  };
+
   const setDraftValue = (
     lineId: number,
     updater: (draft: ReturnLineDraft) => ReturnLineDraft,
@@ -322,30 +327,40 @@ const RecordReturnsModalButton = ({
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-[96vw] xl:max-w-[1500px] rounded-xl border border-stone-200 bg-white p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-[18px] font-semibold text-stone-900">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 md:items-center">
+          <div className="flex max-h-[92vh] w-full max-w-[96vw] flex-col overflow-hidden rounded-2xl border border-stone-200 bg-[#faf9f5] p-4 xl:max-w-[1500px]">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-indigo-100 bg-indigo-50 text-indigo-700">
+                  <RotateCcw size={15} />
+                </span>
+                <h2 className="text-[18px] font-semibold text-stone-900 [font-family:var(--font-dmsans)]">
                   Record Sales Return
                 </h2>
-                <p className="text-[12px] text-stone-500">
-                  Enter returned quantities and condition details. Credit is calculated from your line deductions.
-                </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="rounded-md px-2 py-1 text-stone-500 hover:bg-stone-100"
+                className="rounded-md p-1.5 text-stone-500 hover:bg-stone-100"
+                aria-label="Close"
               >
-                x
+                <X size={15} />
               </button>
             </div>
 
-            <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+            <section className="mb-3 shrink-0 rounded-2xl border border-stone-200 bg-white p-3 md:p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-indigo-100 bg-indigo-50 text-indigo-700">
+                  <ClipboardList size={16} />
+                </span>
+                <h3 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-dmsans)]">
+                  Return Details
+                </h3>
+              </div>
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
               <label className="flex flex-col gap-1">
-                <span className="text-[12px] font-medium text-stone-700">
-                  Return Number
+                <span className="text-[12px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">
+                  Return Number <span className="text-red-600">*</span>
                 </span>
                 <input
                   value={returnNumber}
@@ -353,7 +368,7 @@ const RecordReturnsModalButton = ({
                     setReturnNumber(event.target.value);
                     setError("");
                   }}
-                  className="rounded-lg border border-stone-300 px-3 py-2 text-[13px] outline-none focus:border-[#1a5c2e]"
+                  className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 [font-family:var(--font-dmsans)] outline-none focus:border-[#1a5c2e]"
                   placeholder="SRN-YYYYMM-001"
                 />
                 {returnNumber.trim().length > 0 &&
@@ -367,40 +382,56 @@ const RecordReturnsModalButton = ({
               </label>
 
               <label className="flex flex-col gap-1">
-                <span className="text-[12px] font-medium text-stone-700">
-                  Return Date
+                <span className="text-[12px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">
+                  Return Date <span className="text-red-600">*</span>
                 </span>
                 <input
                   type="date"
                   value={returnDate}
                   onChange={(event) => setReturnDate(event.target.value)}
-                  className="rounded-lg border border-stone-300 px-3 py-2 text-[13px] outline-none focus:border-[#1a5c2e]"
+                  className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 [font-family:var(--font-dmsans)] outline-none focus:border-[#1a5c2e]"
                 />
               </label>
 
               <label className="flex flex-col gap-1">
-                <span className="text-[12px] font-medium text-stone-700">
+                <span className="text-[12px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">
                   Notes
                 </span>
                 <input
                   value={notes}
                   onChange={(event) => setNotes(event.target.value)}
-                  className="rounded-lg border border-stone-300 px-3 py-2 text-[13px] outline-none focus:border-[#1a5c2e]"
+                  className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 [font-family:var(--font-dmsans)] outline-none focus:border-[#1a5c2e]"
                   placeholder="Optional notes (e.g. damaged in transit)"
                 />
               </label>
-            </div>
+              </div>
+            </section>
 
-            <div className="mb-4 rounded-lg border border-stone-200 bg-stone-50 p-3">
-              <p className="mb-2 text-[12px] font-medium text-stone-700">Add Products To Return</p>
-              <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto]">
+            <section className="mb-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white p-3 md:p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-700">
+                  <Boxes size={16} />
+                </span>
+                <h3 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-dmsans)]">
+                  Return Items
+                </h3>
+              </div>
+
+            <div className="mb-2 rounded-xl border border-stone-200 bg-stone-50 p-2 md:w-1/2">
+              <div className="mb-1 flex items-center justify-between">
+                <p className="text-[12px] font-medium text-stone-700 [font-family:var(--font-dmsans)]">Add Product</p>
+                <p className="text-[11px] text-stone-500">
+                  {workingLineDrafts.length}/{baseDrafts.length}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-1.5 md:grid-cols-[minmax(0,1fr)_auto]">
                 <SearchableSelect
                   value={selectedProductLineId}
                   onChange={setSelectedProductLineId}
                   options={availableProductOptions}
-                  placeholder="Select product to add"
+                  placeholder="Select product"
                   searchPlaceholder="Search product..."
-                  emptyMessage="No more returnable products available."
+                  emptyMessage="No more items."
                   loading={invoiceDetailQuery.isLoading}
                   disabled={invoiceDetailQuery.isLoading || availableProductOptions.length === 0}
                 />
@@ -408,15 +439,16 @@ const RecordReturnsModalButton = ({
                   type="button"
                   onClick={handleAddProductLine}
                   disabled={!selectedProductLineId}
-                  className="rounded-lg bg-[#1a5c2e] px-3 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center justify-center gap-1 rounded-xl bg-[#1a5c2e] px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-[#2d7a42] disabled:cursor-not-allowed disabled:opacity-60 [font-family:var(--font-dmsans)]"
                 >
-                  Add Product
+                  <Plus size={14} />
+                  Add
                 </button>
               </div>
             </div>
 
-            <div className="max-h-[420px] overflow-auto rounded-lg border border-stone-200">
-              <table className="w-full table-fixed border-collapse text-[12px]">
+            <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-stone-200 bg-white">
+              <table className="min-w-[1150px] w-full table-fixed border-collapse text-[12px]">
                 <thead className="bg-stone-50 text-[11px] uppercase tracking-[0.08em] text-stone-500">
                   <tr>
                     <th className="sticky top-0 border-b border-stone-200 px-3 py-2 text-left">Product</th>
@@ -428,18 +460,19 @@ const RecordReturnsModalButton = ({
                     <th className="sticky top-0 border-b border-stone-200 px-3 py-2 text-left">Condition</th>
                     <th className="sticky top-0 border-b border-stone-200 px-3 py-2 text-left">Reason</th>
                     <th className="sticky top-0 border-b border-stone-200 px-3 py-2 text-right">Deduction (LKR)</th>
+                    <th className="sticky top-0 border-b border-stone-200 px-3 py-2 text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {invoiceDetailQuery.isLoading ? (
                     <tr>
-                      <td colSpan={9} className="px-3 py-3 text-stone-500">
+                      <td colSpan={10} className="px-3 py-3 text-stone-500">
                         Loading invoice products...
                       </td>
                     </tr>
                   ) : workingLineDrafts.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-3 py-3 text-stone-500">
+                      <td colSpan={10} className="px-3 py-3 text-stone-500">
                         No products added yet. Select a product above to start recording returns.
                       </td>
                     </tr>
@@ -452,8 +485,8 @@ const RecordReturnsModalButton = ({
                       return (
                         <tr key={line.lineId}>
                           <td className="border-b border-stone-100 px-2 py-2 text-stone-800">
-                            <div className="font-medium">{line.productName}</div>
-                            <div className="text-[11px] text-stone-500">{line.packSize}</div>
+                            <div className="break-words font-medium">{line.productName}</div>
+                            <div className="break-words text-[11px] text-stone-500">{line.packSize}</div>
                           </td>
                           <td className="border-b border-stone-100 px-2 py-2 text-center">{line.returnableQty}</td>
                           <td className="border-b border-stone-100 px-2 py-2">
@@ -609,6 +642,17 @@ const RecordReturnsModalButton = ({
                               />
                             </div>
                           </td>
+                          <td className="border-b border-stone-100 px-2 py-2 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveProductLine(line.lineId)}
+                              className="inline-flex items-center justify-center rounded border border-stone-300 p-1.5 text-stone-600 hover:bg-stone-50"
+                              title="Remove line"
+                              aria-label={`Remove ${line.productName}`}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </td>
                         </tr>
                       );
                     })
@@ -616,33 +660,44 @@ const RecordReturnsModalButton = ({
                 </tbody>
               </table>
             </div>
+            </section>
 
-            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-              <div className="rounded-lg border border-stone-200 bg-stone-50 p-3">
+            <section className="shrink-0 rounded-2xl border border-stone-200 bg-white p-3 md:p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-700">
+                  <Calculator size={16} />
+                </span>
+                <h3 className="text-[16px] font-semibold text-stone-900 [font-family:var(--font-dmsans)]">
+                  Totals
+                </h3>
+              </div>
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+              <div className="rounded-xl border border-stone-200 bg-stone-50 p-2.5">
                 <p className="text-[11px] uppercase tracking-[0.08em] text-stone-500">Return Qty</p>
                 <p className="mt-1 text-[14px] font-semibold text-stone-900">{totals.returnQty}</p>
               </div>
-              <div className="rounded-lg border border-stone-200 bg-stone-50 p-3">
+              <div className="rounded-xl border border-stone-200 bg-stone-50 p-2.5">
                 <p className="text-[11px] uppercase tracking-[0.08em] text-stone-500">Usable Qty</p>
                 <p className="mt-1 text-[14px] font-semibold text-stone-900">{totals.usableQty}</p>
               </div>
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-2.5">
                 <p className="text-[11px] uppercase tracking-[0.08em] text-amber-700">Unusable Qty</p>
                 <p className="mt-1 text-[14px] font-semibold text-amber-800">{totals.unusableQty}</p>
               </div>
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-2.5">
                 <p className="text-[11px] uppercase tracking-[0.08em] text-blue-700">Credit Amount</p>
                 <p className="mt-1 text-[14px] font-semibold text-blue-800">{formatCurrency(totals.totalAmount)}</p>
               </div>
             </div>
+            </section>
 
             {error && <p className="mt-3 text-[12px] text-red-700">{error}</p>}
 
-            <div className="mt-5 flex justify-end gap-2">
+            <div className="mt-3 flex shrink-0 justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="rounded-lg border border-stone-300 px-3 py-2 text-[13px] font-medium text-stone-700 hover:bg-stone-50"
+                className="rounded-xl border border-stone-300 bg-white px-3 py-2 text-[13px] font-medium text-stone-700 hover:bg-stone-50 [font-family:var(--font-dmsans)]"
               >
                 Cancel
               </button>
@@ -650,7 +705,7 @@ const RecordReturnsModalButton = ({
                 type="button"
                 onClick={handleSubmit}
                 disabled={createReturnMutation.isPending}
-                className="rounded-lg bg-[#1a5c2e] px-3 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42] disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl bg-[#1a5c2e] px-3 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42] disabled:cursor-not-allowed disabled:opacity-60 [font-family:var(--font-dmsans)]"
               >
                 {createReturnMutation.isPending ? "Saving..." : "Save Return"}
               </button>
