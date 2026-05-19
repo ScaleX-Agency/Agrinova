@@ -220,18 +220,29 @@ body {
   }
 
   .invoice-print-sheet .invoice-print-header {
-    grid-template-columns: 1.35fr 0.8fr 1fr !important;
+    grid-template-columns: 1fr 1.45fr 1fr !important;
     gap: 0.12in !important;
     padding-bottom: 0.08in !important;
   }
 
   .invoice-print-sheet .invoice-print-brand img {
-    height: 0.34in !important;
-    width: auto !important;
+    height: 0.26in !important;
+    width: 0.26in !important;
   }
 
-  .invoice-print-sheet .invoice-print-brand p:first-of-type {
-    font-size: 18px !important;
+  .invoice-print-sheet .invoice-print-company-name {
+    font-size: 15px !important;
+    line-height: 1 !important;
+  }
+
+  .invoice-print-sheet .invoice-print-company-details,
+  .invoice-print-sheet .invoice-print-company-details p {
+    font-size: 7px !important;
+    line-height: 1.05 !important;
+  }
+
+  .invoice-print-sheet .invoice-print-title {
+    font-size: 25px !important;
     line-height: 1 !important;
   }
 
@@ -264,7 +275,15 @@ body {
   }
 
   .invoice-print-sheet .invoice-print-signatures {
-    margin-top: 0.22in !important;
+    margin-top: 0.16in !important;
     gap: 0.26in !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .invoice-print-sheet .invoice-print-signatures,
+  .invoice-print-sheet .invoice-print-signatures > div {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 }
