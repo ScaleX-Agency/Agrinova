@@ -46,7 +46,7 @@ export async function GET(
           },
         },
         receipts: {
-          where: { is_active: true },
+          where: { is_active: true, is_returned: false },
           select: {
             receipt_id: true,
             receipt_date: true,

@@ -193,6 +193,10 @@ async function createReversalCommission(
       is_active: true,
       settlement_type: "RECEIPT",
       receipt_id: { not: null },
+      receipt: {
+        is_active: true,
+        is_returned: false,
+      },
     },
     orderBy: [{ settled_date: "desc" }, { settlement_id: "desc" }],
     select: {
@@ -435,6 +439,10 @@ export async function rebuildInvoiceCreditNoteCommissions(
       is_active: true,
       settlement_type: "RECEIPT",
       receipt_id: { not: null },
+      receipt: {
+        is_active: true,
+        is_returned: false,
+      },
     },
     orderBy: [{ settled_date: "desc" }, { settlement_id: "desc" }],
     select: {

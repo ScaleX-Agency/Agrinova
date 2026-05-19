@@ -221,6 +221,23 @@ export async function DELETE(
     return NextResponse.json({ error: "Customer not found" }, { status: 404 });
   }
 
+  const activeInvoiceCount = await prisma.invoice.count({
+    where: {
+      customer_id: customerId,
+      is_active: true,
+    },
+  });
+
+  if (activeInvoiceCount > 0) {
+    return NextResponse.json(
+      {
+        error:
+          "Cannot delete this customer because there are active invoices linked to this customer.",
+      },
+      { status: 409 },
+    );
+  }
+
   try {
     await prisma.customer.delete({ where: { customer_id: customerId } });
     return NextResponse.json({ success: true });

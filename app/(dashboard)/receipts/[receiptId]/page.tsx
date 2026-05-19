@@ -6,6 +6,7 @@ import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import BackNavigationLink from "@/components/ui/BackNavigationLink";
 import ReceiptPrintButton from "./ReceiptPrintButton";
 import DeleteReceiptButton from "../DeleteReceiptButton";
+import MarkReturnedChequeButton from "../MarkReturnedChequeButton";
 
 const METHOD_LABEL: Record<"CASH" | "CHEQUE" | "BANK_TRANSFER", string> = {
   CASH: "Cash",
@@ -80,6 +81,8 @@ const ReceiptDetailPage = async ({
       is_active: true,
       receipt_date: true,
       amount: true,
+      is_returned: true,
+      returned_at: true,
       payment_method: true,
       cheque_no: true,
       cheque_date: true,
@@ -139,6 +142,11 @@ const ReceiptDetailPage = async ({
                 {METHOD_BADGE_STYLE[method].icon}
                 {METHOD_LABEL[method]}
               </span>
+              {receipt.is_returned ? (
+                <span className="inline-flex items-center rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-medium text-red-700">
+                  Returned
+                </span>
+              ) : null}
             </div>
           </div>
 
@@ -157,6 +165,9 @@ const ReceiptDetailPage = async ({
               chequeDate={receipt.cheque_date ? receipt.cheque_date.toISOString() : null}
               bankName={receipt.bank_name ?? null}
             />
+            {receipt.payment_method === "CHEQUE" && !receipt.is_returned ? (
+              <MarkReturnedChequeButton receiptId={receipt.receipt_id} receiptNo={receiptNo} />
+            ) : null}
             {canDeleteReceipt ? (
               <DeleteReceiptButton receiptId={receipt.receipt_id} receiptNo={receiptNo} />
             ) : null}
@@ -186,6 +197,12 @@ const ReceiptDetailPage = async ({
               <p>
                 <span className="font-medium text-stone-800">Payment Method:</span> {METHOD_LABEL[method]}
               </p>
+              {receipt.is_returned ? (
+                <p>
+                  <span className="font-medium text-stone-800">Returned At:</span>{" "}
+                  {receipt.returned_at ? formatDate(receipt.returned_at) : "-"}
+                </p>
+              ) : null}
             </div>
           </div>
         </div>

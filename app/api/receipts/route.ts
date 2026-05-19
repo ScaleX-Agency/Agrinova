@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { createSettlementCommission } from "@/lib/commissionSettlement";
+import { recalculateInvoiceFinancials } from "@/lib/invoiceFinancials";
 import type {
   CreateReceiptRequestDto,
   CreateReceiptResponse,
@@ -113,8 +114,10 @@ export async function GET(request: Request) {
         receipt_id: true,
         receipt_number: true,
         receipt_date: true,
-          amount: true,
+        amount: true,
         payment_method: true,
+        is_returned: true,
+        returned_at: true,
         invoice: {
           select: {
             invoice_id: true,
@@ -140,6 +143,8 @@ export async function GET(request: Request) {
           customerName: receipt.invoice.customer.name,
           amountReceived: Number(receipt.amount),
           paymentMethod: receipt.payment_method,
+          isReturned: receipt.is_returned,
+          returnedAt: receipt.returned_at ? receipt.returned_at.toISOString() : null,
         };
       }),
     };
@@ -245,15 +250,6 @@ export async function POST(request: Request) {
         throw new Error(`Amount exceeds outstanding balance. Outstanding: ${outstandingAmount.toFixed(2)}`);
       }
 
-      const nextPaidAmount = paidAmount + amountReceived;
-      const nextBalanceAmount = Math.max(0, Number((totalAmount - creditedAmount - nextPaidAmount).toFixed(2)));
-      const nextStatus =
-        nextBalanceAmount <= 0
-          ? "PAID"
-          : nextPaidAmount > 0
-            ? "PARTIAL"
-            : "UNPAID";
-
       // 1. Create Receipt
       const receipt = await tx.receipt.create({
         data: {
@@ -290,15 +286,8 @@ export async function POST(request: Request) {
         select: { settlement_id: true },
       });
 
-      // 3. Update Invoice status
-      await tx.invoice.update({
-        where: { invoice_id: invoice.invoice_id },
-        data: {
-          paid_amount: nextPaidAmount,
-          balance_amount: nextBalanceAmount,
-          payment_status: nextStatus,
-        },
-      });
+      // 3. Recompute Invoice financials from active records
+      await recalculateInvoiceFinancials(tx, invoice.invoice_id);
 
       // 4. Auto-create Commission record
       const commissionResult = await createSettlementCommission(

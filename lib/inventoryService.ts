@@ -555,27 +555,78 @@ export async function getProductStats() {
   };
 }
 
-export async function createProduct(dto: CreateProductDto, userId?: number) {
+export async function getNextProductCode(categoryId: number) {
   const category = await prisma.category.findUniqueOrThrow({
+    where: { category_id: categoryId },
+    select: { tag: true },
+  });
+  const tag = category.tag?.trim();
+  if (!tag) {
+    return null;
+  }
+
+  const products = await prisma.product.findMany({
+    where: { category_id: categoryId },
+    select: { product_code: true },
+  });
+
+  const maxNumber = products.reduce((max, product) => {
+    if (!product.product_code.startsWith(tag)) return max;
+    const suffix = product.product_code.slice(tag.length);
+    if (!/^\d+$/.test(suffix)) return max;
+    return Math.max(max, Number(suffix));
+  }, 0);
+
+  return `${tag}${String(maxNumber + 1).padStart(3, "0")}`;
+}
+
+export async function isProductCodeUnique(productCode: string, excludeProductId?: number) {
+  const existing = await prisma.product.findUnique({
+    where: { product_code: productCode.trim().toUpperCase() },
+    select: { product_id: true },
+  });
+
+  return !existing || existing.product_id === excludeProductId;
+}
+
+export async function createProduct(dto: CreateProductDto, userId?: number) {
+  await prisma.category.findUniqueOrThrow({
     where: { category_id: dto.category_id },
   });
-  const count = await prisma.product.count({
-    where: { category_id: dto.category_id },
-  });
-  const product_code = `${category.tag}${String(count + 1).padStart(3, "0")}`;
+  const generatedProductCode = await getNextProductCode(dto.category_id);
+  const product_code = (dto.product_code?.trim() || generatedProductCode || "").toUpperCase();
+
+  if (!product_code) {
+    throw new Error("Product code is required.");
+  }
+
+  if (!(await isProductCodeUnique(product_code))) {
+    throw new Error("Product code already exists.");
+  }
 
   const product = await prisma.$transaction(async (tx) => {
-    const createdProduct = await tx.product.create({
-      data: {
-        product_name: dto.product_name,
-        pack_size: dto.pack_size,
-        category_id: dto.category_id,
-        selling_price: dto.selling_price,
-        reorder_threshold: dto.reorder_threshold ?? 0,
-        product_code,
-      },
-      include: { category: true },
-    });
+    let createdProduct;
+    try {
+      createdProduct = await tx.product.create({
+        data: {
+          product_name: dto.product_name,
+          pack_size: dto.pack_size,
+          category_id: dto.category_id,
+          selling_price: dto.selling_price,
+          reorder_threshold: dto.reorder_threshold ?? 0,
+          product_code,
+        },
+        include: { category: true },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        throw new Error("Product code already exists.");
+      }
+      throw error;
+    }
 
     if (dto.initial_qty && dto.initial_qty > 0 && dto.location_id && userId) {
       await tx.stock.create({
@@ -835,16 +886,26 @@ export async function getAllCategories() {
   });
 }
 
-export async function createCategory(dto: { name: string; tag: string }) {
+export async function createCategory(dto: { name: string; tag?: string | null }) {
   const name = dto.name.trim();
-  const tag = dto.tag.trim().toUpperCase();
+  const tag = dto.tag?.trim().toUpperCase() || null;
 
   if (!name) {
     throw new Error("Category name is required");
   }
 
-  if (!tag) {
-    throw new Error("Category tag is required");
+  if (tag && !/^[A-Z0-9]{2,10}$/.test(tag)) {
+    throw new Error("Category tag must be 2-10 letters or numbers");
+  }
+
+  if (tag) {
+    const existingTag = await prisma.category.findFirst({
+      where: { tag },
+      select: { category_id: true },
+    });
+    if (existingTag) {
+      throw new Error("Category tag already exists");
+    }
   }
 
   const category = await prisma.category.create({

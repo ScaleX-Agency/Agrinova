@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { rebuildInvoiceCreditNoteCommissions } from "@/lib/commissionSettlement";
+import { recalculateInvoiceFinancials } from "@/lib/invoiceFinancials";
 import type {
   CreateSalesReturnRequestDto,
   ReturnNumberAvailabilityResponse,
@@ -417,29 +418,7 @@ export async function POST(request: Request) {
           },
         });
 
-        const totalAmountNumber = Number(invoice.total_amount);
-        const paidAmount = Number(invoice.paid_amount);
-        const creditedAmount = Number(invoice.credited_amount);
-        const nextCreditedAmount = creditedAmount + Number(creditNote.amount);
-        const nextBalanceAmount = Math.max(
-          0,
-          Number((totalAmountNumber - paidAmount - nextCreditedAmount).toFixed(2)),
-        );
-        const nextPaymentStatus =
-          nextBalanceAmount <= 0
-            ? "PAID"
-            : paidAmount > 0 || nextCreditedAmount > 0
-              ? "PARTIAL"
-              : "UNPAID";
-
-        await tx.invoice.update({
-          where: { invoice_id: invoice.invoice_id },
-          data: {
-            credited_amount: nextCreditedAmount,
-            balance_amount: nextBalanceAmount,
-            payment_status: nextPaymentStatus,
-          },
-        });
+        await recalculateInvoiceFinancials(tx, invoice.invoice_id);
 
         await rebuildInvoiceCreditNoteCommissions(tx, invoice.invoice_id, invoice.rep_id);
 

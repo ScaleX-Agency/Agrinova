@@ -44,6 +44,7 @@ export interface StockFilter {
 }
 
 export interface CreateProductDto {
+  product_code?: string;
   product_name: string;
   pack_size: string;
   category_id: number;

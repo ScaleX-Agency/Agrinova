@@ -152,6 +152,8 @@ export type ReceiptOptionDto = {
   customerName: string;
   amountReceived: number;
   paymentMethod: ReceiptMethod;
+  isReturned?: boolean;
+  returnedAt?: string | null;
 };
 
 export type ReceiptDetailDto = {
@@ -172,10 +174,38 @@ export type ReceiptDetailDto = {
   createdAt: string;
   updatedAt: string;
   notes: string | null;
+  isReturned?: boolean;
+  returnedAt?: string | null;
 };
 
 export type ReceiptsResponse = ApiResult<ReceiptOptionDto[]>;
 export type ReceiptDetailResponse = ApiResult<ReceiptDetailDto>;
+
+export type CreateReturnedChequeRequestDto = {
+  receiptId: number;
+  returnDate: string;
+  reason: string;
+  bankReference?: string;
+  notes?: string;
+};
+
+export type ReturnedChequeOptionDto = {
+  id: number;
+  receiptId: number;
+  receiptNo: string;
+  invoiceId: number;
+  invoiceNo: string;
+  customerName: string;
+  chequeNo: string | null;
+  chequeDate: string | null;
+  bankName: string | null;
+  amount: number;
+  returnDate: string;
+  reason: string;
+  createdBy: string;
+};
+
+export type ReturnedChequesResponse = ApiResult<ReturnedChequeOptionDto[]>;
 
 export type RepCommissionSummaryDto = {
   repId: number;
