@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useQuery } from "@tanstack/react-query";
 import {
   Eye,
   EyeOff,
@@ -53,9 +54,6 @@ async function getApiError(response: Response, fallback: string) {
 }
 
 export default function OperatorsPageClient() {
-  const [operators, setOperators] = useState<Operator[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createForm, setCreateForm] =
     useState<CreateOperatorForm>(DEFAULT_CREATE_FORM);
@@ -123,31 +121,18 @@ export default function OperatorsPageClient() {
     [],
   );
 
-  const fetchOperators = useCallback(async () => {
-    setLoading(true);
-    setLoadError("");
-
-    try {
+  const operatorsQuery = useQuery<Operator[], Error>({
+    queryKey: ["operators-list"],
+    queryFn: async () => {
       const response = await fetch("/api/operators", { cache: "no-store" });
       if (!response.ok) {
         const error = await getApiError(response, "Failed to load operators.");
         throw new Error(error);
       }
-
       const data = (await response.json()) as OperatorsApiResponse;
-      setOperators(data.operators ?? []);
-    } catch (error: unknown) {
-      setLoadError(
-        error instanceof Error ? error.message : "Failed to load operators.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void fetchOperators();
-  }, [fetchOperators]);
+      return data.operators ?? [];
+    },
+  });
 
   const handleCreateOperator = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -173,7 +158,7 @@ export default function OperatorsPageClient() {
       setShowCreatePassword(false);
       setIsCreateOpen(false);
       setSuccessMessage("Operator created successfully.");
-      await fetchOperators();
+      await operatorsQuery.refetch();
     } catch (error: unknown) {
       setCreateError(
         error instanceof Error ? error.message : "Failed to create operator.",
@@ -215,20 +200,20 @@ export default function OperatorsPageClient() {
         </div>
       )}
 
-      {loadError && (
+      {operatorsQuery.error && (
         <div className="px-4 py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 text-[13px] [font-family:var(--font-dmsans)]">
-          {loadError}
+          {operatorsQuery.error.message}
         </div>
       )}
 
       <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden">
         
 
-        {loading ? (
+        {operatorsQuery.isLoading ? (
           <div className="px-4 py-8 text-[13px] text-stone-500">Loading operators...</div>
         ) : (
           <DataTable
-            data={operators}
+            data={operatorsQuery.data ?? []}
             columns={operatorColumns}
             minWidth={980}
             searchPlaceholder="Search operators..."

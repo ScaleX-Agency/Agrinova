@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
+import ConfirmationModal from "@/components/ConfirmationModal";
+import ErrorModal from "@/components/ErrorModal";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -10,6 +12,7 @@ import type {
   InvoiceDetailResponse,
   InvoiceOptionDto,
   InvoicesResponse,
+  ReceiptNumberAvailabilityResponse,
   ReceiptMethod,
 } from "@/types/api";
 import SearchableSelect from "@/components/SearchableSelect";
@@ -45,6 +48,7 @@ const NewReceiptPage = () => {
 
   const [invoiceId, setInvoiceId] = useState<number | null>(initialInvoiceId);
   const [receiptDate, setReceiptDate] = useState(getTodayDateInputValue);
+  const [receiptNo, setReceiptNo] = useState("");
   const [amountReceived, setAmountReceived] = useState(0);
   const [amountTouched, setAmountTouched] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<ReceiptMethod>("CASH");
@@ -54,10 +58,22 @@ const NewReceiptPage = () => {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
+  const submitPayload = useRef<CreateReceiptRequestDto | null>(null);
 
-  useEffect(() => {
-    setInvoiceId(initialInvoiceId);
-  }, [initialInvoiceId]);
+  const checkReceiptNumberAvailability = async (value: string) => {
+    const params = new URLSearchParams({
+      checkReceiptNo: "true",
+      receiptNo: value,
+    });
+
+    const response = await fetch(`/api/receipts?${params.toString()}`);
+    const result = (await response.json()) as ReceiptNumberAvailabilityResponse;
+    if (!response.ok) throw new Error(result.error ?? "Failed to check receipt number.");
+    if (!result.data) throw new Error("Receipt number check response is missing.");
+    return result.data;
+  };
 
   const invoicesQuery = useQuery<InvoiceOptionDto[], Error>({
     queryKey: ["receipt-invoices"],
@@ -80,10 +96,15 @@ const NewReceiptPage = () => {
     },
   });
 
-  useEffect(() => {
-    if (!invoiceDetailQuery.data || amountTouched) return;
-    setAmountReceived(invoiceDetailQuery.data.outstandingAmount);
-  }, [amountTouched, invoiceDetailQuery.data]);
+  const selectedInvoiceOption = useMemo(
+    () =>
+      invoiceId && invoicesQuery.data
+        ? invoicesQuery.data.find((invoice) => invoice.id === invoiceId)
+        : undefined,
+    [invoiceId, invoicesQuery.data],
+  );
+
+  const effectiveInvoiceId = selectedInvoiceOption?.status === "PAID" ? null : invoiceId;
 
   const saveMutation = useMutation({
     mutationFn: async (payload: CreateReceiptRequestDto) => {
@@ -112,16 +133,9 @@ const NewReceiptPage = () => {
   );
 
   const selectedInvoice = invoiceDetailQuery.data;
-
-  useEffect(() => {
-    if (!invoiceId || !invoicesQuery.data) return;
-    const selectedOption = invoicesQuery.data.find((invoice) => invoice.id === invoiceId);
-    if (selectedOption?.status === "PAID") {
-      setInvoiceId(null);
-      setAmountTouched(false);
-      setAmountReceived(0);
-    }
-  }, [invoiceId, invoicesQuery.data]);
+  const effectiveAmountReceived = amountTouched
+    ? amountReceived
+    : (selectedInvoice?.outstandingAmount ?? amountReceived);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -131,7 +145,7 @@ const NewReceiptPage = () => {
 
     const nextFieldErrors: Record<string, string> = {};
 
-    if (!invoiceId) {
+    if (!effectiveInvoiceId) {
       nextFieldErrors.invoice = "Invoice is required.";
     }
 
@@ -139,11 +153,15 @@ const NewReceiptPage = () => {
       nextFieldErrors.receiptDate = "Receipt date is required.";
     }
 
-    if (!Number.isFinite(amountReceived) || amountReceived <= 0) {
+    if (!receiptNo.trim()) {
+      nextFieldErrors.receiptNo = "Receipt number is required.";
+    }
+
+    if (!Number.isFinite(effectiveAmountReceived) || effectiveAmountReceived <= 0) {
       nextFieldErrors.amountReceived = "Amount must be greater than 0.";
     }
 
-    if (selectedInvoice && amountReceived > selectedInvoice.outstandingAmount) {
+    if (selectedInvoice && effectiveAmountReceived > selectedInvoice.outstandingAmount) {
       nextFieldErrors.amountReceived = "Amount cannot exceed outstanding amount.";
     }
 
@@ -164,23 +182,51 @@ const NewReceiptPage = () => {
       return;
     }
 
-    const payload: CreateReceiptRequestDto = {
-      invoiceId: invoiceId as number,
+    try {
+      const availability = await checkReceiptNumberAvailability(receiptNo.trim());
+      if (!availability.isUnique) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          receiptNo: "An active receipt with this number already exists.",
+        }));
+        return;
+      }
+    } catch (error) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        receiptNo: error instanceof Error ? error.message : "Failed to check receipt number.",
+      }));
+      return;
+    }
+
+    // Prepare payload and open confirmation modal
+    submitPayload.current = {
+      receiptNo: receiptNo.trim(),
+      invoiceId: effectiveInvoiceId as number,
       collectedBy: 1,
       receiptDate,
-      amountReceived,
+      amountReceived: effectiveAmountReceived,
       paymentMethod,
       chequeNo: paymentMethod === "CHEQUE" ? chequeNo.trim() : undefined,
       chequeDate: paymentMethod === "CHEQUE" ? chequeDate : undefined,
       bankName: paymentMethod === "CHEQUE" ? bankName.trim() : undefined,
     };
+    setIsConfirmModalOpen(true);
+  };
 
+  const confirmSave = async () => {
+    if (!submitPayload.current) return;
     try {
-      const result = await saveMutation.mutateAsync(payload);
-      setSuccessMessage(`Receipt created successfully (${result?.receiptNo ?? "saved"}).`);
-      router.push(`/invoices/${invoiceId}`);
+      await saveMutation.mutateAsync(submitPayload.current);
+      setIsConfirmModalOpen(false);
+      // Wait for modal to close before navigating
+      setTimeout(() => {
+        router.push(`/invoices/${submitPayload.current?.invoiceId}`);
+      }, 0);
     } catch (error) {
+      setIsConfirmModalOpen(false);
       setSubmitError(error instanceof Error ? error.message : "Unable to create receipt.");
+      setIsErrorModalOpen(true);
     }
   };
 
@@ -243,7 +289,7 @@ const NewReceiptPage = () => {
             <label className="flex flex-col gap-1.5">
               <span className="text-[12px] font-medium text-stone-600">Invoice</span>
               <SearchableSelect
-                value={invoiceId}
+                value={effectiveInvoiceId}
                 onChange={(value) => {
                   setInvoiceId(value);
                   setAmountTouched(false);
@@ -259,6 +305,29 @@ const NewReceiptPage = () => {
                 loading={invoicesQuery.isLoading}
               />
               {fieldErrors.invoice && <p className="text-[12px] text-red-700">{fieldErrors.invoice}</p>}
+            </label>
+
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12px] font-medium text-stone-600">Receipt No</span>
+              <input
+                type="text"
+                value={receiptNo}
+                onChange={(event) => {
+                  setReceiptNo(event.target.value);
+                  setFieldErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.receiptNo;
+                    return next;
+                  });
+                }}
+                className={`rounded-xl border px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e] ${
+                  fieldErrors.receiptNo
+                    ? "border-red-300 bg-red-50"
+                    : "border-stone-200 bg-white"
+                }`}
+                placeholder="e.g. RCP-202605-001"
+              />
+              {fieldErrors.receiptNo && <p className="text-[12px] text-red-700">{fieldErrors.receiptNo}</p>}
             </label>
 
             <label className="flex flex-col gap-1.5">
@@ -317,7 +386,7 @@ const NewReceiptPage = () => {
                   type="number"
                   min={0}
                   step="0.01"
-                  value={Number.isFinite(amountReceived) ? amountReceived : 0}
+                  value={Number.isFinite(effectiveAmountReceived) ? effectiveAmountReceived : 0}
                   onChange={(event) => {
                     setAmountTouched(true);
                     setAmountReceived(Number(event.target.value));
@@ -416,17 +485,38 @@ const NewReceiptPage = () => {
           </section>
         )}
 
-        {submitError && (
+        {submitError && !isErrorModalOpen && (
           <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
             {submitError}
           </p>
         )}
-
         {successMessage && (
           <p className="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-[13px] text-green-700">
             {successMessage}
           </p>
         )}
+      <ConfirmationModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={confirmSave}
+        title="Confirm Receipt Submission"
+        description={
+          <>
+            Are you sure you want to record this payment for invoice <strong>{selectedInvoice?.invoiceNo}</strong>?
+            <br />
+            Double check all details before confirming.
+          </>
+        }
+        confirmLabel="Save Receipt"
+        isLoading={saveMutation.isPending}
+      />
+
+      <ErrorModal
+        isOpen={isErrorModalOpen}
+        onClose={() => setIsErrorModalOpen(false)}
+        title="Oops, something went wrong"
+        message={submitError}
+      />
 
         <div className="flex justify-end gap-2">
           <Link

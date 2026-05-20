@@ -1,6 +1,7 @@
 "use client";
 
-import { Search, ArrowLeftRight, Download } from "lucide-react";
+import { useState } from "react";
+import { Search } from "lucide-react";
 import { StockOverviewRow, StockFilter, StockStatus } from "@/types/inventory";
 import { useLocations } from "@/hooks/useInventory";
 import Pagination from "rc-pagination";
@@ -27,18 +28,12 @@ const STATUS_CONFIG: Record<
   },
 };
 
-const BAR_COLOR: Record<StockStatus, string> = {
-  ok: "bg-green-500",
-  low: "bg-amber-500",
-  out: "bg-red-500",
-};
-
 interface Props {
   rows: StockOverviewRow[];
   filter: StockFilter;
   onFilterChange: (f: StockFilter) => void;
-  onRecordMovement: (row: StockOverviewRow) => void;
   onNewStockEntry: () => void;
+  onAdjusted?: () => void;
   pagination?: {
     page: number;
     pageSize: number;
@@ -51,9 +46,11 @@ export default function StockTable({
   rows,
   filter,
   onFilterChange,
-  onRecordMovement,
+  onAdjusted,
   pagination,
 }: Props) {
+  const [adjustRow, setAdjustRow] = useState<StockOverviewRow | null>(null);
+
   const set = (k: keyof StockFilter, v: StockFilter[keyof StockFilter]) => {
     onFilterChange({ ...filter, [k]: v });
     if (pagination) {
@@ -108,50 +105,6 @@ export default function StockTable({
           <option value="out">Out of Stock</option>
         </select>
 
-        <button
-          onClick={() => {
-            import("@/lib/exportCsv").then(({ exportToCsv }) => {
-              const headers = [
-                "Product Code",
-                "Product Name",
-                "Pack Size",
-                "Category",
-                "Location",
-                "Qty on Hand",
-                "Threshold",
-                "Status",
-              ];
-              const exportRows = rows.map((r) => [
-                r.product_code,
-                r.product_name,
-                r.pack_size,
-                r.category_name,
-                LOCATIONS.find((l) => l.id === r.location_id)?.code ||
-                  "",
-                String(r.quantity_on_hand),
-                String(r.reorder_threshold),
-                r.status,
-              ]);
-              exportToCsv(
-                `agrinova-stock-${new Date().toISOString().split("T")[0]}.csv`,
-                headers,
-                exportRows,
-              );
-              if (typeof window !== "undefined") {
-                const event = new CustomEvent("toast", {
-                  detail: {
-                    msg: `Exported ${exportRows.length} rows to CSV`,
-                    type: "success",
-                  },
-                });
-                window.dispatchEvent(event);
-              }
-            });
-          }}
-          className="ml-auto flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-stone-500 border border-stone-200 rounded-lg hover:bg-stone-50 transition-colors"
-        >
-          <Download size={12} /> Export
-        </button>
       </div>
 
       {/* Table */}
@@ -173,14 +126,12 @@ export default function StockTable({
                 "Product",
                 "Location",
                 "Qty on Hand",
-                "Threshold",
-                "Level",
                 "Status",
                 "Actions",
               ].map((h, i) => (
                 <th
                   key={h}
-                  className={`px-3.5 py-2.5 text-[11px] font-medium uppercase tracking-wide text-stone-400 bg-white ${i >= 3 && i <= 6 ? "text-right" : "text-left"} ${i === 7 ? "text-left" : ""}`}
+                  className={`px-3.5 py-2.5 text-[11px] font-medium uppercase tracking-wide text-stone-400 bg-white ${i === 3 || i === 4 ? "text-right" : "text-left"}`}
                 >
                   {h}
                 </th>
@@ -190,7 +141,7 @@ export default function StockTable({
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center">
+                <td colSpan={6} className="px-4 py-12 text-center">
                   <div className="text-stone-300 text-4xl mb-2">📦</div>
                   <p className="text-[14px] font-medium text-stone-500">
                     No products found
@@ -204,15 +155,12 @@ export default function StockTable({
               rows.map((row) => {
                 const s = row.status;
                 const cfg = STATUS_CONFIG[s];
-                const pct = Math.min(
-                  100,
-                  Math.round(
-                    (row.quantity_on_hand / (row.reorder_threshold * 3)) * 100,
-                  ),
-                );
                 const locObj = LOCATIONS.find(
                   (l) => l.id === row.location_id,
                 );
+                const locationLabel = row.is_aggregate
+                  ? "All Locations"
+                  : locObj?.code || row.location_code;
 
                 return (
                   <tr
@@ -232,24 +180,13 @@ export default function StockTable({
                     </td>
                     <td className="px-3.5 py-3">
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-800">
-                        {locObj?.code}
+                        {locationLabel}
                       </span>
                     </td>
                     <td className="px-3.5 py-3 text-right [font-family:var(--font-jetbrains)] text-[15px] font-bold text-stone-800">
                       {row.quantity_on_hand}
                     </td>
-                    <td className="px-3.5 py-3 text-right text-[13px] text-stone-400">
-                      {row.reorder_threshold}
-                    </td>
-                    <td className="px-3.5 py-3">
-                      <div className="w-[72px] h-1.5 bg-stone-100 rounded-full overflow-hidden ml-auto">
-                        <div
-                          className={`h-full rounded-full ${BAR_COLOR[s]}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </td>
-                    <td className="px-3.5 py-3">
+                    <td className="px-3.5 py-3 text-right">
                       <span
                         className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium ${cfg.badge}`}
                       >
@@ -260,15 +197,14 @@ export default function StockTable({
                       </span>
                     </td>
                     <td className="px-3.5 py-3">
-                      <div className="flex gap-1.5">
+                      {!row.is_aggregate && (
                         <button
-                          title="Record movement"
-                          onClick={() => onRecordMovement(row)}
-                          className="w-7 h-7 flex items-center justify-center rounded-md border border-stone-200 hover:bg-stone-100 text-stone-500 transition-colors"
+                          onClick={() => setAdjustRow(row)}
+                          className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium border border-stone-200 text-stone-600 hover:bg-stone-50"
                         >
-                          <ArrowLeftRight size={12} />
+                          Adjust
                         </button>
-                      </div>
+                      )}
                     </td>
                   </tr>
                 );
@@ -293,6 +229,111 @@ export default function StockTable({
           </div>
         )}
       </div>
+
+      {adjustRow && (
+        <AdjustStockModal
+          row={adjustRow}
+          onClose={() => setAdjustRow(null)}
+          onSaved={() => {
+            setAdjustRow(null);
+            onAdjusted?.();
+          }}
+        />
+      )}
     </>
+  );
+}
+
+function AdjustStockModal({
+  row,
+  onClose,
+  onSaved,
+}: {
+  row: StockOverviewRow;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [qty, setQty] = useState(String(row.quantity_on_hand));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSave = async () => {
+    const parsed = Number(qty);
+    if (!Number.isInteger(parsed) || parsed < 0) {
+      setError("Quantity must be a non-negative integer.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/stock/${row.stock_id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quantity_on_hand: parsed }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body.error ?? "Failed to adjust stock.");
+      }
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("toast", {
+            detail: { msg: "Stock adjusted successfully", type: "success" },
+          }),
+        );
+      }
+      onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to adjust stock.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="w-full max-w-[420px] rounded-xl border border-stone-200 bg-white shadow-md">
+        <div className="border-b border-stone-100 px-5 py-4">
+          <p className="text-[15px] font-semibold text-stone-900">Adjust Stock</p>
+          <p className="mt-1 text-[12px] text-stone-500">
+            {row.product_name} ({row.product_code})
+          </p>
+        </div>
+        <div className="space-y-3 px-5 py-4">
+          <label className="block text-[12px] font-medium text-stone-700">
+            New Quantity
+          </label>
+          <input
+            type="number"
+            min={0}
+            step={1}
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+            className="w-full rounded-lg border border-stone-200 px-3 py-2 text-[14px] text-stone-800 focus:border-blue-400 focus:outline-none"
+          />
+          {error && <p className="text-[12px] text-red-600">{error}</p>}
+        </div>
+        <div className="flex justify-end gap-2 border-t border-stone-100 bg-stone-50 px-5 py-3">
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-stone-200 px-3 py-1.5 text-[12px] text-stone-600 hover:bg-white"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="rounded-lg bg-green-700 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-green-800 disabled:opacity-60"
+          >
+            {saving ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

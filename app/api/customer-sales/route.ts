@@ -1,456 +1,310 @@
 import { NextResponse } from "next/server";
-import { InvoiceStatus } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-type DatePreset = "today" | "month" | "custom";
+type PeriodType = "daily" | "monthly" | "yearly" | "custom";
+type Risk = "all" | "clear" | "watch" | "overdue" | "inactive";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-function startOfDay(date: Date) {
-  const value = new Date(date);
-  value.setHours(0, 0, 0, 0);
-  return value;
+function startOfDay(d: Date) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
 }
 
-function endOfDay(date: Date) {
-  const value = new Date(date);
-  value.setHours(23, 59, 59, 999);
-  return value;
+function endOfDay(d: Date) {
+  const x = new Date(d);
+  x.setHours(23, 59, 59, 999);
+  return x;
 }
 
-function diffInDays(start: Date, end: Date) {
-  return Math.floor((end.getTime() - start.getTime()) / DAY_MS) + 1;
+function toNum(value: number | string | { toString(): string } | null | undefined) {
+  return Number(value ?? 0);
 }
 
-function toAmount(value: number | string | { toString(): string }) {
-  return Number(value);
-}
-
-function parseDatePreset(value: string | null): DatePreset {
-  if (value === "today") return "today";
-  if (value === "custom") return "custom";
-  return "month";
-}
-
-function getCurrentRange(
-  datePreset: DatePreset,
-  customStartRaw: string | null,
-  customEndRaw: string | null,
-) {
-  const now = new Date();
-  const end = endOfDay(now);
-
-  if (datePreset === "today") {
-    const start = startOfDay(now);
-    return { start, end, label: "Today", key: datePreset };
-  }
-
-  if (datePreset === "custom" && customStartRaw && customEndRaw) {
-    const customStart = new Date(customStartRaw);
-    const customEnd = new Date(customEndRaw);
-
-    if (!Number.isNaN(customStart.getTime()) && !Number.isNaN(customEnd.getTime())) {
-      const start = startOfDay(customStart);
-      const endDate = endOfDay(customEnd);
-      if (start <= endDate) {
-        return { start, end: endDate, label: "Custom", key: datePreset };
-      }
-    }
-  }
-
-  const start = startOfDay(new Date(end.getFullYear(), end.getMonth(), 1));
-  return { start, end, label: "This Month", key: "month" as const };
-}
-
-function makeTrendBuckets(start: Date, end: Date) {
-  const buckets: Array<{
-    key: string;
-    label: string;
-    currentSales: number;
-    previousSales: number;
-    collections: number;
-  }> = [];
-
-  for (let cursor = new Date(start); cursor <= end; cursor = new Date(cursor.getTime() + DAY_MS)) {
-    const key = cursor.toISOString().slice(0, 10);
-    const label = cursor.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "short",
-    });
-    buckets.push({ key, label, currentSales: 0, previousSales: 0, collections: 0 });
-  }
-
-  return buckets;
-}
-
-function canAccessDashboard(roleName?: string) {
+function canAccess(roleName?: string) {
   const role = roleName?.toLowerCase();
   return role === "admin" || role === "operator";
 }
 
+function parsePeriod(search: URLSearchParams) {
+  const now = new Date();
+  const periodTypeRaw = search.get("periodType");
+  const periodType: PeriodType =
+    periodTypeRaw === "daily" ||
+    periodTypeRaw === "monthly" ||
+    periodTypeRaw === "yearly" ||
+    periodTypeRaw === "custom"
+      ? periodTypeRaw
+      : "monthly";
+
+  if (periodType === "daily") {
+    const raw = search.get("date");
+    const base = raw ? new Date(raw) : now;
+    if (Number.isNaN(base.getTime())) throw new Error("Invalid date. Use YYYY-MM-DD.");
+    return {
+      startDate: startOfDay(base),
+      endDate: endOfDay(base),
+      label: base.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
+    };
+  }
+
+  if (periodType === "monthly") {
+    const raw = search.get("month");
+    const m = raw?.match(/^(\d{4})-(\d{2})$/);
+    const year = m ? Number(m[1]) : now.getFullYear();
+    const month = m ? Number(m[2]) - 1 : now.getMonth();
+    if (month < 0 || month > 11) throw new Error("Invalid month.");
+    const start = startOfDay(new Date(year, month, 1));
+    const end = endOfDay(new Date(year, month + 1, 0));
+    return { startDate: start, endDate: end, label: start.toLocaleDateString("en-GB", { month: "short", year: "numeric" }) };
+  }
+
+  if (periodType === "yearly") {
+    const raw = search.get("year");
+    const year = raw ? Number(raw) : now.getFullYear();
+    if (!Number.isInteger(year)) throw new Error("Invalid year.");
+    return {
+      startDate: startOfDay(new Date(year, 0, 1)),
+      endDate: endOfDay(new Date(year, 11, 31)),
+      label: String(year),
+    };
+  }
+
+  const fromRaw = search.get("from");
+  const toRaw = search.get("to");
+  if (!fromRaw || !toRaw) throw new Error("Custom period requires from and to.");
+  const from = new Date(fromRaw);
+  const to = new Date(toRaw);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+    throw new Error("Invalid custom dates.");
+  }
+  const start = startOfDay(from);
+  const end = endOfDay(to);
+  if (start > end) throw new Error("from cannot be after to.");
+  return {
+    startDate: start,
+    endDate: end,
+    label: `${start.toLocaleDateString("en-GB")} - ${end.toLocaleDateString("en-GB")}`,
+  };
+}
+
 export async function GET(request: Request) {
   const currentUser = await getCurrentUser();
-  if (!currentUser) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (!canAccessDashboard(currentUser.role?.role_name)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  if (!currentUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canAccess(currentUser.role?.role_name)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   try {
-    const url = new URL(request.url);
-    const datePreset = parseDatePreset(url.searchParams.get("datePreset"));
-    const currentRange = getCurrentRange(
-      datePreset,
-      url.searchParams.get("customStart"),
-      url.searchParams.get("customEnd"),
-    );
-    const periodDays = diffInDays(currentRange.start, currentRange.end);
+    const search = new URL(request.url).searchParams;
+    const period = parsePeriod(search);
+    const repIdRaw = search.get("repId");
+    const repId = repIdRaw && repIdRaw !== "all" ? Number(repIdRaw) : null;
+    if (repIdRaw && repIdRaw !== "all" && (!Number.isInteger(repId) || (repId as number) <= 0)) {
+      return NextResponse.json({ error: "Invalid repId." }, { status: 400 });
+    }
+    const risk = (search.get("risk") ?? "all") as Risk;
+    const safeRisk: Risk = ["all", "clear", "watch", "overdue", "inactive"].includes(risk) ? risk : "all";
+    const query = (search.get("search") ?? "").trim().toLowerCase();
 
-    const previousEnd = endOfDay(new Date(currentRange.start.getTime() - DAY_MS));
-    const previousStart = startOfDay(new Date(previousEnd.getTime() - (periodDays - 1) * DAY_MS));
-
-    const rangeInvoices = await 
+    const [periodInvoices, openInvoices, periodReceipts] = await Promise.all([
       prisma.invoice.findMany({
         where: {
-          invoice_date: {
-            gte: previousStart,
-            lte: currentRange.end,
-          },
-        },
-        select: {
-          invoice_id: true,
-          customer_id: true,
-          rep_id: true,
-          invoice_date: true,
-          total_amount: true,
-          status: true,
-          customer: {
-            select: {
-              name: true,
-            },
-          },
-          rep: {
-            select: {
-              full_name: true,
-            },
-          },
-          receipts: {
-            select: {
-              receipt_date: true,
-              amount_received: true,
-            },
-          },
-        },
-      });
-
-      const openInvoices = await prisma.invoice.findMany({
-        where: {
-          status: {
-            in: [InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE],
-          },
+          is_active: true,
+          invoice_date: { gte: period.startDate, lte: period.endDate },
+          ...(repId ? { rep_id: repId } : {}),
         },
         select: {
           invoice_id: true,
           customer_id: true,
           invoice_date: true,
           total_amount: true,
-          customer: {
-            select: {
-              name: true,
-              assigned_rep: {
-                select: {
-                  full_name: true,
-                },
-              },
-            },
-          },
-          receipts: {
-            select: {
-              amount_received: true,
-            },
-          },
+          credited_amount: true,
         },
-      });
-
-      const allCustomers = await prisma.customer.findMany({
+      }),
+      prisma.invoice.findMany({
+        where: {
+          is_active: true,
+          balance_amount: { gt: 0 },
+          invoice_date: { gte: period.startDate, lte: period.endDate },
+          ...(repId ? { rep_id: repId } : {}),
+        },
         select: {
           customer_id: true,
-          created_at: true,
+          invoice_date: true,
+          balance_amount: true,
         },
-      });
-
-      const recentInvoiceCustomers = await prisma.invoice.findMany({
+      }),
+      prisma.receipt.findMany({
         where: {
-          invoice_date: {
-            gte: startOfDay(new Date(currentRange.end.getTime() - 30 * DAY_MS)),
-            lte: currentRange.end,
-          },
-        },
-        distinct: ["customer_id"],
-        select: {
-          customer_id: true,
-        },
-      });
-
-      const currentReceipts = await prisma.receipt.findMany({
-        where: {
-          receipt_date: {
-            gte: currentRange.start,
-            lte: currentRange.end,
-          },
+          is_active: true,
+          is_returned: false,
+          receipt_date: { gte: period.startDate, lte: period.endDate },
+          invoice: repId ? { rep_id: repId } : undefined,
         },
         select: {
+          amount: true,
           receipt_date: true,
-          amount_received: true,
+          invoice: { select: { customer_id: true, invoice_date: true } },
         },
-      });
+      }),
+    ]);
 
-      const receiptsThisPeriod = await prisma.receipt.aggregate({
-        where: {
-          receipt_date: {
-            gte: currentRange.start,
-            lte: currentRange.end,
-          },
-        },
-        _sum: {
-          amount_received: true,
-        },
-      });
-
-
-    const currentInvoices = rangeInvoices.filter((invoice) => invoice.invoice_date >= currentRange.start);
-    const previousInvoices = rangeInvoices.filter((invoice) => invoice.invoice_date < currentRange.start);
-
-    const totalSalesThisPeriod = currentInvoices.reduce(
-      (sum, invoice) => sum + toAmount(invoice.total_amount),
-      0,
+    const relevantCustomerIds = Array.from(
+      new Set([
+        ...periodInvoices.map((i) => i.customer_id),
+        ...openInvoices.map((i) => i.customer_id),
+        ...periodReceipts.map((r) => r.invoice.customer_id),
+      ]),
     );
 
-    const collectionsThisPeriod = toAmount(receiptsThisPeriod._sum.amount_received ?? 0);
+    const customers =
+      relevantCustomerIds.length === 0
+        ? []
+        : await prisma.customer.findMany({
+            where: {
+              customer_id: { in: relevantCustomerIds },
+              ...(repId ? { assigned_rep_id: repId } : {}),
+            },
+            select: {
+              customer_id: true,
+              name: true,
+              phone: true,
+              assigned_rep: { select: { full_name: true } },
+            },
+          });
+    const now = new Date();
+    const customerRows = customers.map((c) => {
+      const invoices = periodInvoices.filter((i) => i.customer_id === c.customer_id);
+      const open = openInvoices.filter((i) => i.customer_id === c.customer_id);
+      const receipts = periodReceipts.filter((r) => r.invoice.customer_id === c.customer_id);
 
-    const topCustomerMap = new Map<
-      number,
-      {
-        customerId: number;
-        customerName: string;
-        salesRep: string;
-        totalSales: number;
-        outstanding: number;
-        lastPurchaseDate: Date;
-        invoiceCount: number;
-      }
-    >();
+      const netSales = invoices.reduce((s, i) => s + (toNum(i.total_amount) - toNum(i.credited_amount)), 0);
+      const collections = receipts.reduce((s, r) => s + toNum(r.amount), 0);
+      const outstanding = open.reduce((s, i) => s + toNum(i.balance_amount), 0);
+      const oldestOpen = open.length
+        ? open.reduce((min, i) => (i.invoice_date < min ? i.invoice_date : min), open[0].invoice_date)
+        : null;
+      const daysOutstanding = oldestOpen ? Math.max(0, Math.floor((now.getTime() - oldestOpen.getTime()) / DAY_MS)) : 0;
+      const overdueAmount = open
+        .filter((i) => Math.floor((now.getTime() - i.invoice_date.getTime()) / DAY_MS) > 30)
+        .reduce((s, i) => s + toNum(i.balance_amount), 0);
+      const lastPurchase = invoices.length
+        ? invoices.reduce((max, i) => (i.invoice_date > max ? i.invoice_date : max), invoices[0].invoice_date)
+        : null;
+      const inactiveDays = lastPurchase ? Math.floor((now.getTime() - lastPurchase.getTime()) / DAY_MS) : 9999;
+      const riskStatus: Exclude<Risk, "all"> =
+        overdueAmount > 0 ? "overdue" : inactiveDays > 60 ? "inactive" : outstanding > 0 ? "watch" : "clear";
 
-    for (const invoice of currentInvoices) {
-      const total = toAmount(invoice.total_amount);
-      const paid = invoice.receipts.reduce((sum, receipt) => sum + toAmount(receipt.amount_received), 0);
-      const outstanding = Math.max(0, total - paid);
-
-      const entry = topCustomerMap.get(invoice.customer_id) ?? {
-        customerId: invoice.customer_id,
-        customerName: invoice.customer.name,
-        salesRep: invoice.rep.full_name,
-        totalSales: 0,
-        outstanding: 0,
-        lastPurchaseDate: invoice.invoice_date,
-        invoiceCount: 0,
+      return {
+        customerId: c.customer_id,
+        name: c.name,
+        phone: c.phone,
+        salesRep: c.assigned_rep?.full_name ?? null,
+        netSales: Number(netSales.toFixed(2)),
+        collections: Number(collections.toFixed(2)),
+        outstanding: Number(outstanding.toFixed(2)),
+        overdueAmount: Number(overdueAmount.toFixed(2)),
+        oldestOpenInvoiceDate: oldestOpen ? oldestOpen.toISOString() : null,
+        daysOutstanding,
+        lastPurchaseDate: lastPurchase ? lastPurchase.toISOString() : null,
+        invoiceCount: invoices.length,
+        riskStatus,
       };
+    });
 
-      entry.totalSales += total;
-      entry.outstanding += outstanding;
-      entry.salesRep = invoice.rep.full_name;
-      entry.invoiceCount += 1;
-      if (invoice.invoice_date > entry.lastPurchaseDate) {
-        entry.lastPurchaseDate = invoice.invoice_date;
-      }
-      topCustomerMap.set(invoice.customer_id, entry);
-    }
+    const filtered = customerRows.filter((row) => {
+      if (safeRisk !== "all" && row.riskStatus !== safeRisk) return false;
+      if (!query) return true;
+      return (
+        row.name.toLowerCase().includes(query) ||
+        (row.phone ?? "").toLowerCase().includes(query) ||
+        (row.salesRep ?? "").toLowerCase().includes(query)
+      );
+    });
 
-    const topCustomers = Array.from(topCustomerMap.values())
-      .sort((a, b) => b.totalSales - a.totalSales)
-      .slice(0, 8)
-      .map((item) => ({
-        customer_id: item.customerId,
-        name: item.customerName,
-        total_sales: item.totalSales,
-        outstanding_balance: item.outstanding,
-        invoice_count: item.invoiceCount,
-      }));
-
-    const overdueByCustomer = new Map<
-      number,
+    const totals = filtered.reduce(
+      (acc, row) => {
+        acc.netSales += row.netSales;
+        acc.collections += row.collections;
+        acc.outstanding += row.outstanding;
+        acc.overdueAmount += row.overdueAmount;
+        if (row.invoiceCount > 0) acc.activeCustomers += 1;
+        return acc;
+      },
       {
-        customerId: number;
-        customerName: string;
-        salesRep: string;
-        outstanding: number;
-        daysOverdue: number;
-      }
-    >();
-
-    let totalOutstanding = 0;
-    for (const invoice of openInvoices) {
-      const total = toAmount(invoice.total_amount);
-      const paid = invoice.receipts.reduce((sum, receipt) => sum + toAmount(receipt.amount_received), 0);
-      const outstanding = Math.max(0, total - paid);
-      if (outstanding <= 0) continue;
-
-      totalOutstanding += outstanding;
-
-      const daysOverdue = Math.max(0, Math.floor((currentRange.end.getTime() - invoice.invoice_date.getTime()) / DAY_MS));
-      if (daysOverdue < 31) continue;
-
-      const entry = overdueByCustomer.get(invoice.customer_id) ?? {
-        customerId: invoice.customer_id,
-        customerName: invoice.customer.name,
-        salesRep: invoice.customer.assigned_rep?.full_name ?? "Unassigned",
-        outstanding: 0,
-        daysOverdue: 0,
-      };
-
-      entry.outstanding += outstanding;
-      entry.daysOverdue = Math.max(entry.daysOverdue, daysOverdue);
-      overdueByCustomer.set(invoice.customer_id, entry);
-    }
-
-    const overdueCustomers = Array.from(overdueByCustomer.values()).sort(
-      (a, b) => b.daysOverdue - a.daysOverdue || b.outstanding - a.outstanding,
-    ).map(item => ({
-      customer_id: item.customerId,
-      name: item.customerName,
-      rep_name: item.salesRep,
-      outstanding: item.outstanding,
-      days_overdue: item.daysOverdue,
-    }));
-
-    const salesByRepMap = new Map<
-      number,
-      {
-        repId: number;
-        repName: string;
-        totalSales: number;
-        collections: number;
-      }
-    >();
-
-    for (const invoice of currentInvoices) {
-      const repEntry = salesByRepMap.get(invoice.rep_id) ?? {
-        repId: invoice.rep_id,
-        repName: invoice.rep.full_name,
-        totalSales: 0,
+        netSales: 0,
         collections: 0,
-      };
+        outstanding: 0,
+        overdueAmount: 0,
+        activeCustomers: 0,
+      },
+    );
 
-      repEntry.totalSales += toAmount(invoice.total_amount);
-      repEntry.collections += invoice.receipts
-        .filter(
-          (receipt) =>
-            receipt.receipt_date >= currentRange.start && receipt.receipt_date <= currentRange.end,
-        )
-        .reduce((sum, receipt) => sum + toAmount(receipt.amount_received), 0);
-
-      salesByRepMap.set(invoice.rep_id, repEntry);
+    const aging = [
+      { bucket: "0-30", amount: 0 },
+      { bucket: "31-60", amount: 0 },
+      { bucket: "61-90", amount: 0 },
+      { bucket: "90+", amount: 0 },
+    ];
+    for (const inv of openInvoices) {
+      const days = Math.floor((now.getTime() - inv.invoice_date.getTime()) / DAY_MS);
+      const amt = toNum(inv.balance_amount);
+      if (days <= 30) aging[0].amount += amt;
+      else if (days <= 60) aging[1].amount += amt;
+      else if (days <= 90) aging[2].amount += amt;
+      else aging[3].amount += amt;
     }
 
-    const salesByRep = Array.from(salesByRepMap.values()).sort(
-      (a, b) => b.totalSales - a.totalSales,
-    ).map(item => ({
-      rep_id: item.repId,
-      rep_name: item.repName,
-      sales: item.totalSales,
-      collected: item.collections,
+    const dayMap = new Map<string, { sales: number; collections: number }>();
+    for (let cursor = new Date(period.startDate); cursor <= period.endDate; cursor = new Date(cursor.getTime() + DAY_MS)) {
+      const key = cursor.toISOString().slice(0, 10);
+      dayMap.set(key, { sales: 0, collections: 0 });
+    }
+    for (const inv of periodInvoices) {
+      const key = inv.invoice_date.toISOString().slice(0, 10);
+      const row = dayMap.get(key);
+      if (row) row.sales += toNum(inv.total_amount) - toNum(inv.credited_amount);
+    }
+    let weightedDays = 0;
+    let weightedAmount = 0;
+    for (const rec of periodReceipts) {
+      const key = rec.receipt_date.toISOString().slice(0, 10);
+      const row = dayMap.get(key);
+      const amt = toNum(rec.amount);
+      if (row) row.collections += amt;
+      const days = Math.max(0, Math.floor((rec.receipt_date.getTime() - rec.invoice.invoice_date.getTime()) / DAY_MS));
+      weightedDays += days * amt;
+      weightedAmount += amt;
+    }
+
+    const trend = Array.from(dayMap.entries()).map(([key, v]) => ({
+      label: new Date(key).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }),
+      sales: Number(v.sales.toFixed(2)),
+      collections: Number(v.collections.toFixed(2)),
     }));
-
-    const buckets = makeTrendBuckets(currentRange.start, currentRange.end);
-    const bucketIndex = new Map<string, number>();
-    for (let i = 0; i < buckets.length; i += 1) {
-      bucketIndex.set(buckets[i].key, i);
-    }
-
-    for (const receipt of currentReceipts) {
-      const key = receipt.receipt_date.toISOString().slice(0, 10);
-      const index = bucketIndex.get(key);
-      if (index !== undefined) {
-        buckets[index].collections += toAmount(receipt.amount_received);
-      }
-    }
-
-    for (const invoice of currentInvoices) {
-      const key = invoice.invoice_date.toISOString().slice(0, 10);
-      const index = bucketIndex.get(key);
-      if (index === undefined) continue;
-      buckets[index].currentSales += toAmount(invoice.total_amount);
-    }
-
-    for (const invoice of previousInvoices) {
-      const shiftedDate = new Date(invoice.invoice_date.getTime() + periodDays * DAY_MS);
-      const key = shiftedDate.toISOString().slice(0, 10);
-      const index = bucketIndex.get(key);
-      if (index === undefined) continue;
-      buckets[index].previousSales += toAmount(invoice.total_amount);
-    }
-
-    const trend = buckets.map((bucket) => ({
-      date: bucket.label,
-      sales: Number(bucket.currentSales.toFixed(2)),
-      collections: Number(bucket.collections.toFixed(2)),
-    }));
-
-    const recentBuyerIds = new Set(recentInvoiceCustomers.map((item) => item.customer_id));
-    const recentCutoff = startOfDay(new Date(currentRange.end.getTime() - 30 * DAY_MS));
-
-    let newCount = 0;
-    let activeCount = 0;
-    let inactiveCount = 0;
-
-    for (const customer of allCustomers) {
-      if (customer.created_at >= recentCutoff) {
-        newCount += 1;
-      } else if (recentBuyerIds.has(customer.customer_id)) {
-        activeCount += 1;
-      } else {
-        inactiveCount += 1;
-      }
-    }
 
     return NextResponse.json({
       period: {
-        key: currentRange.key,
-        label: currentRange.label,
-        startDate: currentRange.start.toISOString(),
-        endDate: currentRange.end.toISOString(),
+        startDate: period.startDate.toISOString(),
+        endDate: period.endDate.toISOString(),
+        label: period.label,
       },
-      kpis: {
-        totalSales: Number(totalSalesThisPeriod.toFixed(2)),
-        totalOutstanding: Number(totalOutstanding.toFixed(2)),
-        collections: Number(collectionsThisPeriod.toFixed(2)),
-        activeCustomers: recentBuyerIds.size,
-        overdueCustomers: overdueCustomers.length,
+      totals: {
+        netSales: Number(totals.netSales.toFixed(2)),
+        collections: Number(totals.collections.toFixed(2)),
+        outstanding: Number(totals.outstanding.toFixed(2)),
+        overdueAmount: Number(totals.overdueAmount.toFixed(2)),
+        activeCustomers: totals.activeCustomers,
+        avgCollectionDays: weightedAmount > 0 ? Number((weightedDays / weightedAmount).toFixed(1)) : null,
       },
-      salesTrend: trend,
-      outstandingVsCollections: {
-        outstanding: Number(totalOutstanding.toFixed(2)),
-        collected: Number(collectionsThisPeriod.toFixed(2)),
-      },
-      topCustomers,
-      overdueCustomers,
-      salesByRep,
-      customerSegments: { active: activeCount, inactive: inactiveCount, new: newCount },
-      summary: {
-        previousPeriodSales: Number(
-          previousInvoices
-            .reduce((sum, invoice) => sum + toAmount(invoice.total_amount), 0)
-            .toFixed(2),
-        ),
-      },
+      trend,
+      aging: aging.map((a) => ({ ...a, amount: Number(a.amount.toFixed(2)) })),
+      customers: filtered.sort((a, b) => b.netSales - a.netSales),
     });
   } catch (error) {
-    console.error("Failed to build customer sales dashboard", error);
-    return NextResponse.json(
-      { error: "Failed to load customer sales dashboard." },
-      { status: 500 },
-    );
+    console.error("Failed to load customer sales", error);
+    const message = error instanceof Error ? error.message : "Failed to load customer sales.";
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }

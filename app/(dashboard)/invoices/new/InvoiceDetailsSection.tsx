@@ -1,10 +1,15 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import SearchableSelect, { type SearchableSelectOption } from "@/components/SearchableSelect";
 import { ClipboardList } from "lucide-react";
 
 type InvoiceDetailsSectionProps = {
   invoiceNo: string;
   invoiceDate: string;
+  notes: string;
   invoiceNoError?: string;
+  invoiceNoStatus?: string;
   invoiceDateError?: string;
   salesRepError?: string;
   customerError?: string;
@@ -21,6 +26,7 @@ type InvoiceDetailsSectionProps = {
   hasRepSelected: boolean;
   onInvoiceNoChange: (value: string) => void;
   onInvoiceDateChange: (value: string) => void;
+  onNotesChange: (value: string) => void;
   onRepChange: (value: number | null) => void;
   onCustomerChange: (value: number | null) => void;
   onLocationChange: (value: number | null) => void;
@@ -29,7 +35,9 @@ type InvoiceDetailsSectionProps = {
 const InvoiceDetailsSection = ({
   invoiceNo,
   invoiceDate,
+  notes,
   invoiceNoError,
+  invoiceNoStatus,
   invoiceDateError,
   salesRepError,
   customerError,
@@ -46,10 +54,20 @@ const InvoiceDetailsSection = ({
   hasRepSelected,
   onInvoiceNoChange,
   onInvoiceDateChange,
+  onNotesChange,
   onRepChange,
   onCustomerChange,
   onLocationChange,
 }: InvoiceDetailsSectionProps) => {
+  const [invoiceNoDraft, setInvoiceNoDraft] = useState(invoiceNo);
+  const [isInvoiceNoFocused, setIsInvoiceNoFocused] = useState(false);
+
+  useEffect(() => {
+    if (!isInvoiceNoFocused) {
+      setInvoiceNoDraft(invoiceNo);
+    }
+  }, [invoiceNo, isInvoiceNoFocused]);
+
   const editableInputClassName =
     "rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 [font-family:var(--font-dmsans)] outline-none focus:border-[#1a5c2e]";
 
@@ -64,17 +82,26 @@ const InvoiceDetailsSection = ({
         </h2>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
+      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-6">
         <label className="flex flex-col gap-1.5">
           <span className="text-[12px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">Invoice No.</span>
           <input
             type="text"
             placeholder="fill"
-            value={invoiceNo}
-            onChange={(event) => onInvoiceNoChange(event.target.value)}
+            value={invoiceNoDraft}
+            onFocus={() => setIsInvoiceNoFocused(true)}
+            onBlur={() => setIsInvoiceNoFocused(false)}
+            onChange={(event) => {
+              const next = event.target.value;
+              setInvoiceNoDraft(next);
+              onInvoiceNoChange(next);
+            }}
             className={editableInputClassName}
           />
           {invoiceNoError && <p className="text-[12px] text-red-700 [font-family:var(--font-dmsans)]">{invoiceNoError}</p>}
+          {!invoiceNoError && invoiceNoStatus && (
+            <p className="text-[12px] text-stone-500 [font-family:var(--font-dmsans)]">{invoiceNoStatus}</p>
+          )}
         </label>
 
         <label className="flex flex-col gap-1.5">
@@ -133,6 +160,17 @@ const InvoiceDetailsSection = ({
             loading={locationsLoading}
           />
           {locationError && <p className="text-[12px] text-red-700 [font-family:var(--font-dmsans)]">{locationError}</p>}
+        </label>
+
+        <label className="flex flex-col gap-1.5 lg:col-span-2">
+          <span className="text-[12px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">Notes</span>
+          <input
+            type="text"
+            placeholder="Optional notes"
+            value={notes}
+            onChange={(event) => onNotesChange(event.target.value)}
+            className={editableInputClassName}
+          />
         </label>
       </div>
     </section>

@@ -55,9 +55,15 @@ export async function POST(req: Request) {
 
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
-    const msg =
-      err instanceof Error ? err.message : "Failed to create stock entry";
-    console.error("[POST /api/inventory/stock]", err);
-    return NextResponse.json({ error: msg }, { status: 400 });
+    console.error("[POST /api/inventory/stock] Error:", err);
+    const msg = err instanceof Error ? err.message : "Failed to create stock entry";
+    
+    let status = 400;
+    if (msg.includes("already exists") || msg.includes("unique GRN")) {
+      status = 409;
+    }
+
+    return NextResponse.json({ error: msg }, { status });
   }
 }
+

@@ -12,15 +12,20 @@ const prisma = new PrismaClient({ adapter });
 
 async function main() { 
 // Categories 
-const cats = await Promise.all([ 
-prisma.category.upsert({ where:{ tag:"FERT" }, update:{}, create:{ name:"Fertilizer", tag:"FERT" } }), 
-prisma.category.upsert({ where:{ tag:"FUNG" }, update:{}, create:{ name:"Fungicide", tag:"FUNG" } }), 
-prisma.category.upsert({ where:{ tag:"HERB" }, update:{}, create:{ name:"Herbicide", tag:"HERB" } }), 
-prisma.category.upsert({ where:{ tag:"INSC" }, update:{}, create:{ name:"Insecticide", tag:"INSC" } }), 
-prisma.category.upsert({ where:{ tag:"NEMA" }, update:{}, create:{ name:"Nematicide", tag:"NEMA" } }), 
-prisma.category.upsert({ where:{ tag:"SUPP" }, update:{}, create:{ name:"Supplement", tag:"SUPP" } }), 
-prisma.category.upsert({ where:{ tag:"SOIL" }, update:{}, create:{ name:"Soil", tag:"SOIL" } }), 
-]); 
+const ensureCategory = async (name: string, tag: string) => {
+  const existing = await prisma.category.findFirst({ where: { tag } });
+  return existing ?? prisma.category.create({ data: { name, tag } });
+};
+
+const cats = await Promise.all([
+ensureCategory("Fertilizer", "FERT"),
+ensureCategory("Fungicide", "FUNG"),
+ensureCategory("Herbicide", "HERB"),
+ensureCategory("Insecticide", "INSC"),
+ensureCategory("Nematicide", "NEMA"),
+ensureCategory("Supplement", "SUPP"),
+ensureCategory("Soil", "SOIL"),
+]);
  
 // Locations 
 const locs = await Promise.all([ 

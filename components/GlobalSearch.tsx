@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   Boxes,
   Package,
-  ArrowLeftRight,
   ClipboardList,
   FileText,
   Receipt,
@@ -64,14 +63,6 @@ const SEARCH_INDEX: SearchItem[] = [
     group: "Inventory",
     keywords: ["grn", "goods receiving", "incoming", "purchase", "import"],
   },
-  {
-    label: "Stock Movements",
-    description: "View issue / return / purchase history",
-    href: "/inventory/movements",
-    icon: <ArrowLeftRight size={15} />,
-    group: "Inventory",
-    keywords: ["movements", "transfer", "issue", "return", "adjustment"],
-  },
   // Operations
   {
     label: "Goods Issue Notes",
@@ -120,6 +111,14 @@ const SEARCH_INDEX: SearchItem[] = [
     icon: <UserCheck size={15} />,
     group: "Operations",
     keywords: ["sales rep", "representative", "rep"],
+  },
+  {
+    label: "Product Sale",
+    description: "Invoice-line product sale details",
+    href: "/sales-rep-sales",
+    icon: <TrendingUp size={15} />,
+    group: "Operations",
+    keywords: ["product sale", "item sales", "sales report"],
   },
   {
     label: "Commission",

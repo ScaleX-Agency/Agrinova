@@ -9,14 +9,14 @@ async function main() {
   console.log("Creating enum...");
   try {
     await pool.query("CREATE TYPE \"LocationStatus\" AS ENUM ('ACTIVE', 'INACTIVE');");
-  } catch(e) {
+  } catch {
     console.log("Enum already exists?");
   }
   
   console.log("Altering table...");
   try {
      await pool.query("ALTER TABLE \"INVENTORY_LOCATION\" ADD COLUMN \"address\" TEXT, ADD COLUMN \"status\" \"LocationStatus\" NOT NULL DEFAULT 'ACTIVE', ADD COLUMN \"created_at\" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, ADD COLUMN \"updated_at\" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;");
-  } catch(e) {
+  } catch {
     console.log("Columns already exist?");
   }
   

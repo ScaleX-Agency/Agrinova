@@ -5,8 +5,8 @@ import { unstable_cache, revalidateTag } from "next/cache";
 import type {
   StockOverviewRow,
   LocationSummary,
-  MovementRow,
-  CreateMovementDto,
+  StockTransferRecord,
+  CreateStockTransferDto,
   CreateStockEntryDto,
   CreateProductDto,
   PaginatedResult,
@@ -23,9 +23,6 @@ function computeStatus(
   return "ok";
 }
 
-function computeQtyDelta(type: string, qty: number): number {
-  return type === "ISSUE" || type === "ADJUSTMENT" ? -qty : qty;
-}
 
 // ── Stock ─────────────────────────────────────────────────────
 // unstable_cache: serves repeated page loads from memory, not Supabase.
@@ -37,7 +34,11 @@ export async function getAllStock(
   filters?: { search?: string; location_id?: number; status?: string },
 ): Promise<PaginatedResult<StockOverviewRow>> {
   // eslint-disable-next-line
-  const where: any = {};
+  const where: any = {
+    location: {
+      status: "ACTIVE",
+    },
+  };
   if (filters?.location_id) {
     where.location_id = filters.location_id;
   }
@@ -66,20 +67,22 @@ export async function getAllStock(
     }
   }
 
-  const total = await prisma.stock.count({ where });
-  const stocksRaw = await prisma.stock.findMany({
-    where,
-    include: {
-      product: { include: { category: true } },
-      location: true,
-    },
-    orderBy: [
-      { location: { location_id: "asc" } },
-      { product: { product_name: "asc" } },
-    ],
-    skip: (page - 1) * pageSize,
-    take: pageSize,
-  });
+  const [total, stocksRaw] = await Promise.all([
+    prisma.stock.count({ where }),
+    prisma.stock.findMany({
+      where,
+      include: {
+        product: { include: { category: true } },
+        location: true,
+      },
+      orderBy: [
+        { location: { location_id: "asc" } },
+        { product: { product_name: "asc" } },
+      ],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
 
   const items = stocksRaw.map((s) => {
     return {
@@ -125,7 +128,12 @@ export async function getAllStockByLocation(
    
 ): Promise<PaginatedResult<StockOverviewRow>> {
   // eslint-disable-next-line
-  const where: any = { location_id: locationId };
+  const where: any = {
+    location_id: locationId,
+    location: {
+      status: "ACTIVE",
+    },
+  };
 
   if (filters?.search) {
     where.OR = [
@@ -152,18 +160,20 @@ export async function getAllStockByLocation(
     }
   }
 
-  const total = await prisma.stock.count({ where });
-  const stocksRaw = await prisma.stock.findMany({
-    where,
-    include: {
-      product: { include: { category: true } },
-      location: true,
-    },
-    orderBy: [
-      { product: { product_name: "asc" } },
-      { stock_id: "asc" },
-    ],
-  });
+  const [total, stocksRaw] = await Promise.all([
+    prisma.stock.count({ where }),
+    prisma.stock.findMany({
+      where,
+      include: {
+        product: { include: { category: true } },
+        location: true,
+      },
+      orderBy: [
+        { product: { product_name: "asc" } },
+        { stock_id: "asc" },
+      ],
+    }),
+  ]);
 
   const items = stocksRaw.map((s) => ({
     stock_id: s.stock_id,
@@ -216,6 +226,7 @@ export const getLocationSummaries = unstable_cache(
         COUNT(CASE WHEN s.quantity_on_hand <= 0              THEN 1 END)      AS out_count
       FROM "INVENTORY_LOCATION" l
       LEFT JOIN "STOCK" s ON s.location_id = l.location_id
+      WHERE l.status = 'ACTIVE'
       GROUP BY l.location_id, l.code, l.name
       ORDER BY l.location_id
     `;
@@ -234,61 +245,68 @@ export const getLocationSummaries = unstable_cache(
   { revalidate: 30, tags: ["inventory", "summaries"] },
 );
 
-// ── Movements ─────────────────────────────────────────────────
+const getTransferPrefix = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `TRF-${year}${month}-`;
+};
 
-export async function getAllMovements(
+const getNextTransferNumber = async (
+  tx: Prisma.TransactionClient,
+  transferDate: Date,
+) => {
+  const prefix = getTransferPrefix(transferDate);
+  const latest = await tx.stockTransfer.findFirst({
+    where: { transfer_no: { startsWith: prefix } },
+    orderBy: { transfer_no: "desc" },
+    select: { transfer_no: true },
+  });
+  const latestSequence = latest
+    ? Number(latest.transfer_no.split("-").at(-1) ?? "0")
+    : 0;
+  return `${prefix}${String((Number.isFinite(latestSequence) ? latestSequence : 0) + 1).padStart(3, "0")}`;
+};
+
+export async function getStockTransfers(
   page: number = 1,
   pageSize: number = 20,
-   
-  filters?: { movement_type?: string; search?: string; location_id?: number },
-   
-): Promise<PaginatedResult<MovementRow>> {
-  // eslint-disable-next-line
-  const where: any = {};
-  if (filters?.movement_type && filters.movement_type !== "ALL") {
-    where.movement_type = filters.movement_type;
-  }
-  if (filters?.location_id) {
-    where.stock = { ...where.stock, location_id: filters.location_id };
-  }
-  if (filters?.search) {
-    where.OR = [
-      {
-        product: {
-          product_name: { contains: filters.search, mode: "insensitive" },
-        },
+  filters?: { dateFilter?: Prisma.DateTimeFilter },
+): Promise<PaginatedResult<StockTransferRecord>> {
+  const where = {
+    is_active: true,
+    ...(filters?.dateFilter ? { transfer_date: filters.dateFilter } : {}),
+  };
+  const [total, transfers] = await Promise.all([
+    prisma.stockTransfer.count({ where }),
+    prisma.stockTransfer.findMany({
+      where,
+      include: {
+        from_location: true,
+        to_location: true,
+        creator: true,
+        _count: { select: { lines: true } },
+        lines: { select: { quantity: true } },
       },
-      {
-        product: {
-          product_code: { contains: filters.search, mode: "insensitive" },
-        },
-      },
-    ];
-  }
+      orderBy: [{ transfer_date: "desc" }, { transfer_id: "desc" }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
 
-  const total = await prisma.stockMovement.count({ where });
-  const movs = await prisma.stockMovement.findMany({
-    where,
-    include: {
-      stock: { include: { location: true } },
-      product: true,
-      creator: true,
-    },
-    orderBy: { movement_date: "desc" },
-    skip: (page - 1) * pageSize,
-    take: pageSize,
-  });
-
-  const items = movs.map((m) => ({
-    movement_id: m.movement_id,
-    movement_date: m.movement_date.toISOString(),
-    movement_type: m.movement_type as MovementRow["movement_type"],
-    product_name: m.product.product_name,
-    product_code: m.product.product_code,
-    location_code: m.stock.location.code,
-    qty_delta: computeQtyDelta(m.movement_type, m.quantity),
-    notes: m.notes,
-    created_by_name: m.creator.full_name,
+  const items = transfers.map((transfer) => ({
+    transfer_id: transfer.transfer_id,
+    transfer_no: transfer.transfer_no,
+    transfer_date: transfer.transfer_date.toISOString(),
+    from_location_id: transfer.from_location_id,
+    from_location_code: transfer.from_location.code,
+    from_location_name: transfer.from_location.name,
+    to_location_id: transfer.to_location_id,
+    to_location_code: transfer.to_location.code,
+    to_location_name: transfer.to_location.name,
+    line_count: transfer._count.lines,
+    total_qty: transfer.lines.reduce((sum, line) => sum + line.quantity, 0),
+    notes: transfer.notes,
+    created_by_name: transfer.creator.full_name,
   }));
 
   return {
@@ -302,86 +320,171 @@ export async function getAllMovements(
   };
 }
 
-export async function getMovementsByLocation(
-  locationId: number,
-  page: number = 1,
-  pageSize: number = 20,
-  filters?: { movement_type?: string; search?: string },
-): Promise<PaginatedResult<MovementRow>> {
-  return getAllMovements(page, pageSize, {
-    ...filters,
-    location_id: locationId,
-  });
+export async function createStockTransfer(
+  dto: CreateStockTransferDto,
+  userId: number,
+) {
+  const fromLocationId = Number(dto.from_location_id);
+  const toLocationId = Number(dto.to_location_id);
+
+  if (!Number.isInteger(fromLocationId) || fromLocationId <= 0) {
+    throw new Error("from_location_id must be a positive integer.");
+  }
+  if (!Number.isInteger(toLocationId) || toLocationId <= 0) {
+    throw new Error("to_location_id must be a positive integer.");
+  }
+  if (fromLocationId === toLocationId) {
+    throw new Error("Source and destination locations must be different.");
+  }
+  if (!Array.isArray(dto.items) || dto.items.length === 0) {
+    throw new Error("At least one transfer line is required.");
+  }
+
+  const transferDate = new Date(dto.transfer_date);
+  if (Number.isNaN(transferDate.getTime())) {
+    throw new Error("transfer_date is invalid.");
+  }
+
+  const normalizedMap = dto.items.reduce<Map<number, number>>((map, line, idx) => {
+    const productId = Number(line.product_id);
+    const quantity = Number(line.quantity);
+    const lineNumber = idx + 1;
+    if (!Number.isInteger(productId) || productId <= 0) {
+      throw new Error(`Line ${lineNumber}: product_id must be a positive integer.`);
+    }
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      throw new Error(`Line ${lineNumber}: quantity must be a positive integer.`);
+    }
+    map.set(productId, (map.get(productId) ?? 0) + quantity);
+    return map;
+  }, new Map());
+
+  const productIds = Array.from(normalizedMap.keys());
+
+  const result = await prisma.$transaction(async (tx) => {
+    const [fromLocation, toLocation] = await Promise.all([
+      tx.inventoryLocation.findFirst({
+        where: { location_id: fromLocationId, status: "ACTIVE" },
+        select: { location_id: true, code: true },
+      }),
+      tx.inventoryLocation.findFirst({
+        where: { location_id: toLocationId, status: "ACTIVE" },
+        select: { location_id: true, code: true },
+      }),
+    ]);
+
+    if (!fromLocation || !toLocation) {
+      throw new Error("Both source and destination locations must be active.");
+    }
+
+    const products = await tx.product.findMany({
+      where: { product_id: { in: productIds } },
+      select: { product_id: true, product_code: true },
+    });
+    if (products.length !== productIds.length) {
+      throw new Error("One or more products were not found.");
+    }
+
+    const sourceStocks = await tx.stock.findMany({
+      where: {
+        location_id: fromLocationId,
+        product_id: { in: productIds },
+      },
+      select: {
+        stock_id: true,
+        product_id: true,
+        quantity_on_hand: true,
+      },
+    });
+    const sourceStockByProduct = new Map(sourceStocks.map((stock) => [stock.product_id, stock]));
+
+    for (const product of products) {
+      const source = sourceStockByProduct.get(product.product_id);
+      const requestedQty = normalizedMap.get(product.product_id) ?? 0;
+      if (!source) {
+        throw new Error(`Source stock not found for product ${product.product_code}.`);
+      }
+      if (source.quantity_on_hand < requestedQty) {
+        throw new Error(
+          `Insufficient stock for product ${product.product_code}. Available: ${source.quantity_on_hand}, requested: ${requestedQty}.`,
+        );
+      }
+    }
+
+    let transferNo = await getNextTransferNumber(tx, transferDate);
+    let transferCreated: { transfer_id: number; transfer_no: string } | null = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        transferCreated = await tx.stockTransfer.create({
+          data: {
+            transfer_no: transferNo,
+            transfer_date: transferDate,
+            from_location_id: fromLocationId,
+            to_location_id: toLocationId,
+            notes: dto.notes?.trim() || null,
+            created_by: userId,
+            lines: {
+              create: productIds.map((productId) => ({
+                product_id: productId,
+                quantity: normalizedMap.get(productId) ?? 0,
+              })),
+            },
+          },
+          select: { transfer_id: true, transfer_no: true },
+        });
+        break;
+      } catch (error) {
+        const isNoConflict =
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002" &&
+          Array.isArray(error.meta?.target) &&
+          (error.meta.target as string[]).includes("transfer_no");
+        if (!isNoConflict) throw error;
+        transferNo = await getNextTransferNumber(tx, transferDate);
+      }
+    }
+
+    if (!transferCreated) {
+      throw new Error("Unable to generate a unique transfer number. Please retry.");
+    }
+
+    for (const product of products) {
+      const quantity = normalizedMap.get(product.product_id) ?? 0;
+      const source = sourceStockByProduct.get(product.product_id)!;
+
+      await tx.stock.update({
+        where: { stock_id: source.stock_id },
+        data: { quantity_on_hand: { decrement: quantity } },
+      });
+
+      await tx.stock.upsert({
+        where: {
+          product_id_location_id: {
+            product_id: product.product_id,
+            location_id: toLocationId,
+          },
+        },
+        create: {
+          product_id: product.product_id,
+          location_id: toLocationId,
+          quantity_on_hand: quantity,
+        },
+        update: {
+          quantity_on_hand: { increment: quantity },
+        },
+      });
+
+    }
+
+    return transferCreated;
+  }, { timeout: 20000, maxWait: 10000 });
+
+  revalidateTag("inventory", "max");
+  revalidateTag("summaries", "max");
+  return result;
 }
 
 // ── Mutations (NOT cached — always hit DB) ────────────────────
-
-export async function createMovement(
-  dto: CreateMovementDto,
-  userId: number,
-): Promise<{
-  updatedStock: { stock_id: number; quantity_on_hand: number };
-  movement_id: number;
-}> {
-  const isAdjustment = dto.movement_type === "ADJUSTMENT";
-  const targetQty = isAdjustment
-    ? dto.resulting_quantity ?? dto.quantity
-    : undefined;
-
-  if (isAdjustment) {
-    if (!Number.isInteger(targetQty) || (targetQty as number) < 0) {
-      throw new Error("resulting_quantity must be a non-negative integer");
-    }
-  }
-
-  const { updatedStock, movement } = await prisma.$transaction(async (tx) => {
-    // Using a simple read since we can't do increment logic easily with target quantity (adjustment)
-    // without reading it first inside a transaction or resorting to raw query. Since it's in a single
-    // transaction block, any concurrent writes outside transaction logic might race unless we raw lock,
-    // but the `update` atomically decrements using `increment` below.
-    const stock = await tx.stock.findUniqueOrThrow({
-      where: { stock_id: dto.stock_id },
-    });
-
-    const delta = isAdjustment
-      ? (targetQty as number) - stock.quantity_on_hand
-      : computeQtyDelta(dto.movement_type, dto.quantity);
-
-    if (stock.quantity_on_hand + delta < 0) {
-      throw new Error("Insufficient stock for this movement");
-    }
-
-    const updated = await tx.stock.update({
-      where: { stock_id: dto.stock_id },
-      data: { quantity_on_hand: { increment: delta } },
-    });
-
-    const mov = await tx.stockMovement.create({
-      data: {
-        stock_id: dto.stock_id,
-        product_id: stock.product_id,
-        created_by: userId,
-        movement_type: dto.movement_type,
-        quantity: dto.quantity,
-        movement_date: new Date(),
-        notes: dto.notes ?? null,
-      },
-    });
-
-    return { updatedStock: updated, movement: mov };
-  });
-
-  // Bust server-side cache so next RSC render gets fresh data
-  revalidateTag("inventory", "max");
-
-  return {
-    updatedStock: {
-      stock_id: updatedStock.stock_id,
-      quantity_on_hand: updatedStock.quantity_on_hand,
-    },
-    movement_id: movement.movement_id,
-  };
-}
 
 export async function getAllProducts(
   page: number = 1,
@@ -403,7 +506,7 @@ export async function getAllProducts(
     ];
   }
 
-  const [total, products] = await prisma.$transaction([
+  const [total, products] = await Promise.all([
     prisma.product.count({ where }),
     prisma.product.findMany({
       where,
@@ -421,6 +524,7 @@ export async function getAllProducts(
     product_name: p.product_name,
     pack_size: p.pack_size,
     selling_price: Number(p.selling_price),
+    reorder_threshold: p.reorder_threshold,
     category: p.category,
   }));
 
@@ -451,29 +555,81 @@ export async function getProductStats() {
   };
 }
 
-export async function createProduct(dto: CreateProductDto, userId?: number) {
+export async function getNextProductCode(categoryId: number) {
   const category = await prisma.category.findUniqueOrThrow({
+    where: { category_id: categoryId },
+    select: { tag: true },
+  });
+  const tag = category.tag?.trim();
+  if (!tag) {
+    return null;
+  }
+
+  const products = await prisma.product.findMany({
+    where: { category_id: categoryId },
+    select: { product_code: true },
+  });
+
+  const maxNumber = products.reduce((max, product) => {
+    if (!product.product_code.startsWith(tag)) return max;
+    const suffix = product.product_code.slice(tag.length);
+    if (!/^\d+$/.test(suffix)) return max;
+    return Math.max(max, Number(suffix));
+  }, 0);
+
+  return `${tag}${String(maxNumber + 1).padStart(3, "0")}`;
+}
+
+export async function isProductCodeUnique(productCode: string, excludeProductId?: number) {
+  const existing = await prisma.product.findUnique({
+    where: { product_code: productCode.trim().toUpperCase() },
+    select: { product_id: true },
+  });
+
+  return !existing || existing.product_id === excludeProductId;
+}
+
+export async function createProduct(dto: CreateProductDto, userId?: number) {
+  await prisma.category.findUniqueOrThrow({
     where: { category_id: dto.category_id },
   });
-  const count = await prisma.product.count({
-    where: { category_id: dto.category_id },
-  });
-  const product_code = `${category.tag}${String(count + 1).padStart(3, "0")}`;
+  const generatedProductCode = await getNextProductCode(dto.category_id);
+  const product_code = (dto.product_code?.trim() || generatedProductCode || "").toUpperCase();
+
+  if (!product_code) {
+    throw new Error("Product code is required.");
+  }
+
+  if (!(await isProductCodeUnique(product_code))) {
+    throw new Error("Product code already exists.");
+  }
 
   const product = await prisma.$transaction(async (tx) => {
-    const createdProduct = await tx.product.create({
-      data: {
-        product_name: dto.product_name,
-        pack_size: dto.pack_size,
-        category_id: dto.category_id,
-        selling_price: dto.selling_price,
-        product_code,
-      },
-      include: { category: true },
-    });
+    let createdProduct;
+    try {
+      createdProduct = await tx.product.create({
+        data: {
+          product_name: dto.product_name,
+          pack_size: dto.pack_size,
+          category_id: dto.category_id,
+          selling_price: dto.selling_price,
+          reorder_threshold: dto.reorder_threshold ?? 0,
+          product_code,
+        },
+        include: { category: true },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        throw new Error("Product code already exists.");
+      }
+      throw error;
+    }
 
     if (dto.initial_qty && dto.initial_qty > 0 && dto.location_id && userId) {
-      const stock = await tx.stock.create({
+      await tx.stock.create({
         data: {
           product_id: createdProduct.product_id,
           location_id: dto.location_id,
@@ -481,21 +637,10 @@ export async function createProduct(dto: CreateProductDto, userId?: number) {
         },
       });
 
-      await tx.stockMovement.create({
-        data: {
-          stock_id: stock.stock_id,
-          product_id: createdProduct.product_id,
-          created_by: userId,
-          movement_type: "PURCHASE",
-          quantity: dto.initial_qty,
-          movement_date: new Date(),
-          notes: "Initial stock addition",
-        },
-      });
     }
 
     return createdProduct;
-  });
+  }, { timeout: 20000, maxWait: 10000 });
 
   revalidateTag("inventory", "max");
   return product;
@@ -696,14 +841,6 @@ export async function createStockEntry(
       existingStocks.map((stock) => [stock.product_id, stock]),
     );
 
-    const movementNote = [
-      `GRN ${createdNote.grn_number}`,
-      dto.reference_no?.trim() ? `Ref: ${dto.reference_no.trim()}` : null,
-      dto.notes?.trim() ? dto.notes.trim() : null,
-    ]
-      .filter(Boolean)
-      .join(" • ");
-
     const stockUpdates: Array<{
       stock_id: number;
       product_id: number;
@@ -725,18 +862,6 @@ export async function createStockEntry(
             },
           });
 
-      await tx.stockMovement.create({
-        data: {
-          stock_id: stock.stock_id,
-          product_id: productId,
-          created_by: userId,
-          movement_type: "PURCHASE",
-          quantity: qty,
-          movement_date: entryDate,
-          notes: movementNote || "Stock received via GRN.",
-        },
-      });
-
       stockUpdates.push({
         stock_id: stock.stock_id,
         product_id: productId,
@@ -749,7 +874,7 @@ export async function createStockEntry(
       grn_number: createdNote.grn_number,
       stock_updates: stockUpdates,
     };
-  });
+  }, { timeout: 20000, maxWait: 10000 });
 
   revalidateTag("inventory", "max");
   return result;
@@ -761,16 +886,26 @@ export async function getAllCategories() {
   });
 }
 
-export async function createCategory(dto: { name: string; tag: string }) {
+export async function createCategory(dto: { name: string; tag?: string | null }) {
   const name = dto.name.trim();
-  const tag = dto.tag.trim().toUpperCase();
+  const tag = dto.tag?.trim().toUpperCase() || null;
 
   if (!name) {
     throw new Error("Category name is required");
   }
 
-  if (!tag) {
-    throw new Error("Category tag is required");
+  if (tag && !/^[A-Z0-9]{2,10}$/.test(tag)) {
+    throw new Error("Category tag must be 2-10 letters or numbers");
+  }
+
+  if (tag) {
+    const existingTag = await prisma.category.findFirst({
+      where: { tag },
+      select: { category_id: true },
+    });
+    if (existingTag) {
+      throw new Error("Category tag already exists");
+    }
   }
 
   const category = await prisma.category.create({
@@ -795,6 +930,7 @@ export async function updateProduct(
       pack_size: dto.pack_size,
       category_id: dto.category_id,
       selling_price: dto.selling_price,
+      reorder_threshold: dto.reorder_threshold,
     },
     include: { category: true },
   });
@@ -834,33 +970,18 @@ export async function importStock(data: any[], userId: number) {
       },
     });
 
-    let stock;
-    if (existing) {
-      stock = await prisma.stock.update({
+    const stock = existing
+      ? await prisma.stock.update({
         where: { stock_id: existing.stock_id },
         data: { quantity_on_hand: { increment: qty } },
-      });
-    } else {
-      stock = await prisma.stock.create({
+      })
+      : await prisma.stock.create({
         data: {
           product_id: product.product_id,
           location_id: location.location_id,
           quantity_on_hand: qty,
         },
       });
-    }
-
-    await prisma.stockMovement.create({
-      data: {
-        stock_id: stock.stock_id,
-        product_id: product.product_id,
-        created_by: userId,
-        movement_type: row.entry_type || "PURCHASE",
-        quantity: qty,
-        movement_date: row.date ? new Date(row.date) : new Date(),
-        notes: row.notes || "Imported stock",
-      },
-    });
 
     imported.push(stock);
   }
@@ -869,47 +990,10 @@ export async function importStock(data: any[], userId: number) {
   return imported;
 }
 
-export async function deleteMovement(movementId: number) {
-  const result = await prisma.$transaction(async (tx) => {
-    const movement = await tx.stockMovement.findUnique({
-      where: { movement_id: movementId },
-    });
-    if (!movement) throw new Error("Movement not found");
-
-    const stock = await tx.stock.findUnique({
-      where: { stock_id: movement.stock_id },
-    });
-    if (!stock) throw new Error("Stock not found");
-
-    let stockDeltaToApply = 0;
-    if (movement.movement_type === "ISSUE") {
-        stockDeltaToApply = movement.quantity; // It was subtracted, now add
-    } else if (movement.movement_type === "PURCHASE" || movement.movement_type === "RETURN") {
-        stockDeltaToApply = -movement.quantity; // It was added, now subtract
-    } else if (movement.movement_type === "ADJUSTMENT") {
-        stockDeltaToApply = -movement.quantity; // Reverse exact delta (positive becomes negative, negative becomes positive)
-    }
-
-    if (stock.quantity_on_hand + stockDeltaToApply < 0) {
-      throw new Error("Insufficient stock to revert this movement");
-    }
-
-    await tx.stock.update({
-      where: { stock_id: stock.stock_id },
-      data: { quantity_on_hand: { increment: stockDeltaToApply } },
-    });
-
-    await tx.stockMovement.delete({ where: { movement_id: movementId } });
-    return movement;
-  });
-
-  revalidateTag("inventory", "max");
-  return result;
-}
-
 export async function getAllLocations() {
   return prisma.inventoryLocation.findMany({
     where: { status: "ACTIVE" },
     orderBy: { location_id: "asc" },
   });
 }
+

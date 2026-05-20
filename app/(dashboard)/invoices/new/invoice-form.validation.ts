@@ -14,11 +14,14 @@ export const invoiceLineSchema = z.object({
   productId: z.number({ error: "Select a product." }).int().positive(),
   qty: z.number({ error: "Enter a quantity." }).int().min(1, "Quantity must be at least 1."),
   unitPrice: z.number({ error: "Enter a unit price." }).min(0, "Unit price must be 0 or greater."),
+  promotionType: z.enum(["NONE", "DISCOUNT", "FREE_QTY"]),
   discount: z
     .number({ error: "Enter a discount." })
     .min(0, "Discount must be 0 or greater.")
     .max(100, "Discount must be 100 or less."),
+  freeQty: z.number({ error: "Enter a free quantity." }).int().min(0, "Free quantity must be 0 or greater."),
   lineTotal: z.number({ error: "Enter a line total." }).min(0, "Line total must be 0 or greater."),
+  netLineTotal: z.number({ error: "Enter a net line total." }).min(0, "Net line total must be 0 or greater."),
 });
 
 const invoiceValidationSchema = z.object({

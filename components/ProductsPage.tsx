@@ -24,8 +24,9 @@ interface Product {
   product_name: string;
   pack_size: string;
   selling_price: number;
+  reorder_threshold: number;
   category_id: number;
-  category: { category_id: number; name: string; tag: string };
+  category: { category_id: number; name: string; tag: string | null };
 }
 
 // ── Category badge colours ────────────────────────────────────

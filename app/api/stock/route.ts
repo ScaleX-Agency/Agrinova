@@ -10,8 +10,9 @@ export async function GET() {
   try {
     const data = await getAllStock();
     return NextResponse.json({ data });
-  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to load stock.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -58,7 +59,16 @@ export async function POST(req: NextRequest) {
 
     const data = await createStockEntry(body, currentUser.user_id);
     return NextResponse.json({ data }, { status: 201 });
-  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err: unknown) {
+    console.error("[POST /api/stock] Error:", err);
+    const msg = err instanceof Error ? err.message : "Failed to create stock entry";
+    
+    let status = 400;
+    if (msg.includes("already exists") || msg.includes("unique GRN")) {
+      status = 409;
+    }
+
+    return NextResponse.json({ error: msg }, { status });
   }
 }
+

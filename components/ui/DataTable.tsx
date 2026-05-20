@@ -40,6 +40,8 @@ type DataTableProps<TData> = {
   hideSearch?: boolean;
   hidePagination?: boolean;
   toolbarRight?: React.ReactNode;
+  isLoading?: boolean;
+  rowClassName?: (row: TData) => string;
 };
 
 const alignClassName = (align: Alignment) => {
@@ -59,6 +61,8 @@ function DataTable<TData>({
   hideSearch = false,
   hidePagination = false,
   toolbarRight,
+  isLoading = false,
+  rowClassName,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -168,7 +172,19 @@ function DataTable<TData>({
             ))}
           </thead>
           <tbody>
-            {table.getRowModel().rows.length === 0 ? (
+            {isLoading ? (
+              <tr>
+                <td
+                  colSpan={table.getAllColumns().length}
+                  className="px-4 py-16 text-center text-[13px] text-stone-500"
+                >
+                  <div className="flex flex-col items-center justify-center gap-3">
+                    <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#1a5c2e] border-t-transparent"></span>
+                    <span>Loading data...</span>
+                  </div>
+                </td>
+              </tr>
+            ) : table.getRowModel().rows.length === 0 ? (
               <tr>
                 <td
                   colSpan={table.getAllColumns().length}
@@ -179,7 +195,7 @@ function DataTable<TData>({
               </tr>
             ) : (
               table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="border-b border-stone-100 hover:bg-stone-50">
+                <tr key={row.id} className={`border-b border-stone-100 hover:bg-stone-50 ${rowClassName ? rowClassName(row.original) : ""}`}>
                   {row.getVisibleCells().map((cell) => {
                     const meta = cell.column.columnDef.meta;
                     const align = meta?.align ?? "left";

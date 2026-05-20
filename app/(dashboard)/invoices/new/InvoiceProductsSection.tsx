@@ -1,13 +1,21 @@
+"use client";
+
 import { useMemo } from "react";
-import { Boxes, Plus, Trash2 } from "lucide-react";
+import { Boxes, Plus, Trash2, Tag, Gift } from "lucide-react";
 import { createColumnHelper } from "@tanstack/react-table";
 import SearchableSelect, { type SearchableSelectOption } from "@/components/SearchableSelect";
 import NumericStepperInput from "@/components/NumericStepperInput";
-import type { AvailableProduct, InvoiceLine } from "./invoice-form.types";
-import { clamp, formatCurrency } from "./invoice-form.utils";
+import type { AvailableProduct, InvoiceLine, LinePromotionType } from "./invoice-form.types";
+import { clamp, formatCurrency, canAddInvoiceLines } from "./invoice-form.utils";
 import TanStackTable, { type TableColumnMeta } from "../../../../components/TanStackTable";
 
 const columnHelper = createColumnHelper<InvoiceLine>();
+
+const PROMO_OPTIONS: { value: LinePromotionType; label: string }[] = [
+  { value: "NONE", label: "None" },
+  { value: "DISCOUNT", label: "Discount %" },
+  { value: "FREE_QTY", label: "Free Qty" },
+];
 
 type InvoiceProductsSectionProps = {
   lines: InvoiceLine[];
@@ -21,7 +29,9 @@ type InvoiceProductsSectionProps = {
   onChangeProduct: (lineId: number, productId: number | null) => void;
   onChangeQty: (lineId: number, qty: number) => void;
   onChangeUnitPrice: (lineId: number, unitPrice: number) => void;
+  onChangePromoType: (lineId: number, promoType: LinePromotionType) => void;
   onChangeDiscount: (lineId: number, discount: number) => void;
+  onChangeFreeQty: (lineId: number, freeQty: number) => void;
   onRemoveLine: (lineId: number) => void;
   onAddLine: () => void;
   onClearProducts: () => void;
@@ -39,7 +49,9 @@ const InvoiceProductsSection = ({
   onChangeProduct,
   onChangeQty,
   onChangeUnitPrice,
+  onChangePromoType,
   onChangeDiscount,
+  onChangeFreeQty,
   onRemoveLine,
   onAddLine,
   onClearProducts,
@@ -52,15 +64,32 @@ const InvoiceProductsSection = ({
     ),
     [lines],
   );
+  const selectedProductIdsSignature = useMemo(
+    () =>
+      lines
+        .map((line) => line.productId)
+        .filter((productId): productId is number => typeof productId === "number")
+        .sort((a, b) => a - b)
+        .join(","),
+    [lines],
+  );
+
+  // Build a quick lookup of stock by product id
+  const stockByProductId = useMemo(() => {
+    const map: Record<number, number> = {};
+    for (const p of availableProducts) map[p.id] = p.quantityOnHand;
+    return map;
+  }, [availableProducts]);
 
   const columns = useMemo(
     () => [
+      // ── Product ────────────────────────────────────────────────
       columnHelper.accessor("productId", {
         id: "product",
         header: "Product",
         meta: { align: "left" } satisfies TableColumnMeta,
         cell: (info) => (
-          <div className="w-[280px] max-w-full">
+          <div className="w-[240px] max-w-full">
             <SearchableSelect
               value={info.row.original.productId}
               onChange={(value) => onChangeProduct(info.row.original.id, value)}
@@ -78,10 +107,12 @@ const InvoiceProductsSection = ({
           </div>
         ),
       }),
+
+      // ── Qty ────────────────────────────────────────────────────
       columnHelper.accessor("qty", {
         id: "qty",
         header: "Qty",
-        size: 160,
+        size: 130,
         meta: { align: "center", fixedWidth: true } satisfies TableColumnMeta,
         cell: (info) => (
           <NumericStepperInput
@@ -95,10 +126,12 @@ const InvoiceProductsSection = ({
           />
         ),
       }),
+
+      // ── Unit Price ─────────────────────────────────────────────
       columnHelper.accessor("unitPrice", {
         id: "unitPrice",
         header: "Unit Price (LKR)",
-        size: 190,
+        size: 170,
         meta: { align: "center", fixedWidth: true } satisfies TableColumnMeta,
         cell: (info) => (
           <NumericStepperInput
@@ -112,52 +145,141 @@ const InvoiceProductsSection = ({
           />
         ),
       }),
-      columnHelper.accessor("discount", {
-        id: "discount",
-        header: "Discount %",
-        size: 170,
-        meta: { align: "center", fixedWidth: true } satisfies TableColumnMeta,
-        cell: (info) => (
-          <NumericStepperInput
-            value={info.row.original.discount}
-            onChange={(value) => onChangeDiscount(info.row.original.id, clamp(value, 0))}
-            min={0}
-            max={100}
-            step={0.5}
-            precision={2}
-            minChars={5}
-            className="mx-auto"
-          />
-        ),
-      }),
+
+      // ── Line Total (before promo) ──────────────────────────────
       columnHelper.display({
-        id: "lineSubtotal",
-        header: "Line Total (Before Discount)",
-        size: 190,
+        id: "lineTotal",
+        header: "Line Total",
+        size: 160,
         meta: { align: "center", fixedWidth: true } satisfies TableColumnMeta,
         cell: (info) => {
           const { qty, unitPrice } = info.row.original;
-          const lineSubtotal = qty * unitPrice;
-          return <span className="font-medium text-stone-800">{formatCurrency(lineSubtotal)}</span>;
+          return (
+            <span className="font-medium text-stone-700 tabular-nums">
+              {formatCurrency(qty * unitPrice)}
+            </span>
+          );
         },
       }),
-      columnHelper.accessor("lineTotal", {
-        id: "lineTotal",
-        header: "Line Total (After Discount)",
-        size: 190,
+
+      // ── Promo Type selector ────────────────────────────────────
+      columnHelper.accessor("promotionType", {
+        id: "promotionType",
+        header: "Promotion",
+        size: 150,
         meta: { align: "center", fixedWidth: true } satisfies TableColumnMeta,
-        cell: (info) => <span className="font-semibold text-stone-900">{formatCurrency(info.row.original.lineTotal)}</span>,
+        cell: (info) => {
+          const current = info.row.original.promotionType;
+          return (
+            <select
+              value={current}
+              onChange={(e) =>
+                onChangePromoType(info.row.original.id, e.target.value as LinePromotionType)
+              }
+              className="w-full rounded-lg border border-stone-300 bg-white px-2 py-1.5 text-[12px] text-stone-800 focus:border-[#1a5c2e] focus:outline-none [font-family:var(--font-dmsans)]"
+            >
+              {PROMO_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          );
+        },
       }),
+
+      // ── Promo Input (Discount % or Free Qty) ──────────────────
+      columnHelper.display({
+        id: "promoInput",
+        header: "Promo Value",
+        size: 175,
+        meta: { align: "center", fixedWidth: true } satisfies TableColumnMeta,
+        cell: (info) => {
+          const line = info.row.original;
+          const stock = line.productId ? (stockByProductId[line.productId] ?? 0) : 0;
+          const maxFreeQty = Math.max(0, stock - line.qty);
+
+          if (line.promotionType === "DISCOUNT") {
+            return (
+              <div className="flex items-center justify-center gap-1">
+                <span className="inline-flex items-center justify-center rounded-md bg-amber-50 p-1 text-amber-600">
+                  <Tag size={11} />
+                </span>
+                <NumericStepperInput
+                  value={line.discount}
+                  onChange={(value) =>
+                    onChangeDiscount(line.id, clamp(Math.min(100, value), 0))
+                  }
+                  min={0}
+                  max={100}
+                  step={0.5}
+                  precision={2}
+                  minChars={5}
+                  className="mx-auto"
+                />
+                <span className="text-[11px] text-stone-500">%</span>
+              </div>
+            );
+          }
+
+          if (line.promotionType === "FREE_QTY") {
+            return (
+              <div className="flex items-center justify-center gap-1">
+                <span className="inline-flex items-center justify-center rounded-md bg-emerald-50 p-1 text-emerald-600">
+                  <Gift size={11} />
+                </span>
+                <NumericStepperInput
+                  value={line.freeQty}
+                  onChange={(value) =>
+                    onChangeFreeQty(line.id, clamp(Math.min(maxFreeQty, value), 0))
+                  }
+                  min={0}
+                  max={maxFreeQty}
+                  step={1}
+                  precision={0}
+                  minChars={3}
+                  className="mx-auto"
+                />
+                {maxFreeQty === 0 && (
+                  <span className="text-[10px] text-red-500" title="No stock left for free qty">!</span>
+                )}
+              </div>
+            );
+          }
+
+          // NONE — show dash
+          return <span className="text-[12px] text-stone-400">—</span>;
+        },
+      }),
+
+      // ── Net Line Total ─────────────────────────────────────────
+      columnHelper.accessor("netLineTotal", {
+        id: "netLineTotal",
+        header: "Net Total",
+        size: 160,
+        meta: { align: "center", fixedWidth: true } satisfies TableColumnMeta,
+        cell: (info) => {
+          const line = info.row.original;
+          const hasPromo = line.promotionType !== "NONE";
+          return (
+            <span className={`font-semibold tabular-nums ${hasPromo ? "text-[#1a5c2e]" : "text-stone-900"}`}>
+              {formatCurrency(line.netLineTotal)}
+            </span>
+          );
+        },
+      }),
+
+      // ── Remove ────────────────────────────────────────────────
       columnHelper.display({
         id: "actions",
         header: "Action",
-        size: 120,
+        size: 100,
         meta: { align: "center", fixedWidth: true } satisfies TableColumnMeta,
         cell: (info) => (
           <button
             type="button"
             onClick={() => onRemoveLine(info.row.original.id)}
-            className="inline-flex items-center justify-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-[12px] font-medium text-red-700"
+            className="inline-flex items-center justify-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-[12px] font-medium text-red-700 transition hover:bg-red-100"
           >
             <Trash2 size={12} />
             Remove
@@ -169,16 +291,18 @@ const InvoiceProductsSection = ({
     [
       availableProducts.length,
       columnHelper,
-      formatCurrency,
       isLoadingRelevantProducts,
       locationId,
       onChangeDiscount,
+      onChangeFreeQty,
       onChangeProduct,
+      onChangePromoType,
       onChangeQty,
       onChangeUnitPrice,
       onRemoveLine,
       productSelectOptions,
-      selectedProductIds,
+      selectedProductIdsSignature,
+      stockByProductId,
     ],
   );
 
@@ -208,13 +332,14 @@ const InvoiceProductsSection = ({
       {fieldError && <p className="mb-2 text-[12px] text-red-700 [font-family:var(--font-dmsans)]">{fieldError}</p>}
       {productsActionError && <p className="mb-2 text-[12px] text-red-700 [font-family:var(--font-dmsans)]">{productsActionError}</p>}
 
-      <TanStackTable data={lines} columns={columns} minWidthPx={840} align="center" />
+      <TanStackTable data={lines} columns={columns} minWidthPx={1100} align="center" />
 
       <div className="mt-3 flex flex-wrap items-center justify-start gap-2">
         <button
           type="button"
           onClick={onAddLine}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] transition hover:bg-[#eeeffe] [font-family:var(--font-dmsans)]"
+          disabled={!canAddInvoiceLines(locationId, availableProducts, isLoadingRelevantProducts)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-[#c0c3f0] px-2.5 py-1.5 text-[12px] font-medium text-[#2b2d7e] transition hover:bg-[#eeeffe] disabled:opacity-50 disabled:cursor-not-allowed [font-family:var(--font-dmsans)]"
         >
           <Plus size={13} />
           Add Row

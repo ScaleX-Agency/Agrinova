@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 interface Category {
   category_id: number;
   name: string;
-  tag: string;
+  tag: string | null;
 }
 
 interface Props {
@@ -57,9 +57,7 @@ export default function AddCategoryModal({ onClose, onSaved }: Props) {
       next.name = "Category name is required";
     }
 
-    if (!tag.trim()) {
-      next.tag = "Category tag is required";
-    } else if (!tagPattern.test(tag.trim().toUpperCase())) {
+    if (tag.trim() && !tagPattern.test(tag.trim().toUpperCase())) {
       next.tag = "Use 2-10 uppercase letters or numbers";
     }
 
@@ -82,7 +80,7 @@ export default function AddCategoryModal({ onClose, onSaved }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
-          tag: tag.trim().toUpperCase(),
+          tag: tag.trim() ? tag.trim().toUpperCase() : undefined,
         }),
       });
 
@@ -180,7 +178,7 @@ export default function AddCategoryModal({ onClose, onSaved }: Props) {
               }}
             />
             <p className="text-[11px] text-stone-400 mt-1 [font-family:var(--font-dmsans)]">
-              2-10 uppercase letters or numbers. Used for product code prefixes.
+              Optional. Used for product code prefixes when present.
             </p>
             {!tag && suggestedTag && (
               <button

@@ -6,7 +6,6 @@ import StockOverview from "@/components/StockOverview";
 import {
   getAllStock,
   getLocationSummaries,
-  getAllMovements,
 } from "@/lib/inventoryService";
 import type { Metadata } from "next";
 
@@ -15,10 +14,9 @@ export const metadata: Metadata = { title: "Stock Overview" };
 export default async function InventoryPage() {
   // Runs server-side — hits unstable_cache (not Supabase directly on repeat loads)
   // Use Promise.all() to properly handle concurrent queries and avoid pg deprecation warning
-  const [stock, summaries, movementsResult] = await Promise.all([
+  const [stock, summaries] = await Promise.all([
     getAllStock(1, 10000),
     getLocationSummaries(), // fetch via SQL aggregation directly
-    getAllMovements(),
   ]);
 
   return (
@@ -41,7 +39,6 @@ export default async function InventoryPage() {
       <StockOverview
         initialStock={{ stock: stock.items, pagination: stock.pagination }}
         initialSummaries={summaries}
-        initialMovements={movementsResult}
       />
     </div>
   );

@@ -29,6 +29,7 @@ enum CommissionStatus {
 }
 ```
 
+
 ### Invoice Model Update
 
 Added inverse relation: `commissions: Commission[]`

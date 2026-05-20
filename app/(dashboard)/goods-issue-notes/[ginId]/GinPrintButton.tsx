@@ -9,8 +9,6 @@ type GinPrintLine = {
   productName: string;
   packSize: string;
   quantity: number;
-  unitPrice: number;
-  lineTotal: number;
 };
 
 type GinPrintButtonProps = {
@@ -20,10 +18,8 @@ type GinPrintButtonProps = {
   customerName: string;
   locationCode: string;
   locationName: string;
-  preparedBy: string;
-  receivedBy: string;
+  notes: string | null;
   lines: GinPrintLine[];
-  totalValue: number;
 };
 
 const formatDate = (value: string) =>
@@ -33,14 +29,6 @@ const formatDate = (value: string) =>
     year: "numeric",
   });
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("en-LK", {
-    style: "currency",
-    currency: "LKR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-
 const GinPrintButton = ({
   ginNumber,
   ginDate,
@@ -48,10 +36,8 @@ const GinPrintButton = ({
   customerName,
   locationCode,
   locationName,
-  preparedBy,
-  receivedBy,
+  notes,
   lines,
-  totalValue,
 }: GinPrintButtonProps) => {
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -81,10 +67,8 @@ const GinPrintButton = ({
                 </p>
               </div>
               <div className="text-right">
-                <p className="font-semibold text-stone-800">Prepared By</p>
-                <p>{preparedBy}</p>
-                <p className="mt-3 font-semibold text-stone-800">Received By</p>
-                <p>{receivedBy}</p>
+                <p className="font-semibold text-stone-800">Notes</p>
+                <p>{notes?.trim() ? notes : "-"}</p>
               </div>
             </section>
 
@@ -95,8 +79,7 @@ const GinPrintButton = ({
                     <th>Product</th>
                     <th>Pack Size</th>
                     <th className="text-center">Qty</th>
-                    <th className="text-right">Unit Price</th>
-                    <th className="text-right">Line Total</th>
+                    <th>Movement</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -105,19 +88,11 @@ const GinPrintButton = ({
                       <td>{line.productName}</td>
                       <td>{line.packSize}</td>
                       <td className="text-center">{line.quantity}</td>
-                      <td className="text-right">{formatCurrency(line.unitPrice)}</td>
-                      <td className="text-right">{formatCurrency(line.lineTotal)}</td>
+                      <td>Issued</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </section>
-
-            <section className="mt-6 ml-auto w-[320px] text-[14px] font-semibold">
-              <div className="flex items-center justify-between border-t border-stone-300 pt-2 text-[#1a5c2e]">
-                <span>Total Value</span>
-                <span>{formatCurrency(totalValue)}</span>
-              </div>
             </section>
           </PrintPage>
         </div>
