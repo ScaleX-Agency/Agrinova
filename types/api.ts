@@ -496,6 +496,28 @@ export type StockTransferOptionDto = {
 
 export type StockTransfersResponse = ApiResult<StockTransferOptionDto[]>;
 
+export type ProductRepackOptionDto = {
+  id: number;
+  repackNo: string;
+  repackDate: string;
+  locationId: number;
+  locationCode: string;
+  locationName: string;
+  sourceProductId: number;
+  sourceProductCode: string;
+  sourceProductName: string;
+  sourceQuantity: number;
+  targetProductId: number;
+  targetProductCode: string;
+  targetProductName: string;
+  targetQuantity: number;
+  notes: string | null;
+  createdByName: string;
+};
+
+export type ProductRepacksResponse = ApiResult<ProductRepackOptionDto[]>;
+export type ProductRepackDetailResponse = ApiResult<ProductRepackOptionDto>;
+
 export type InvoiceOptionDto = {
   id: number;
   invoiceNo: string;

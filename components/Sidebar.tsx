@@ -140,6 +140,12 @@ const NAV_GROUPS: NavGroup[] = [
         shortLabel: "Transfers",
       },
       {
+        href: "/repacking",
+        icon: <Boxes size={16} />,
+        label: "Product Repacking",
+        shortLabel: "Repacking",
+      },
+      {
         href: "/sales-return-notes",
         icon: <RotateCcw size={16} />,
         label: "Sales Return Notes",

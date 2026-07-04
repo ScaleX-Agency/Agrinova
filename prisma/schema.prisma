@@ -41,6 +41,7 @@ model User {
   created_stock_transfers     StockTransfer[]      @relation("StockTransferCreatedBy")
   deleted_stock_transfers     StockTransfer[]      @relation("StockTransferDeletedBy")
   stock_movements             StockMovement[]      @relation("StockMovementCreatedBy")
+  created_repacks             ProductRepack[]      @relation("RepackCreatedBy")
   role                        Role                 @relation(fields: [role_id], references: [role_id])
 
   @@map("USER")
@@ -487,6 +488,8 @@ model Product {
   stocks                     Stock[]
   stock_transfer_lines       StockTransferLine[]
   stock_movements            StockMovement[]          @relation("StockMovementProduct")
+  repack_sources             ProductRepack[]          @relation("RepackSourceProduct")
+  repack_targets             ProductRepack[]          @relation("RepackTargetProduct")
 
   @@map("PRODUCT")
 }
@@ -507,6 +510,7 @@ model InventoryLocation {
   stock_transfers_from  StockTransfer[]        @relation("StockTransferFromLocation")
   stock_transfers_to    StockTransfer[]        @relation("StockTransferToLocation")
   stocks                Stock[]
+  repacks               ProductRepack[]
 
   @@index([status])
   @@map("INVENTORY_LOCATION")
@@ -648,4 +652,30 @@ enum SettlementType {
   CREDIT_NOTE
   ADJUSTMENT
   CHEQUE_RETURN
+}
+
+model ProductRepack {
+  repack_id         Int               @id @default(autoincrement())
+  repack_number     String            @unique
+  repack_date       DateTime
+  location_id       Int
+  source_product_id Int
+  source_quantity   Int
+  target_product_id Int
+  target_quantity   Int
+  notes             String?
+  created_by        Int
+  created_at        DateTime          @default(now())
+  updated_at        DateTime          @default(now()) @updatedAt
+  is_active         Boolean           @default(true)
+  deleted_by        Int?
+
+  creator           User              @relation("RepackCreatedBy", fields: [created_by], references: [user_id])
+  location          InventoryLocation @relation(fields: [location_id], references: [location_id])
+  source_product    Product           @relation("RepackSourceProduct", fields: [source_product_id], references: [product_id])
+  target_product    Product           @relation("RepackTargetProduct", fields: [target_product_id], references: [product_id])
+
+  @@index([repack_date])
+  @@index([location_id])
+  @@map("PRODUCT_REPACK")
 }
