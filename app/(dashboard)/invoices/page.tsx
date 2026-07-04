@@ -58,6 +58,7 @@ const InvoicesPage = () => {
   const [searchTerm] = useState("");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<StatusFilter>("ALL");
   const [ginStatusFilter, setGinStatusFilter] = useState<GinStatusFilter>("ALL");
+  const [repFilter, setRepFilter] = useState("ALL");
   const [rangeFilter, setRangeFilter] = useState("month");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -66,6 +67,16 @@ const InvoicesPage = () => {
   const [appliedStart, setAppliedStart] = useState("");
   const [appliedEnd, setAppliedEnd] = useState("");
   const [isExporting, setIsExporting] = useState(false);
+
+  const salesRepsQuery = useQuery({
+    queryKey: ["sales-reps-all"],
+    queryFn: async () => {
+      const response = await fetch("/api/sales-reps");
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Failed to load sales reps.");
+      return (result.salesReps ?? []) as { rep_id: number; full_name: string }[];
+    },
+  });
 
   const invoicesQuery = useQuery<InvoiceOptionDto[], Error>({
     queryKey: ["invoices-list", appliedRange, appliedStart, appliedEnd],
@@ -102,10 +113,11 @@ const InvoicesPage = () => {
 
       const paymentMatches = paymentStatusFilter === "ALL" || invoice.status === paymentStatusFilter;
       const ginMatches = ginStatusFilter === "ALL" || invoice.ginStatus === ginStatusFilter;
+      const repMatches = repFilter === "ALL" || invoice.repId.toString() === repFilter;
 
-      return searchMatches && paymentMatches && ginMatches;
+      return searchMatches && paymentMatches && ginMatches && repMatches;
     });
-  }, [invoices, searchTerm, paymentStatusFilter, ginStatusFilter]);
+  }, [invoices, searchTerm, paymentStatusFilter, ginStatusFilter, repFilter]);
 
   const totalValue = filtered.reduce((sum, row) => sum + row.totalAmount, 0);
   const paid = filtered.filter((row) => row.status === "PAID").length;
@@ -153,6 +165,7 @@ const InvoicesPage = () => {
         rows: filtered.map((row) => ({
           customerName: row.customerName,
           invoiceNo: row.invoiceNo,
+          repName: row.repName,
           date: formatDate(row.invoiceDate),
           amount: Math.max(0, row.totalAmount - row.creditedAmount),
         })),
@@ -334,6 +347,19 @@ const InvoicesPage = () => {
               <option value="PARTIAL">Partial</option>
               <option value="UNPAID">Unpaid</option>
               <option value="OVERDUE">Overdue</option>
+            </select>
+
+            <select
+              value={repFilter}
+              onChange={(event) => setRepFilter(event.target.value)}
+              className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+            >
+              <option value="ALL">All Sales Reps</option>
+              {salesRepsQuery.data?.map((rep) => (
+                <option key={rep.rep_id} value={rep.rep_id.toString()}>
+                  {rep.full_name}
+                </option>
+              ))}
             </select>
 
             <select
