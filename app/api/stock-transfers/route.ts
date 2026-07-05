@@ -34,6 +34,7 @@ export async function GET(req: Request) {
     const range = searchParams.get("range");
     const startDateParam = searchParams.get("startDate");
     const endDateParam = searchParams.get("endDate");
+    const search = searchParams.get("search")?.trim() || "";
 
     let dateFilter: Prisma.DateTimeFilter | undefined;
     if (range && range !== "all") {
@@ -77,7 +78,7 @@ export async function GET(req: Request) {
       }
     }
 
-    const result = await getStockTransfers(page, pageSize, { dateFilter });
+    const result = await getStockTransfers(page, pageSize, { dateFilter, search });
 
     const payload: StockTransfersResponse = {
       data: result.items.map((row) => ({

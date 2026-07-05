@@ -4,6 +4,8 @@ import { formatCurrency } from "./invoice-form.utils";
 type InvoiceTotalsSectionProps = {
   subtotal: number;
   discountTotal: number;
+  vatPercentage: number;
+  vatAmount: number;
   total: number;
   submitError: string;
   successMessage: string;
@@ -13,6 +15,8 @@ type InvoiceTotalsSectionProps = {
 const InvoiceTotalsSection = ({
   subtotal,
   discountTotal,
+  vatPercentage,
+  vatAmount,
   total,
   submitError,
   successMessage,
@@ -38,6 +42,12 @@ const InvoiceTotalsSection = ({
           <span>Discount</span>
           <span>- {formatCurrency(discountTotal)}</span>
         </div>
+        {vatPercentage > 0 && (
+          <div className="flex items-center justify-between text-stone-600">
+            <span>VAT ({vatPercentage}%)</span>
+            <span>{formatCurrency(vatAmount)}</span>
+          </div>
+        )}
         <div className="flex items-center justify-between border-t border-stone-200 pt-2 text-[16px]">
           <span className="font-semibold text-stone-900">Grand Total</span>
           <span className="font-semibold text-[#1a5c2e]">{formatCurrency(total)}</span>

@@ -100,3 +100,33 @@ export interface CreateStockEntryDto {
   grn_number?: string | null;
   items: CreateStockEntryItemDto[];
 }
+
+export interface ProductRepackRecord {
+  repack_id: number;
+  repack_number: string;
+  repack_date: string;
+  location_id: number;
+  location_code: string;
+  location_name: string;
+  source_product_id: number;
+  source_product_code: string;
+  source_product_name: string;
+  source_quantity: number;
+  target_product_id: number;
+  target_product_code: string;
+  target_product_name: string;
+  target_quantity: number;
+  notes: string | null;
+  created_by_name: string;
+}
+
+export interface CreateProductRepackDto {
+  repack_date: string;
+  location_id: number;
+  source_product_id: number;
+  source_quantity: number;
+  target_product_id: number;
+  target_quantity: number;
+  notes?: string | null;
+}
+

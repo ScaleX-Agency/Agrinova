@@ -55,20 +55,43 @@ const formatCurrency = (value: number) =>
   }).format(value);
 
 const InvoicesPage = () => {
-  const [searchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<StatusFilter>("ALL");
   const [ginStatusFilter, setGinStatusFilter] = useState<GinStatusFilter>("ALL");
-  const [rangeFilter, setRangeFilter] = useState("month");
+  const [repFilter, setRepFilter] = useState("ALL");
+  const [rangeFilter, setRangeFilter] = useState("year");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
 
-  const [appliedRange, setAppliedRange] = useState("month");
+  const [appliedRange, setAppliedRange] = useState("year");
   const [appliedStart, setAppliedStart] = useState("");
   const [appliedEnd, setAppliedEnd] = useState("");
   const [isExporting, setIsExporting] = useState(false);
 
-  const invoicesQuery = useQuery<InvoiceOptionDto[], Error>({
-    queryKey: ["invoices-list", appliedRange, appliedStart, appliedEnd],
+  const [page, setPage] = useState(0);
+
+  const salesRepsQuery = useQuery({
+    queryKey: ["sales-reps-all"],
+    queryFn: async () => {
+      const response = await fetch("/api/sales-reps");
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Failed to load sales reps.");
+      return (result.salesReps ?? []) as { rep_id: number; full_name: string }[];
+    },
+  });
+
+  const invoicesQuery = useQuery<InvoicesResponse, Error>({
+    queryKey: [
+      "invoices-list",
+      appliedRange,
+      appliedStart,
+      appliedEnd,
+      page,
+      searchTerm,
+      paymentStatusFilter,
+      ginStatusFilter,
+      repFilter,
+    ],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (appliedRange !== "all") {
@@ -78,38 +101,28 @@ const InvoicesPage = () => {
           if (appliedEnd) params.set("endDate", appliedEnd);
         }
       }
+      params.set("page", String(page + 1));
+      params.set("limit", "20");
+      if (searchTerm.trim()) params.set("search", searchTerm.trim());
+      if (paymentStatusFilter !== "ALL") params.set("paymentStatus", paymentStatusFilter);
+      if (ginStatusFilter !== "ALL") params.set("ginStatus", ginStatusFilter);
+      if (repFilter !== "ALL") params.set("repId", repFilter);
 
       const query = params.toString();
       const response = await fetch(`/api/invoices${query ? `?${query}` : ""}`);
       const result = (await response.json()) as InvoicesResponse;
       if (!response.ok) throw new Error(result.error ?? "Failed to load invoices.");
-      return Array.isArray(result.data) ? result.data : [];
-   
+      return result;
     },
   });
-   
 
-  // eslint-disable-next-line
-  const invoices = invoicesQuery.data ?? [];
+  const invoices = invoicesQuery.data?.data ?? [];
+  const pagination = invoicesQuery.data?.pagination;
+  const stats = invoicesQuery.data?.stats;
 
-  const filtered = useMemo(() => {
-    const needle = searchTerm.trim().toLowerCase();
-
-    return invoices.filter((invoice) => {
-      const searchMatches =
-        needle.length === 0 ||
-        [invoice.invoiceNo, invoice.customerName, invoice.repName].join(" ").toLowerCase().includes(needle);
-
-      const paymentMatches = paymentStatusFilter === "ALL" || invoice.status === paymentStatusFilter;
-      const ginMatches = ginStatusFilter === "ALL" || invoice.ginStatus === ginStatusFilter;
-
-      return searchMatches && paymentMatches && ginMatches;
-    });
-  }, [invoices, searchTerm, paymentStatusFilter, ginStatusFilter]);
-
-  const totalValue = filtered.reduce((sum, row) => sum + row.totalAmount, 0);
-  const paid = filtered.filter((row) => row.status === "PAID").length;
-  const partial = filtered.filter((row) => row.status === "PARTIAL").length;
+  const totalValue = stats?.totalValue ?? 0;
+  const paid = stats?.paidCount ?? 0;
+  const partial = stats?.partialCount ?? 0;
 
   const resolvedPeriod = useMemo(() => {
     const now = new Date();
@@ -128,7 +141,7 @@ const InvoicesPage = () => {
     } else if (appliedRange === "custom" && appliedStart && appliedEnd) {
       return { from: appliedStart, to: appliedEnd };
     } else if (appliedRange === "all") {
-      const dates = filtered.map((x) => new Date(x.invoiceDate)).filter((d) => !Number.isNaN(d.getTime()));
+      const dates = invoices.map((x) => new Date(x.invoiceDate)).filter((d) => !Number.isNaN(d.getTime()));
       if (dates.length === 0) {
         const today = new Date().toISOString().slice(0, 10);
         return { from: today, to: today };
@@ -141,18 +154,40 @@ const InvoicesPage = () => {
       from: start.toISOString().slice(0, 10),
       to: end.toISOString().slice(0, 10),
     };
-  }, [appliedRange, appliedStart, appliedEnd, filtered]);
+  }, [appliedRange, appliedStart, appliedEnd, invoices]);
 
   const handleExportExcel = async () => {
     setIsExporting(true);
     try {
+      const params = new URLSearchParams();
+      if (appliedRange !== "all") {
+        params.set("range", appliedRange);
+        if (appliedRange === "custom") {
+          if (appliedStart) params.set("startDate", appliedStart);
+          if (appliedEnd) params.set("endDate", appliedEnd);
+        }
+      }
+      params.set("page", "1");
+      params.set("limit", "100000");
+      if (searchTerm.trim()) params.set("search", searchTerm.trim());
+      if (paymentStatusFilter !== "ALL") params.set("paymentStatus", paymentStatusFilter);
+      if (ginStatusFilter !== "ALL") params.set("ginStatus", ginStatusFilter);
+      if (repFilter !== "ALL") params.set("repId", repFilter);
+
+      const query = params.toString();
+      const response = await fetch(`/api/invoices${query ? `?${query}` : ""}`);
+      const result = (await response.json()) as InvoicesResponse;
+      if (!response.ok) throw new Error(result.error ?? "Failed to load invoices for export.");
+      const exportRows = result.data ?? [];
+
       const { exportInvoicesToExcel } = await import("@/lib/exportInvoices");
       await exportInvoicesToExcel({
         fromLabel: formatDate(resolvedPeriod.from),
         toLabel: formatDate(resolvedPeriod.to),
-        rows: filtered.map((row) => ({
+        rows: exportRows.map((row) => ({
           customerName: row.customerName,
           invoiceNo: row.invoiceNo,
+          repName: row.repName,
           date: formatDate(row.invoiceDate),
           amount: Math.max(0, row.totalAmount - row.creditedAmount),
         })),
@@ -160,7 +195,7 @@ const InvoicesPage = () => {
       if (typeof window !== "undefined") {
         window.dispatchEvent(
           new CustomEvent("toast", {
-            detail: { msg: `Exported ${filtered.length} invoices to Excel`, type: "success" },
+            detail: { msg: `Exported ${exportRows.length} invoices to Excel`, type: "success" },
           }),
         );
       }
@@ -297,7 +332,9 @@ const InvoicesPage = () => {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="rounded-2xl border border-stone-200 bg-white p-4">
           <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Total Invoices</p>
-          <p className="mt-1 text-[26px] leading-none text-stone-900 [font-family:var(--font-dmsans)]">{filtered.length}</p>
+          <p className="mt-1 text-[26px] leading-none text-stone-900 [font-family:var(--font-dmsans)]">
+            {pagination?.total ?? 0}
+          </p>
         </div>
         <div className="rounded-2xl border border-stone-200 bg-white p-4">
           <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Paid</p>
@@ -316,17 +353,33 @@ const InvoicesPage = () => {
       </div>
 
       <DataTable
-        data={filtered}
+        data={invoices}
         columns={tableColumns}
         minWidth={1180}
         isLoading={invoicesQuery.isFetching}
         searchPlaceholder="Search invoices, customer, or sales rep"
         emptyMessage="No invoices match the selected filters."
+        initialPageSize={20}
+        serverSide={{
+          pageIndex: page,
+          pageSize: 20,
+          pageCount: pagination?.totalPages ?? 1,
+          totalRecords: pagination?.total ?? 0,
+          onPageChange: (p) => setPage(p),
+          searchTerm: searchTerm,
+          onSearchChange: (s) => {
+            setSearchTerm(s);
+            setPage(0);
+          },
+        }}
         toolbarRight={
           <>
             <select
               value={paymentStatusFilter}
-              onChange={(event) => setPaymentStatusFilter(event.target.value as StatusFilter)}
+              onChange={(event) => {
+                setPaymentStatusFilter(event.target.value as StatusFilter);
+                setPage(0);
+              }}
               className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
             >
               <option value="ALL">All Payment Statuses</option>
@@ -337,8 +390,27 @@ const InvoicesPage = () => {
             </select>
 
             <select
+              value={repFilter}
+              onChange={(event) => {
+                setRepFilter(event.target.value);
+                setPage(0);
+              }}
+              className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
+            >
+              <option value="ALL">All Sales Reps</option>
+              {salesRepsQuery.data?.map((rep) => (
+                <option key={rep.rep_id} value={rep.rep_id.toString()}>
+                  {rep.full_name}
+                </option>
+              ))}
+            </select>
+
+            <select
               value={ginStatusFilter}
-              onChange={(event) => setGinStatusFilter(event.target.value as GinStatusFilter)}
+              onChange={(event) => {
+                setGinStatusFilter(event.target.value as GinStatusFilter);
+                setPage(0);
+              }}
               className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
             >
               <option value="ALL">All GIN Statuses</option>
@@ -382,6 +454,7 @@ const InvoicesPage = () => {
                 setAppliedRange(rangeFilter);
                 setAppliedStart(customStart);
                 setAppliedEnd(customEnd);
+                setPage(0);
               }}
               className="rounded-xl bg-[#1a5c2e] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42]"
             >

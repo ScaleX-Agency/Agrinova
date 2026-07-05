@@ -58,6 +58,7 @@ const NewInvoicePage = () => {
   const [customerId, setCustomerId] = useState<number | null>(null);
   const [repId, setRepId] = useState<number | null>(null);
   const [locationId, setLocationId] = useState<number | null>(null);
+  const [vatPercentage, setVatPercentage] = useState<number>(0);
   const [lines, setLines] = useState<InvoiceLine[]>([]);
   const nextLineIdRef = useRef(1);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -93,6 +94,11 @@ const NewInvoicePage = () => {
 
   const handleNotesChange = useCallback((value: string) => {
     setNotes(value);
+    setSubmitError("");
+  }, []);
+
+  const handleVatPercentageChange = useCallback((value: number) => {
+    setVatPercentage(value);
     setSubmitError("");
   }, []);
 
@@ -305,19 +311,29 @@ const NewInvoicePage = () => {
     );
   }, [availableProductsById]);
 
-  const invoiceTotal = useMemo(
-    () => calculateInvoiceTotal(lines),
-    [lines],
-  );
-
   const invoiceSubtotal = useMemo(
     () => calculateInvoiceSubtotal(lines),
     [lines],
   );
 
+  const invoiceTotalBeforeVat = useMemo(
+    () => calculateInvoiceTotal(lines),
+    [lines],
+  );
+
   const invoiceDiscountTotal = useMemo(
-    () => Math.max(0, invoiceSubtotal - invoiceTotal),
-    [invoiceSubtotal, invoiceTotal],
+    () => lines.reduce((sum, line) => sum + (line.lineTotal - line.netLineTotal), 0),
+    [lines],
+  );
+
+  const vatAmount = useMemo(
+    () => invoiceTotalBeforeVat * (vatPercentage / 100),
+    [invoiceTotalBeforeVat, vatPercentage],
+  );
+
+  const invoiceGrandTotal = useMemo(
+    () => invoiceTotalBeforeVat + vatAmount,
+    [invoiceTotalBeforeVat, vatAmount],
   );
 
   /**
@@ -585,6 +601,7 @@ const NewInvoicePage = () => {
       repId: activeRepId,
       locationId: activeLocationId,
       notes: notes.trim() || undefined,
+      vatPercentage,
       lines: payloadLines,
     });
     setIsConfirmModalOpen(true);
@@ -633,12 +650,14 @@ const NewInvoicePage = () => {
           customersLoading={customersQuery.isLoading}
           locationsLoading={locationsQuery.isLoading}
           hasRepSelected={repId !== null}
+          vatPercentage={vatPercentage}
           onInvoiceNoChange={handleInvoiceNoChange}
           onInvoiceDateChange={handleInvoiceDateChange}
           onNotesChange={handleNotesChange}
           onRepChange={handleRepChange}
           onCustomerChange={handleCustomerChange}
           onLocationChange={handleLocationChange}
+          onVatPercentageChange={handleVatPercentageChange}
         />
 
         <InvoiceProductsSection
@@ -664,7 +683,9 @@ const NewInvoicePage = () => {
         <InvoiceTotalsSection
           subtotal={invoiceSubtotal}
           discountTotal={invoiceDiscountTotal}
-          total={invoiceTotal}
+          vatPercentage={vatPercentage}
+          vatAmount={vatAmount}
+          total={invoiceGrandTotal}
           submitError={submitError}
           successMessage={successMessage}
           isSaving={createInvoiceMutation.isPending}

@@ -5,6 +5,19 @@ export type ApiResult<T> = {
   error?: string;
 };
 
+export type PaginationMeta = {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+};
+
+export type PaginatedApiResult<T> = {
+  data?: T;
+  pagination?: PaginationMeta;
+  error?: string;
+};
+
 export type SalesRepOptionDto = {
   id: number;
   label: string;
@@ -50,6 +63,7 @@ export type CreateInvoiceRequestDto = {
   repId: number;
   locationId: number;
   notes?: string;
+  vatPercentage?: number;
   lines: CreateInvoiceLineDto[];
 };
 
@@ -103,6 +117,7 @@ export type InvoiceDetailDto = {
   creditedAmount: number;
   outstandingAmount: number;
   totalReturnableQty: number;
+  vatPercentage: number;
   lines: InvoiceLineDto[];
 };
 
@@ -178,7 +193,12 @@ export type ReceiptDetailDto = {
   returnedAt?: string | null;
 };
 
-export type ReceiptsResponse = ApiResult<ReceiptOptionDto[]>;
+export type ReceiptsResponse = PaginatedApiResult<ReceiptOptionDto[]> & {
+  stats?: {
+    totalCollected: number;
+    cashCount: number;
+  };
+};
 export type ReceiptDetailResponse = ApiResult<ReceiptDetailDto>;
 
 export type CreateReturnedChequeRequestDto = {
@@ -205,7 +225,7 @@ export type ReturnedChequeOptionDto = {
   createdBy: string;
 };
 
-export type ReturnedChequesResponse = ApiResult<ReturnedChequeOptionDto[]>;
+export type ReturnedChequesResponse = PaginatedApiResult<ReturnedChequeOptionDto[]>;
 
 export type RepCommissionSummaryDto = {
   repId: number;
@@ -424,7 +444,7 @@ export type GoodsIssueNoteDetailDto = {
   lines: GoodsIssueNoteLineDto[];
 };
 
-export type GoodsIssueNotesResponse = ApiResult<GoodsIssueNoteOptionDto[]>;
+export type GoodsIssueNotesResponse = PaginatedApiResult<GoodsIssueNoteOptionDto[]>;
 export type GoodsIssueNoteDetailResponse = ApiResult<GoodsIssueNoteDetailDto>;
 
 export type GoodsReceivingEntryType = "LOCAL_PURCHASE" | "FOREIGN_IMPORT";
@@ -473,7 +493,7 @@ export type GoodsReceivingNoteDetailDto = {
   lines: GoodsReceivingNoteLineDto[];
 };
 
-export type GoodsReceivingNotesResponse = ApiResult<
+export type GoodsReceivingNotesResponse = PaginatedApiResult<
   GoodsReceivingNoteOptionDto[]
 >;
 export type GoodsReceivingNoteDetailResponse = ApiResult<GoodsReceivingNoteDetailDto>;
@@ -494,7 +514,29 @@ export type StockTransferOptionDto = {
   createdByName: string;
 };
 
-export type StockTransfersResponse = ApiResult<StockTransferOptionDto[]>;
+export type StockTransfersResponse = PaginatedApiResult<StockTransferOptionDto[]>;
+
+export type ProductRepackOptionDto = {
+  id: number;
+  repackNo: string;
+  repackDate: string;
+  locationId: number;
+  locationCode: string;
+  locationName: string;
+  sourceProductId: number;
+  sourceProductCode: string;
+  sourceProductName: string;
+  sourceQuantity: number;
+  targetProductId: number;
+  targetProductCode: string;
+  targetProductName: string;
+  targetQuantity: number;
+  notes: string | null;
+  createdByName: string;
+};
+
+export type ProductRepacksResponse = PaginatedApiResult<ProductRepackOptionDto[]>;
+export type ProductRepackDetailResponse = ApiResult<ProductRepackOptionDto>;
 
 export type InvoiceOptionDto = {
   id: number;
@@ -512,6 +554,7 @@ export type InvoiceOptionDto = {
   status: "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE";
   ginStatus: "PENDING" | "ISSUED" | "PARTIAL";
   locationCode: string | null;
+  vatPercentage: number;
 };
 
 export type CreateSalesReturnLineDto = {
@@ -553,7 +596,13 @@ export type CreateSalesReturnSuccessResponse = {
 export type CreateSalesReturnResponse =
   ApiResult<CreateSalesReturnSuccessResponse>;
 
-export type InvoicesResponse = ApiResult<InvoiceOptionDto[]>;
+export type InvoicesResponse = PaginatedApiResult<InvoiceOptionDto[]> & {
+  stats?: {
+    totalValue: number;
+    paidCount: number;
+    partialCount: number;
+  };
+};
 
 export type InvoiceAggregatedCustomerDto = {
   id: number;

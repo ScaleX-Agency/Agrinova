@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   ArrowLeftRight,
+  Boxes,
   Download,
   Loader2,
   Package,
@@ -16,6 +17,7 @@ import {
 import LocationCards from "./LocationCards";
 import StockTable from "./StockTable";
 import StockTransferModal from "./StockTransferModal";
+import ProductRepackModal from "./ProductRepackModal";
 import { useAllStock, useLocationSummaries } from "@/hooks/useInventory";
 import { exportStockToExcel } from "@/lib/exportStock";
 import type {
@@ -40,6 +42,7 @@ export default function StockOverview({
   const router = useRouter();
 
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showRepackModal, setShowRepackModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [filter, setFilter] = useState<StockFilter>({
     location_id: null,
@@ -279,6 +282,12 @@ export default function StockOverview({
           )}
         </button>
         <button
+          onClick={() => setShowRepackModal(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-green-700 rounded-lg hover:bg-green-800 transition-colors"
+        >
+          <Boxes size={13} /> Repack Product
+        </button>
+        <button
           onClick={() => setShowTransferModal(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-green-700 rounded-lg hover:bg-green-800 transition-colors"
         >
@@ -318,6 +327,17 @@ export default function StockOverview({
           onSaved={() => {
             qc.invalidateQueries({ queryKey: ["stock"] });
             qc.invalidateQueries({ queryKey: ["stock-transfers"] });
+            qc.invalidateQueries({ queryKey: ["summaries"] });
+          }}
+        />
+      )}
+
+      {showRepackModal && (
+        <ProductRepackModal
+          onClose={() => setShowRepackModal(false)}
+          onSaved={() => {
+            qc.invalidateQueries({ queryKey: ["stock"] });
+            qc.invalidateQueries({ queryKey: ["repacks"] });
             qc.invalidateQueries({ queryKey: ["summaries"] });
           }}
         />

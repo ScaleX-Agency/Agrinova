@@ -27,17 +27,18 @@ export default function ReturnedChequesPage() {
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [rangeFilter, setRangeFilter] = useState("month");
+  const [rangeFilter, setRangeFilter] = useState("year");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
-  const [appliedRange, setAppliedRange] = useState("month");
+  const [appliedRange, setAppliedRange] = useState("year");
   const [appliedStart, setAppliedStart] = useState("");
   const [appliedEnd, setAppliedEnd] = useState("");
   const [isExporting, setIsExporting] = useState(false);
+  const [page, setPage] = useState(0);
 
-  const returnedChequesQuery = useQuery<ReturnedChequeOptionDto[], Error>({
-    queryKey: ["returned-cheques", appliedSearch, appliedRange, appliedStart, appliedEnd],
+  const returnedChequesQuery = useQuery<ReturnedChequesResponse, Error>({
+    queryKey: ["returned-cheques", appliedSearch, appliedRange, appliedStart, appliedEnd, page],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (appliedSearch.trim()) params.set("search", appliedSearch.trim());
@@ -48,14 +49,19 @@ export default function ReturnedChequesPage() {
           if (appliedEnd) params.set("endDate", appliedEnd);
         }
       }
+      params.set("page", String(page + 1));
+      params.set("limit", "20");
 
       const query = params.toString();
       const response = await fetch(`/api/returned-cheques${query ? `?${query}` : ""}`);
       const result = (await response.json()) as ReturnedChequesResponse;
       if (!response.ok) throw new Error(result.error ?? "Failed to load returned cheques.");
-      return Array.isArray(result.data) ? result.data : [];
+      return result;
     },
   });
+
+  const returnedCheques = returnedChequesQuery.data?.data ?? [];
+  const pagination = returnedChequesQuery.data?.pagination;
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -150,7 +156,7 @@ export default function ReturnedChequesPage() {
     } else if (appliedRange === "custom" && appliedStart && appliedEnd) {
       return { from: appliedStart, to: appliedEnd };
     } else if (appliedRange === "all") {
-      const dates = (returnedChequesQuery.data ?? [])
+      const dates = returnedCheques
         .map((x) => new Date(x.returnDate))
         .filter((d) => !Number.isNaN(d.getTime()));
       if (dates.length === 0) {
@@ -165,13 +171,31 @@ export default function ReturnedChequesPage() {
       from: start.toISOString().slice(0, 10),
       to: end.toISOString().slice(0, 10),
     };
-  }, [appliedRange, appliedStart, appliedEnd, returnedChequesQuery.data]);
+  }, [appliedRange, appliedStart, appliedEnd, returnedCheques]);
 
   const handleExportExcel = async () => {
     setIsExporting(true);
     try {
+      const params = new URLSearchParams();
+      if (appliedSearch.trim()) params.set("search", appliedSearch.trim());
+      if (appliedRange !== "all") {
+        params.set("range", appliedRange);
+        if (appliedRange === "custom") {
+          if (appliedStart) params.set("startDate", appliedStart);
+          if (appliedEnd) params.set("endDate", appliedEnd);
+        }
+      }
+      params.set("page", "1");
+      params.set("limit", "100000");
+
+      const query = params.toString();
+      const response = await fetch(`/api/returned-cheques${query ? `?${query}` : ""}`);
+      const result = (await response.json()) as ReturnedChequesResponse;
+      if (!response.ok) throw new Error(result.error ?? "Failed to load returned cheques for export.");
+      const exportRows = result.data ?? [];
+
       const { exportReturnedChequesToExcel } = await import("@/lib/exportReturnedCheques");
-      const rows = (returnedChequesQuery.data ?? []).map((row) => ({
+      const rows = exportRows.map((row) => ({
         receiptNo: row.receiptNo,
         chequeNo: row.chequeNo ?? "-",
         chequeAmount: row.amount,
@@ -235,12 +259,20 @@ export default function ReturnedChequesPage() {
       </header>
 
       <DataTable
-        data={returnedChequesQuery.data ?? []}
+        data={returnedCheques}
         columns={columns}
         minWidth={1200}
         isLoading={returnedChequesQuery.isLoading}
         hideSearch
         emptyMessage="No returned cheque records found."
+        initialPageSize={20}
+        serverSide={{
+          pageIndex: page,
+          pageSize: 20,
+          pageCount: pagination?.totalPages ?? 1,
+          totalRecords: pagination?.total ?? 0,
+          onPageChange: (p) => setPage(p),
+        }}
         toolbarRight={
           <>
             <input
@@ -289,6 +321,7 @@ export default function ReturnedChequesPage() {
                 setAppliedRange(rangeFilter);
                 setAppliedStart(customStart);
                 setAppliedEnd(customEnd);
+                setPage(0);
               }}
               className="rounded-xl bg-[#1a5c2e] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42]"
             >

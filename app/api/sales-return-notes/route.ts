@@ -169,6 +169,7 @@ export async function POST(request: Request) {
             paid_amount: true,
             credited_amount: true,
             rep_id: true,
+            vat_percentage: true,
             invoice_lines: {
               select: {
                 line_id: true,
@@ -394,11 +395,14 @@ export async function POST(request: Request) {
 
         }
 
+        const vatPercentage = Number(invoice.vat_percentage ?? 0);
+        const creditNoteAmount = Number((totalAmount * (1 + vatPercentage / 100)).toFixed(2));
+
         const creditNote = await tx.creditNote.create({
           data: {
             srn_id: srn.return_id,
             invoice_id: invoice.invoice_id,
-            amount: totalAmount,
+            amount: creditNoteAmount,
             notes: body.notes?.trim() || null,
             created_by: currentUser.user_id,
           },

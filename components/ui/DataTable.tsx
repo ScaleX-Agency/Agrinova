@@ -42,6 +42,15 @@ type DataTableProps<TData> = {
   toolbarRight?: React.ReactNode;
   isLoading?: boolean;
   rowClassName?: (row: TData) => string;
+  serverSide?: {
+    pageIndex: number;
+    pageSize: number;
+    pageCount: number;
+    totalRecords: number;
+    onPageChange: (pageIndex: number) => void;
+    searchTerm?: string;
+    onSearchChange?: (search: string) => void;
+  };
 };
 
 const alignClassName = (align: Alignment) => {
@@ -63,6 +72,7 @@ function DataTable<TData>({
   toolbarRight,
   isLoading = false,
   rowClassName,
+  serverSide,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -89,12 +99,35 @@ function DataTable<TData>({
       sorting,
       globalFilter,
       columnFilters,
+      ...(serverSide
+        ? {
+            pagination: {
+              pageIndex: serverSide.pageIndex,
+              pageSize: serverSide.pageSize,
+            },
+          }
+        : {}),
     },
     initialState: {
       pagination: {
         pageSize: initialPageSize,
       },
     },
+    pageCount: serverSide?.pageCount,
+    manualPagination: !!serverSide,
+    onPaginationChange: serverSide
+      ? (updater) => {
+          if (typeof updater === "function") {
+            const nextState = updater({
+              pageIndex: serverSide.pageIndex,
+              pageSize: serverSide.pageSize,
+            });
+            serverSide.onPageChange(nextState.pageIndex);
+          } else {
+            serverSide.onPageChange(updater.pageIndex);
+          }
+        }
+      : undefined,
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
     onColumnFiltersChange: setColumnFilters,
@@ -117,8 +150,14 @@ function DataTable<TData>({
               />
               <input
                 type="text"
-                value={globalFilter}
-                onChange={(event) => setGlobalFilter(event.target.value)}
+                value={serverSide ? (serverSide.searchTerm ?? "") : globalFilter}
+                onChange={(event) => {
+                  if (serverSide) {
+                    serverSide.onSearchChange?.(event.target.value);
+                  } else {
+                    setGlobalFilter(event.target.value);
+                  }
+                }}
                 placeholder={searchPlaceholder}
                 className="w-full rounded-xl border border-stone-200 bg-stone-50 py-2 pl-9 pr-3 text-[13px] outline-none transition-colors focus:border-[#1a5c2e]"
               />
@@ -219,7 +258,7 @@ function DataTable<TData>({
       {!hidePagination && (
         <div className="flex flex-col gap-3 border-t border-stone-100 p-4 md:flex-row md:items-center md:justify-between">
           <p className="text-[12px] text-stone-500">
-            Showing {table.getRowModel().rows.length} of {table.getFilteredRowModel().rows.length} records
+            Showing {table.getRowModel().rows.length} of {serverSide ? serverSide.totalRecords : table.getFilteredRowModel().rows.length} records
           </p>
 
           <div className="flex items-center gap-2">

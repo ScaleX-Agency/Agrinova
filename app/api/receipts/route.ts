@@ -61,6 +61,11 @@ export async function GET(request: Request) {
     const range = searchParams.get("range");
     const startDateParam = searchParams.get("startDate");
     const endDateParam = searchParams.get("endDate");
+    const paymentMethod = searchParams.get("paymentMethod");
+    const search = searchParams.get("search")?.trim() || "";
+
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const limit = parseInt(searchParams.get("limit") || "20", 10);
 
     let dateFilter: Prisma.DateTimeFilter | undefined;
     if (range && range !== "all") {
@@ -104,33 +109,61 @@ export async function GET(request: Request) {
       }
     }
 
-    const receipts = await prisma.receipt.findMany({
-      where: {
-        is_active: true,
-        ...(dateFilter ? { receipt_date: dateFilter } : {}),
-      },
-      orderBy: [{ receipt_date: "desc" }, { receipt_id: "desc" }],
-      select: {
-        receipt_id: true,
-        receipt_number: true,
-        receipt_date: true,
-        amount: true,
-        payment_method: true,
-        is_returned: true,
-        returned_at: true,
-        invoice: {
-          select: {
-            invoice_id: true,
-            invoice_number: true,
-            customer: {
-              select: {
-                name: true,
+    const where: Prisma.ReceiptWhereInput = {
+      is_active: true,
+      ...(dateFilter ? { receipt_date: dateFilter } : {}),
+      ...(paymentMethod && paymentMethod !== "ALL" ? { payment_method: paymentMethod as any } : {}),
+      ...(search ? {
+        OR: [
+          { receipt_number: { contains: search, mode: "insensitive" } },
+          { invoice: { invoice_number: { contains: search, mode: "insensitive" } } },
+          { invoice: { customer: { name: { contains: search, mode: "insensitive" } } } },
+        ],
+      } : {}),
+    };
+
+    const [total, receipts, totalCollectedSum, cashCount] = await Promise.all([
+      prisma.receipt.count({ where }),
+      prisma.receipt.findMany({
+        where,
+        orderBy: [{ receipt_date: "desc" }, { receipt_id: "desc" }],
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          receipt_id: true,
+          receipt_number: true,
+          receipt_date: true,
+          amount: true,
+          payment_method: true,
+          is_returned: true,
+          returned_at: true,
+          invoice: {
+            select: {
+              invoice_id: true,
+              invoice_number: true,
+              customer: {
+                select: {
+                  name: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      }),
+      prisma.receipt.aggregate({
+        where: {
+          ...where,
+          is_returned: false,
+        },
+        _sum: { amount: true },
+      }),
+      prisma.receipt.count({
+        where: {
+          ...where,
+          payment_method: "CASH",
+        },
+      }),
+    ]);
 
     const responseBody: ReceiptsResponse = {
       data: receipts.map((receipt) => {
@@ -147,6 +180,16 @@ export async function GET(request: Request) {
           returnedAt: receipt.returned_at ? receipt.returned_at.toISOString() : null,
         };
       }),
+      pagination: {
+        page,
+        pageSize: limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
+      stats: {
+        totalCollected: Number(totalCollectedSum._sum.amount ?? 0),
+        cashCount,
+      },
     };
 
     return NextResponse.json(responseBody);

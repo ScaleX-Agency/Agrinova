@@ -9,6 +9,9 @@ export async function GET(request: Request) {
     const range = searchParams.get("range");
     const startDateParam = searchParams.get("startDate");
     const endDateParam = searchParams.get("endDate");
+    const search = searchParams.get("search")?.trim() || "";
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const limit = parseInt(searchParams.get("limit") || "20", 10);
 
     let dateFilter: Prisma.DateTimeFilter | undefined;
     if (range && range !== "all") {
@@ -52,33 +55,49 @@ export async function GET(request: Request) {
       }
     }
 
-    const notes = await prisma.goodsReceivingNote.findMany({
-      where: {
-        is_active: true,
-        ...(dateFilter ? { grn_date: dateFilter } : {}),
-      },
-      orderBy: [{ grn_date: "desc" }, { grn_id: "desc" }],
-      include: {
-        location: {
-          select: {
-            location_id: true,
-            code: true,
-            name: true,
+    const where: Prisma.GoodsReceivingNoteWhereInput = {
+      is_active: true,
+      ...(dateFilter ? { grn_date: dateFilter } : {}),
+      ...(search ? {
+        OR: [
+          { grn_number: { contains: search, mode: "insensitive" } },
+          { reference_no: { contains: search, mode: "insensitive" } },
+          { notes: { contains: search, mode: "insensitive" } },
+          { location: { name: { contains: search, mode: "insensitive" } } },
+          { location: { code: { contains: search, mode: "insensitive" } } },
+        ],
+      } : {}),
+    };
+
+    const [total, notes] = await Promise.all([
+      prisma.goodsReceivingNote.count({ where }),
+      prisma.goodsReceivingNote.findMany({
+        where,
+        orderBy: [{ grn_date: "desc" }, { grn_id: "desc" }],
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          location: {
+            select: {
+              location_id: true,
+              code: true,
+              name: true,
+            },
+          },
+          creator: {
+            select: {
+              user_id: true,
+              full_name: true,
+            },
+          },
+          _count: {
+            select: {
+              lines: true,
+            },
           },
         },
-        creator: {
-          select: {
-            user_id: true,
-            full_name: true,
-          },
-        },
-        _count: {
-          select: {
-            lines: true,
-          },
-        },
-      },
-    });
+      }),
+    ]);
 
     const responseBody: GoodsReceivingNotesResponse = {
       data: notes.map((note) => ({
@@ -97,6 +116,12 @@ export async function GET(request: Request) {
         createdAt: note.created_at.toISOString(),
         updatedAt: note.updated_at.toISOString(),
       })),
+      pagination: {
+        page,
+        pageSize: limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
     };
 
     return NextResponse.json(responseBody);

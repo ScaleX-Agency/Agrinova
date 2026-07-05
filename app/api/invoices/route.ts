@@ -24,12 +24,17 @@ export async function GET(request: Request) {
     const issuableOnly = searchParams.get("issuableOnly") === "true";
     const paymentStatus = searchParams.get("paymentStatus");
     const ginStatus = searchParams.get("ginStatus");
+    const repFilter = searchParams.get("repId"); // repId
     const month = searchParams.get("month"); // legacy
     const range = searchParams.get("range"); // day, week, month, year, all, custom
     const startDateParam = searchParams.get("startDate");
     const endDateParam = searchParams.get("endDate");
     const checkInvoiceNo = searchParams.get("checkInvoiceNo") === "true";
     const invoiceNo = searchParams.get("invoiceNo")?.trim();
+
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const limit = parseInt(searchParams.get("limit") || "20", 10);
+    const search = searchParams.get("search")?.trim() || "";
 
     if (checkInvoiceNo) {
       if (!invoiceNo) {
@@ -65,19 +70,21 @@ export async function GET(request: Request) {
     let parsedPaymentStatus: InvoiceStatus | undefined;
     let parsedGinStatus: GINStatus | undefined;
 
-    if (paymentStatus) {
+    if (paymentStatus && paymentStatus !== "ALL") {
       if (!invoiceStatusValues.has(paymentStatus as InvoiceStatus)) {
         return NextResponse.json({ error: "Invalid payment status filter." }, { status: 400 });
       }
       parsedPaymentStatus = paymentStatus as InvoiceStatus;
     }
 
-    if (ginStatus) {
+    if (ginStatus && ginStatus !== "ALL") {
       if (!ginStatusValues.has(ginStatus as GINStatus)) {
         return NextResponse.json({ error: "Invalid GIN status filter." }, { status: 400 });
       }
       parsedGinStatus = ginStatus as GINStatus;
     }
+
+    const repId = repFilter && repFilter !== "ALL" ? parseInt(repFilter, 10) : undefined;
 
     let dateFilter: Prisma.DateTimeFilter | undefined;
 
@@ -147,47 +154,71 @@ export async function GET(request: Request) {
       ...(issuableOnly ? { gin_status: { not: "ISSUED" } } : {}),
       ...(parsedPaymentStatus ? { payment_status: parsedPaymentStatus } : {}),
       ...(parsedGinStatus ? { gin_status: parsedGinStatus } : {}),
+      ...(repId ? { rep_id: repId } : {}),
       ...(dateFilter ? { invoice_date: dateFilter } : {}),
+      ...(search ? {
+        OR: [
+          { invoice_number: { contains: search, mode: "insensitive" } },
+          { customer: { name: { contains: search, mode: "insensitive" } } },
+          { rep: { full_name: { contains: search, mode: "insensitive" } } },
+        ],
+      } : {}),
     };
 
-    const invoices = await prisma.invoice.findMany({
-      where,
-      orderBy: [{ invoice_date: "desc" }, { invoice_id: "desc" }],
-      select: {
-        invoice_id: true,
-        invoice_number: true,
-        invoice_date: true,
-        total_amount: true,
-        payment_status: true,
-        paid_amount: true,
-        credited_amount: true,
-        balance_amount: true,
-        gin_status: true,
-        customer_id: true,
-        rep_id: true,
-        customer: {
-          select: {
-            name: true,
+    const [total, invoices, totalAmountSum, paidCount, partialCount] = await Promise.all([
+      prisma.invoice.count({ where }),
+      prisma.invoice.findMany({
+        where,
+        orderBy: [{ invoice_date: "desc" }, { invoice_id: "desc" }],
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          invoice_id: true,
+          invoice_number: true,
+          invoice_date: true,
+          total_amount: true,
+          payment_status: true,
+          paid_amount: true,
+          credited_amount: true,
+          balance_amount: true,
+          gin_status: true,
+          customer_id: true,
+          rep_id: true,
+          vat_percentage: true,
+          customer: {
+            select: {
+              name: true,
+            },
+          },
+          rep: {
+            select: {
+              full_name: true,
+            },
+          },
+          location: {
+            select: {
+              code: true,
+            },
+          },
+          invoice_lines: {
+            select: {
+              issued_qty: true,
+              returned_qty: true,
+            },
           },
         },
-        rep: {
-          select: {
-            full_name: true,
-          },
-        },
-        location: {
-          select: {
-            code: true,
-          },
-        },
-        invoice_lines: {
-          select: {
-            issued_qty: true,
-            returned_qty: true,
-          },
-        },
-      },
-    });
+      }),
+      prisma.invoice.aggregate({
+        where,
+        _sum: { total_amount: true },
+      }),
+      prisma.invoice.count({
+        where: { ...where, payment_status: "PAID" },
+      }),
+      prisma.invoice.count({
+        where: { ...where, payment_status: "PARTIAL" },
+      }),
+    ]);
 
     const responseBody: InvoicesResponse = {
       data: invoices.map((invoice) => ({
@@ -209,7 +240,19 @@ export async function GET(request: Request) {
         status: invoice.payment_status,
         ginStatus: invoice.gin_status,
         locationCode: invoice.location.code,
+        vatPercentage: Number(invoice.vat_percentage ?? 0),
       })),
+      pagination: {
+        page,
+        pageSize: limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
+      stats: {
+        totalValue: Number(totalAmountSum._sum.total_amount ?? 0),
+        paidCount,
+        partialCount,
+      },
     };
 
     return NextResponse.json(responseBody);
@@ -246,8 +289,16 @@ export async function POST(request: Request) {
       invoiceNumber,
       lineCount: lines.length,
       invoiceDate: body.invoiceDate,
+      vatPercentage: body.vatPercentage,
     });
 
+    const vatPercentage = body.vatPercentage !== undefined ? Number(body.vatPercentage) : 0;
+    if (Number.isNaN(vatPercentage) || vatPercentage < 0 || vatPercentage > 100) {
+      return NextResponse.json(
+        { error: "VAT percentage must be a number between 0 and 100." },
+        { status: 400 },
+      );
+    }
 
     if (!customerId || !repId || !locationId || !createdBy || !invoiceNumber) {
       return NextResponse.json(
@@ -427,8 +478,10 @@ export async function POST(request: Request) {
         }
       }
 
-      // Total amount is the sum of net line totals (what the customer actually pays)
-      const totalAmount = normalizedLines.reduce((sum, line) => sum + line.net_line_total, 0);
+      // Total amount is the sum of net line totals (what the customer actually pays) + VAT
+      const subtotalAmount = normalizedLines.reduce((sum, line) => sum + line.net_line_total, 0);
+      const vatAmount = subtotalAmount * (vatPercentage / 100);
+      const totalAmount = subtotalAmount + vatAmount;
 
       const createdInvoice = await tx.invoice.create({
         data: {
@@ -438,6 +491,7 @@ export async function POST(request: Request) {
           location_id: location.location_id,
           created_by: createdBy,
           invoice_date: invoiceDate,
+          vat_percentage: vatPercentage,
           total_amount: totalAmount,
           paid_amount: 0,
           credited_amount: 0,

@@ -24,12 +24,14 @@ type InvoiceDetailsSectionProps = {
   customersLoading: boolean;
   locationsLoading: boolean;
   hasRepSelected: boolean;
+  vatPercentage: number;
   onInvoiceNoChange: (value: string) => void;
   onInvoiceDateChange: (value: string) => void;
   onNotesChange: (value: string) => void;
   onRepChange: (value: number | null) => void;
   onCustomerChange: (value: number | null) => void;
   onLocationChange: (value: number | null) => void;
+  onVatPercentageChange: (value: number) => void;
 };
 
 const InvoiceDetailsSection = ({
@@ -52,21 +54,33 @@ const InvoiceDetailsSection = ({
   customersLoading,
   locationsLoading,
   hasRepSelected,
+  vatPercentage,
   onInvoiceNoChange,
   onInvoiceDateChange,
   onNotesChange,
   onRepChange,
   onCustomerChange,
   onLocationChange,
+  onVatPercentageChange,
 }: InvoiceDetailsSectionProps) => {
   const [invoiceNoDraft, setInvoiceNoDraft] = useState(invoiceNo);
   const [isInvoiceNoFocused, setIsInvoiceNoFocused] = useState(false);
+  const [vatPercentageDraft, setVatPercentageDraft] = useState(
+    vatPercentage === 0 ? "" : vatPercentage.toString(),
+  );
 
   useEffect(() => {
     if (!isInvoiceNoFocused) {
       setInvoiceNoDraft(invoiceNo);
     }
   }, [invoiceNo, isInvoiceNoFocused]);
+
+  useEffect(() => {
+    const parsedDraft = vatPercentageDraft === "" ? 0 : Number(vatPercentageDraft) || 0;
+    if (parsedDraft !== vatPercentage) {
+      setVatPercentageDraft(vatPercentage === 0 ? "" : vatPercentage.toString());
+    }
+  }, [vatPercentage, vatPercentageDraft]);
 
   const editableInputClassName =
     "rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 [font-family:var(--font-dmsans)] outline-none focus:border-[#1a5c2e]";
@@ -162,7 +176,31 @@ const InvoiceDetailsSection = ({
           {locationError && <p className="text-[12px] text-red-700 [font-family:var(--font-dmsans)]">{locationError}</p>}
         </label>
 
-        <label className="flex flex-col gap-1.5 lg:col-span-2">
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[12px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">VAT %</span>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            step="any"
+            placeholder="0"
+            value={vatPercentageDraft}
+            onChange={(event) => {
+              const val = event.target.value;
+              setVatPercentageDraft(val);
+              const numVal = Number(val);
+              if (!Number.isNaN(numVal)) {
+                const parsedVal = Math.max(0, Math.min(100, numVal));
+                onVatPercentageChange(parsedVal);
+              } else if (val === "") {
+                onVatPercentageChange(0);
+              }
+            }}
+            className={editableInputClassName}
+          />
+        </label>
+
+        <label className="flex flex-col gap-1.5 lg:col-span-6">
           <span className="text-[12px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">Notes</span>
           <input
             type="text"

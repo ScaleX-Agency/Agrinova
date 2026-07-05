@@ -28,15 +28,17 @@ const formatDate = (value: string) =>
 type GoodsReceivingRow = NonNullable<GoodsReceivingNotesResponse["data"]>[number];
 
 const GoodsReceivingNotesPage = () => {
-  const [rangeFilter, setRangeFilter] = useState("month");
+  const [rangeFilter, setRangeFilter] = useState("year");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
-  const [appliedRange, setAppliedRange] = useState("month");
+  const [appliedRange, setAppliedRange] = useState("year");
   const [appliedStart, setAppliedStart] = useState("");
   const [appliedEnd, setAppliedEnd] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(0);
 
-  const notesQuery = useQuery({
-    queryKey: ["goods-receiving-notes", appliedRange, appliedStart, appliedEnd],
+  const notesQuery = useQuery<GoodsReceivingNotesResponse, Error>({
+    queryKey: ["goods-receiving-notes", appliedRange, appliedStart, appliedEnd, page, searchTerm],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (appliedRange !== "all") {
@@ -46,6 +48,10 @@ const GoodsReceivingNotesPage = () => {
           if (appliedEnd) params.set("endDate", appliedEnd);
         }
       }
+      params.set("page", String(page + 1));
+      params.set("limit", "20");
+      if (searchTerm.trim()) params.set("search", searchTerm.trim());
+
       const query = params.toString();
       const response = await fetch(`/api/goods-receiving-notes${query ? `?${query}` : ""}`);
       const result = (await response.json()) as GoodsReceivingNotesResponse;
@@ -54,11 +60,12 @@ const GoodsReceivingNotesPage = () => {
           result.error ?? "Failed to load goods receiving notes.",
         );
       }
-      return Array.isArray(result.data) ? result.data : [];
+      return result;
     },
   });
 
-  const rows = notesQuery.data ?? [];
+  const rows = notesQuery.data?.data ?? [];
+  const pagination = notesQuery.data?.pagination;
   const tableColumns = useMemo<ColumnDef<GoodsReceivingRow>[]>(
     () => [
       {
@@ -183,6 +190,7 @@ const GoodsReceivingNotesPage = () => {
             setAppliedRange(rangeFilter);
             setAppliedStart(customStart);
             setAppliedEnd(customEnd);
+            setPage(0);
           }}
           className="rounded-xl bg-[#1a5c2e] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42]"
         >
@@ -197,6 +205,19 @@ const GoodsReceivingNotesPage = () => {
         isLoading={notesQuery.isLoading}
         searchPlaceholder="Search GRN no, location, reference, or creator"
         emptyMessage="No goods receiving notes found yet. Save a new stock entry to create the first one."
+        initialPageSize={20}
+        serverSide={{
+          pageIndex: page,
+          pageSize: 20,
+          pageCount: pagination?.totalPages ?? 1,
+          totalRecords: pagination?.total ?? 0,
+          onPageChange: (p) => setPage(p),
+          searchTerm: searchTerm,
+          onSearchChange: (s) => {
+            setSearchTerm(s);
+            setPage(0);
+          },
+        }}
       />
 
       {notesQuery.error instanceof Error && (
