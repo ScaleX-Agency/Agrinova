@@ -16,15 +16,17 @@ const formatDate = (value: string) =>
   });
 
 const StockTransfersPage = () => {
-  const [rangeFilter, setRangeFilter] = useState("month");
+  const [rangeFilter, setRangeFilter] = useState("year");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
-  const [appliedRange, setAppliedRange] = useState("month");
+  const [appliedRange, setAppliedRange] = useState("year");
   const [appliedStart, setAppliedStart] = useState("");
   const [appliedEnd, setAppliedEnd] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(0);
 
-  const transfersQuery = useQuery({
-    queryKey: ["stock-transfers-docs", appliedRange, appliedStart, appliedEnd],
+  const transfersQuery = useQuery<StockTransfersResponse, Error>({
+    queryKey: ["stock-transfers-docs", appliedRange, appliedStart, appliedEnd, page, searchTerm],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (appliedRange !== "all") {
@@ -34,17 +36,22 @@ const StockTransfersPage = () => {
           if (appliedEnd) params.set("endDate", appliedEnd);
         }
       }
+      params.set("page", String(page + 1));
+      params.set("pageSize", "20");
+      if (searchTerm.trim()) params.set("search", searchTerm.trim());
+
       const query = params.toString();
-      const response = await fetch(`/api/stock-transfers${query ? `?${query}` : ""}`);
+      const response = await fetch(`/api/stock-transfers?${query}`);
       const result = (await response.json()) as StockTransfersResponse;
       if (!response.ok) {
         throw new Error(result.error ?? "Failed to load stock transfers.");
       }
-      return Array.isArray(result.data) ? result.data : [];
+      return result;
     },
   });
 
-  const rows = transfersQuery.data ?? [];
+  const rows = transfersQuery.data?.data ?? [];
+  const pagination = transfersQuery.data?.pagination;
 
   const columns: ColumnDef<StockTransferOptionDto>[] = [
     {
@@ -123,8 +130,21 @@ const StockTransfersPage = () => {
         columns={columns}
         minWidth={980}
         isLoading={transfersQuery.isLoading}
-        searchPlaceholder="Search transfer no, locations, or creator"
-        emptyMessage="No stock transfer records found yet."
+        searchPlaceholder="Search transfer no, locations, notes, creator"
+        emptyMessage="No stock transfers recorded yet."
+        initialPageSize={20}
+        serverSide={{
+          pageIndex: page,
+          pageSize: 20,
+          pageCount: pagination?.totalPages ?? 1,
+          totalRecords: pagination?.total ?? 0,
+          onPageChange: (p) => setPage(p),
+          searchTerm: searchTerm,
+          onSearchChange: (s) => {
+            setSearchTerm(s);
+            setPage(0);
+          },
+        }}
         toolbarRight={
           <>
             <select
@@ -161,6 +181,7 @@ const StockTransfersPage = () => {
                 setAppliedRange(rangeFilter);
                 setAppliedStart(customStart);
                 setAppliedEnd(customEnd);
+                setPage(0);
               }}
               className="rounded-xl bg-[#1a5c2e] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42]"
             >

@@ -270,11 +270,22 @@ const getNextTransferNumber = async (
 export async function getStockTransfers(
   page: number = 1,
   pageSize: number = 20,
-  filters?: { dateFilter?: Prisma.DateTimeFilter },
+  filters?: { dateFilter?: Prisma.DateTimeFilter; search?: string },
 ): Promise<PaginatedResult<StockTransferRecord>> {
-  const where = {
+  const where: Prisma.StockTransferWhereInput = {
     is_active: true,
     ...(filters?.dateFilter ? { transfer_date: filters.dateFilter } : {}),
+    ...(filters?.search ? {
+      OR: [
+        { transfer_no: { contains: filters.search, mode: "insensitive" } },
+        { notes: { contains: filters.search, mode: "insensitive" } },
+        { from_location: { name: { contains: filters.search, mode: "insensitive" } } },
+        { from_location: { code: { contains: filters.search, mode: "insensitive" } } },
+        { to_location: { name: { contains: filters.search, mode: "insensitive" } } },
+        { to_location: { code: { contains: filters.search, mode: "insensitive" } } },
+        { creator: { full_name: { contains: filters.search, mode: "insensitive" } } },
+      ],
+    } : {}),
   };
   const [total, transfers] = await Promise.all([
     prisma.stockTransfer.count({ where }),

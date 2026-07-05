@@ -26,6 +26,10 @@ export async function GET(request: Request) {
     const checkGinNo = url.searchParams.get("checkGinNo") === "true";
     const ginNumber = url.searchParams.get("ginNumber")?.trim();
 
+    const search = url.searchParams.get("search")?.trim() || "";
+    const page = parseInt(url.searchParams.get("page") || "1", 10);
+    const limit = parseInt(url.searchParams.get("limit") || "20", 10);
+
     if (checkGinNo) {
       if (!ginNumber) {
         return NextResponse.json(
@@ -107,30 +111,45 @@ export async function GET(request: Request) {
       }
     }
 
-    const notes = await prisma.goodsIssueNote.findMany({
-      where: {
-        is_active: true,
-        ...(invoiceId ? { invoice_id: invoiceId } : {}),
-        ...(dateFilter ? { gin_date: dateFilter } : {}),
-      },
-      orderBy: [{ gin_date: "desc" }, { gin_id: "desc" }],
-      include: {
-        invoice: {
-          select: { invoice_id: true, invoice_number: true, gin_status: true },
+    const where: Prisma.GoodsIssueNoteWhereInput = {
+      is_active: true,
+      ...(invoiceId ? { invoice_id: invoiceId } : {}),
+      ...(dateFilter ? { gin_date: dateFilter } : {}),
+      ...(search ? {
+        OR: [
+          { gin_number: { contains: search, mode: "insensitive" } },
+          { customer: { name: { contains: search, mode: "insensitive" } } },
+          { invoice: { invoice_number: { contains: search, mode: "insensitive" } } },
+          { location: { code: { contains: search, mode: "insensitive" } } },
+        ],
+      } : {}),
+    };
+
+    const [total, notes] = await Promise.all([
+      prisma.goodsIssueNote.count({ where }),
+      prisma.goodsIssueNote.findMany({
+        where,
+        orderBy: [{ gin_date: "desc" }, { gin_id: "desc" }],
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          invoice: {
+            select: { invoice_id: true, invoice_number: true, gin_status: true },
+          },
+          customer: { select: { customer_id: true, name: true } },
+          location: { select: { location_id: true, code: true } },
+          lines: includeLines
+            ? {
+                select: {
+                  product_id: true,
+                  quantity: true,
+                },
+              }
+            : false,
+          _count: { select: { lines: true } },
         },
-        customer: { select: { customer_id: true, name: true } },
-        location: { select: { location_id: true, code: true } },
-        lines: includeLines
-          ? {
-              select: {
-                product_id: true,
-                quantity: true,
-              },
-            }
-          : false,
-        _count: { select: { lines: true } },
-      },
-    });
+      }),
+    ]);
 
     const responseBody: GoodsIssueNotesResponse = {
       data: notes.map((note) => ({
@@ -152,6 +171,12 @@ export async function GET(request: Request) {
             }))
           : undefined,
       })),
+      pagination: {
+        page,
+        pageSize: limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
     };
 
     return NextResponse.json(responseBody);

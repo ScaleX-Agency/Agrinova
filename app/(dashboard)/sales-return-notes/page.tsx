@@ -25,7 +25,15 @@ type SalesReturnListRow = {
   createdBy: string;
 };
 
-type ListResponse = { data: SalesReturnListRow[] };
+type ListResponse = {
+  data: SalesReturnListRow[];
+  pagination?: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+};
 type LocationOption = { location_id: number; code: string; name: string };
 
 const formatCurrency = (value: number) =>
@@ -48,12 +56,13 @@ const formatDate = (value: string | null) => {
 export default function SalesReturnNotesPage() {
   const [locationId, setLocationId] = useState("all");
   const [search, setSearch] = useState("");
-  const [rangeFilter, setRangeFilter] = useState("month");
+  const [rangeFilter, setRangeFilter] = useState("year");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
-  const [appliedRange, setAppliedRange] = useState("month");
+  const [appliedRange, setAppliedRange] = useState("year");
   const [appliedStart, setAppliedStart] = useState("");
   const [appliedEnd, setAppliedEnd] = useState("");
+  const [page, setPage] = useState(0);
 
   const queryString = useMemo(() => {
     const sp = new URLSearchParams();
@@ -66,16 +75,18 @@ export default function SalesReturnNotesPage() {
       }
     }
     if (search.trim()) sp.set("search", search.trim());
+    sp.set("page", String(page + 1));
+    sp.set("limit", "20");
     return sp.toString();
-  }, [locationId, search, appliedRange, appliedStart, appliedEnd]);
+  }, [locationId, search, appliedRange, appliedStart, appliedEnd, page]);
 
-  const listQuery = useQuery({
-    queryKey: ["sales-return-notes-list", locationId, search, appliedRange, appliedStart, appliedEnd],
+  const listQuery = useQuery<ListResponse, Error>({
+    queryKey: ["sales-return-notes-list", locationId, search, appliedRange, appliedStart, appliedEnd, page],
     queryFn: async () => {
       const response = await fetch(`/api/sales-return-notes/list?${queryString}`, { cache: "no-store" });
       const result = (await response.json()) as ListResponse | { error?: string };
       if (!response.ok) throw new Error((result as { error?: string }).error ?? "Failed to load sales return notes.");
-      return (result as ListResponse).data;
+      return result as ListResponse;
     },
   });
 
@@ -144,7 +155,10 @@ export default function SalesReturnNotesPage() {
             <span className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Location</span>
             <select
               value={locationId}
-              onChange={(event) => setLocationId(event.target.value)}
+              onChange={(event) => {
+                setLocationId(event.target.value);
+                setPage(0);
+              }}
               className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[13px]"
             >
               <option value="all">All Locations</option>
@@ -178,7 +192,10 @@ export default function SalesReturnNotesPage() {
               <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
               <input
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(0);
+                }}
                 className="w-full rounded-lg border border-stone-200 bg-stone-50 px-9 py-2 text-[13px]"
                 placeholder="SRN, GRN, CN, invoice, customer, location..."
               />
@@ -214,6 +231,7 @@ export default function SalesReturnNotesPage() {
               setAppliedRange(rangeFilter);
               setAppliedStart(customStart);
               setAppliedEnd(customEnd);
+              setPage(0);
             }}
             className="rounded-xl bg-[#1a5c2e] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42]"
           >
@@ -228,12 +246,20 @@ export default function SalesReturnNotesPage() {
         </div>
       ) : (
         <DataTable
-          data={listQuery.data ?? []}
+          data={listQuery.data?.data ?? []}
           columns={columns}
           minWidth={0}
           hideSearch
           isLoading={listQuery.isLoading}
           emptyMessage="No sales return notes found."
+          initialPageSize={20}
+          serverSide={{
+            pageIndex: page,
+            pageSize: 20,
+            pageCount: listQuery.data?.pagination?.totalPages ?? 1,
+            totalRecords: listQuery.data?.pagination?.total ?? 0,
+            onPageChange: (p) => setPage(p),
+          }}
           toolbarRight={
             <div className="inline-flex items-center gap-1 text-[12px] text-stone-500">
               <FileText size={13} />

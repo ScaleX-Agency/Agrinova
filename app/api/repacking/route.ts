@@ -94,6 +94,7 @@ export async function GET(req: Request) {
         notes: row.notes,
         createdByName: row.created_by_name,
       })),
+      pagination: result.pagination,
     };
 
     return NextResponse.json(payload);

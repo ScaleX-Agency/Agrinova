@@ -21,23 +21,28 @@ const ProductRepacksPage = () => {
   const { data: locations = [] } = useLocations();
 
   const [showModal, setShowModal] = useState(false);
-  const [rangeFilter, setRangeFilter] = useState("month");
+  const [rangeFilter, setRangeFilter] = useState("year");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [locationFilter, setLocationFilter] = useState<string>("all");
 
-  const [appliedRange, setAppliedRange] = useState("month");
+  const [appliedRange, setAppliedRange] = useState("year");
   const [appliedStart, setAppliedStart] = useState("");
   const [appliedEnd, setAppliedEnd] = useState("");
   const [appliedLocation, setAppliedLocation] = useState<string>("all");
 
-  const repacksQuery = useQuery({
+  const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(0);
+
+  const repacksQuery = useQuery<ProductRepacksResponse, Error>({
     queryKey: [
       "repacks",
       appliedRange,
       appliedStart,
       appliedEnd,
       appliedLocation,
+      page,
+      searchTerm,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -51,18 +56,22 @@ const ProductRepacksPage = () => {
       if (appliedLocation !== "all") {
         params.set("locationId", appliedLocation);
       }
+      params.set("page", String(page + 1));
+      params.set("pageSize", "20");
+      if (searchTerm.trim()) params.set("search", searchTerm.trim());
 
       const query = params.toString();
-      const response = await fetch(`/api/repacking${query ? `?${query}` : ""}`);
+      const response = await fetch(`/api/repacking?${query}`);
       const result = (await response.json()) as ProductRepacksResponse;
       if (!response.ok) {
         throw new Error(result.error ?? "Failed to load product repacking records.");
       }
-      return Array.isArray(result.data) ? result.data : [];
+      return result;
     },
   });
 
-  const rows = repacksQuery.data ?? [];
+  const rows = repacksQuery.data?.data ?? [];
+  const pagination = repacksQuery.data?.pagination;
 
   const columns: ColumnDef<ProductRepackOptionDto>[] = [
     {
@@ -169,10 +178,23 @@ const ProductRepacksPage = () => {
       <DataTable
         data={rows}
         columns={columns}
-        minWidth={980}
+        minWidth={1180}
         isLoading={repacksQuery.isLoading}
-        searchPlaceholder="Search repack no, products, or creator"
-        emptyMessage="No product repacking records found yet."
+        searchPlaceholder="Search repack no, source, target, or notes"
+        emptyMessage="No product repacking records found."
+        initialPageSize={20}
+        serverSide={{
+          pageIndex: page,
+          pageSize: 20,
+          pageCount: pagination?.totalPages ?? 1,
+          totalRecords: pagination?.total ?? 0,
+          onPageChange: (p) => setPage(p),
+          searchTerm: searchTerm,
+          onSearchChange: (s) => {
+            setSearchTerm(s);
+            setPage(0);
+          },
+        }}
         toolbarRight={
           <>
             <select
@@ -224,6 +246,7 @@ const ProductRepacksPage = () => {
                 setAppliedStart(customStart);
                 setAppliedEnd(customEnd);
                 setAppliedLocation(locationFilter);
+                setPage(0);
               }}
               className="rounded-xl bg-[#1a5c2e] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42] transition-colors"
             >

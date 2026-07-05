@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, isAdminOrOperatorUser } from "@/lib/auth";
 import { rebuildInvoiceCreditNoteCommissions } from "@/lib/commissionSettlement";
@@ -35,6 +36,8 @@ export async function GET(request: Request) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const search = (searchParams.get("search") ?? "").trim();
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const limit = parseInt(searchParams.get("limit") || "20", 10);
 
     const now = new Date();
     const start = new Date(now);
@@ -71,48 +74,55 @@ export async function GET(request: Request) {
               lte: end,
             };
 
-    const rows = await prisma.returnedCheque.findMany({
-      where: {
-        is_active: true,
-        ...(dateFilter ? { return_date: dateFilter } : {}),
-        ...(search.length > 0
-          ? {
-              OR: [
-                { reason: { contains: search, mode: "insensitive" } },
-                { receipt: { is: { receipt_number: { contains: search, mode: "insensitive" } } } },
-                { receipt: { is: { cheque_no: { contains: search, mode: "insensitive" } } } },
-                { receipt: { is: { bank_name: { contains: search, mode: "insensitive" } } } },
-                { receipt: { is: { invoice: { is: { invoice_number: { contains: search, mode: "insensitive" } } } } } },
-                { receipt: { is: { invoice: { is: { customer: { is: { name: { contains: search, mode: "insensitive" } } } } } } } },
-              ],
-            }
-          : {}),
-      },
-      orderBy: [{ return_date: "desc" }, { returned_cheque_id: "desc" }],
-      select: {
-        returned_cheque_id: true,
-        receipt_id: true,
-        return_date: true,
-        amount: true,
-        reason: true,
-        receipt: {
-          select: {
-            receipt_number: true,
-            cheque_no: true,
-            cheque_date: true,
-            bank_name: true,
-            invoice: {
-              select: {
-                invoice_id: true,
-                invoice_number: true,
-                customer: { select: { name: true } },
+    const where: Prisma.ReturnedChequeWhereInput = {
+      is_active: true,
+      ...(dateFilter ? { return_date: dateFilter } : {}),
+      ...(search.length > 0
+        ? {
+            OR: [
+              { reason: { contains: search, mode: "insensitive" } },
+              { receipt: { is: { receipt_number: { contains: search, mode: "insensitive" } } } },
+              { receipt: { is: { cheque_no: { contains: search, mode: "insensitive" } } } },
+              { receipt: { is: { bank_name: { contains: search, mode: "insensitive" } } } },
+              { receipt: { is: { invoice: { is: { invoice_number: { contains: search, mode: "insensitive" } } } } } },
+              { receipt: { is: { invoice: { is: { customer: { is: { name: { contains: search, mode: "insensitive" } } } } } } } },
+            ],
+          }
+        : {}),
+    };
+
+    const [total, rows] = await Promise.all([
+      prisma.returnedCheque.count({ where }),
+      prisma.returnedCheque.findMany({
+        where,
+        orderBy: [{ return_date: "desc" }, { returned_cheque_id: "desc" }],
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          returned_cheque_id: true,
+          receipt_id: true,
+          return_date: true,
+          amount: true,
+          reason: true,
+          receipt: {
+            select: {
+              receipt_number: true,
+              cheque_no: true,
+              cheque_date: true,
+              bank_name: true,
+              invoice: {
+                select: {
+                  invoice_id: true,
+                  invoice_number: true,
+                  customer: { select: { name: true } },
+                },
               },
             },
           },
+          creator: { select: { full_name: true } },
         },
-        creator: { select: { full_name: true } },
-      },
-    });
+      }),
+    ]);
 
     const response: ReturnedChequesResponse = {
       data: rows.map((row) => ({
@@ -130,6 +140,12 @@ export async function GET(request: Request) {
         reason: row.reason,
         createdBy: row.creator.full_name,
       })),
+      pagination: {
+        page,
+        pageSize: limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
     };
 
     return NextResponse.json(response);

@@ -40,18 +40,26 @@ const formatCurrency = (value: number) =>
   }).format(value);
 
 const ReceiptsClient = () => {
-  // eslint-disable-next-line
   const [searchTerm, setSearchTerm] = useState("");
   const [methodFilter, setMethodFilter] = useState<MethodFilter>("ALL");
-  const [rangeFilter, setRangeFilter] = useState("month");
+  const [rangeFilter, setRangeFilter] = useState("year");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
-  const [appliedRange, setAppliedRange] = useState("month");
+  const [appliedRange, setAppliedRange] = useState("year");
   const [appliedStart, setAppliedStart] = useState("");
   const [appliedEnd, setAppliedEnd] = useState("");
+  const [page, setPage] = useState(0);
 
-  const receiptsQuery = useQuery<ReceiptOptionDto[], Error>({
-    queryKey: ["receipts-list", appliedRange, appliedStart, appliedEnd],
+  const receiptsQuery = useQuery<ReceiptsResponse, Error>({
+    queryKey: [
+      "receipts-list",
+      appliedRange,
+      appliedStart,
+      appliedEnd,
+      page,
+      searchTerm,
+      methodFilter,
+    ],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (appliedRange !== "all") {
@@ -61,38 +69,24 @@ const ReceiptsClient = () => {
           if (appliedEnd) params.set("endDate", appliedEnd);
         }
       }
+      params.set("page", String(page + 1));
+      params.set("limit", "20");
+      if (searchTerm.trim()) params.set("search", searchTerm.trim());
+      if (methodFilter !== "ALL") params.set("paymentMethod", methodFilter);
+
       const query = params.toString();
       const response = await fetch(`/api/receipts${query ? `?${query}` : ""}`);
       const result = (await response.json()) as ReceiptsResponse;
       if (!response.ok) throw new Error(result.error ?? "Failed to load receipts.");
-      return Array.isArray(result.data) ? result.data : [];
-   
-   
+      return result;
     },
   });
-   
-   
 
-   
-  // eslint-disable-next-line
-  const receipts = receiptsQuery.data ?? [];
+  const receipts = receiptsQuery.data?.data ?? [];
+  const pagination = receiptsQuery.data?.pagination;
+  const stats = receiptsQuery.data?.stats;
 
-  const filtered = useMemo(() => {
-    const needle = searchTerm.trim().toLowerCase();
-
-    return receipts.filter((receipt) => {
-      const methodMatches = methodFilter === "ALL" || receipt.paymentMethod === methodFilter;
-      const searchMatches =
-        needle.length === 0 ||
-        [receipt.receiptNo, receipt.invoiceNo, receipt.customerName].join(" ").toLowerCase().includes(needle);
-
-      return methodMatches && searchMatches;
-    });
-  }, [methodFilter, receipts, searchTerm]);
-
-  const totalValidCollected = filtered
-    .filter((receipt) => !receipt.isReturned)
-    .reduce((sum, receipt) => sum + receipt.amountReceived, 0);
+  const totalValidCollected = stats?.totalCollected ?? 0;
 
   const tableColumns = useMemo<ColumnDef<ReceiptOptionDto>[]>(
     () => [
@@ -193,7 +187,9 @@ const ReceiptsClient = () => {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="rounded-2xl border border-stone-200 bg-white p-4">
           <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Total Receipts</p>
-          <p className="mt-1 text-[26px] leading-none text-stone-900 [font-family:var(--font-dmsans)]">{filtered.length}</p>
+          <p className="mt-1 text-[26px] leading-none text-stone-900 [font-family:var(--font-dmsans)]">
+            {pagination?.total ?? 0}
+          </p>
         </div>
         <div className="rounded-2xl border border-stone-200 bg-white p-4 lg:col-span-2">
           <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Total Collected</p>
@@ -204,23 +200,39 @@ const ReceiptsClient = () => {
         <div className="rounded-2xl border border-stone-200 bg-white p-4">
           <p className="text-[11px] uppercase tracking-[0.1em] text-stone-400">Cash Receipts</p>
           <p className="mt-1 text-[26px] leading-none text-stone-900 [font-family:var(--font-dmsans)]">
-            {filtered.filter((row) => row.paymentMethod === "CASH").length}
+            {stats?.cashCount ?? 0}
           </p>
         </div>
       </div>
 
       <DataTable
-        data={filtered}
+        data={receipts}
         columns={tableColumns}
         minWidth={1080}
         isLoading={receiptsQuery.isLoading}
         searchPlaceholder="Search receipt no, invoice no, or customer"
         emptyMessage="No receipts match the selected filters."
+        initialPageSize={20}
+        serverSide={{
+          pageIndex: page,
+          pageSize: 20,
+          pageCount: pagination?.totalPages ?? 1,
+          totalRecords: pagination?.total ?? 0,
+          onPageChange: (p) => setPage(p),
+          searchTerm: searchTerm,
+          onSearchChange: (s) => {
+            setSearchTerm(s);
+            setPage(0);
+          },
+        }}
         toolbarRight={
           <>
             <select
               value={methodFilter}
-              onChange={(event) => setMethodFilter(event.target.value as MethodFilter)}
+              onChange={(event) => {
+                setMethodFilter(event.target.value as MethodFilter);
+                setPage(0);
+              }}
               className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 outline-none focus:border-[#1a5c2e]"
             >
               <option value="ALL">All Methods</option>
@@ -264,6 +276,7 @@ const ReceiptsClient = () => {
                 setAppliedRange(rangeFilter);
                 setAppliedStart(customStart);
                 setAppliedEnd(customEnd);
+                setPage(0);
               }}
               className="rounded-xl bg-[#1a5c2e] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42]"
             >
