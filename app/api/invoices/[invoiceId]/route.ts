@@ -28,6 +28,7 @@ export async function GET(
         paid_amount: true,
         credited_amount: true,
         balance_amount: true,
+        vat_percentage: true,
         customer: {
           select: {
             customer_id: true,
@@ -99,6 +100,7 @@ export async function GET(
         creditedAmount: Number(invoice.credited_amount),
         outstandingAmount,
         totalReturnableQty,
+        vatPercentage: Number(invoice.vat_percentage ?? 0),
         lines: invoice.invoice_lines.map((line: InvoiceLineRecord) => ({
           lineId: line.line_id,
           productId: line.product_id,

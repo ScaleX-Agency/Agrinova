@@ -50,6 +50,7 @@ export type CreateInvoiceRequestDto = {
   repId: number;
   locationId: number;
   notes?: string;
+  vatPercentage?: number;
   lines: CreateInvoiceLineDto[];
 };
 
@@ -103,6 +104,7 @@ export type InvoiceDetailDto = {
   creditedAmount: number;
   outstandingAmount: number;
   totalReturnableQty: number;
+  vatPercentage: number;
   lines: InvoiceLineDto[];
 };
 
@@ -534,6 +536,7 @@ export type InvoiceOptionDto = {
   status: "PAID" | "PARTIAL" | "UNPAID" | "OVERDUE";
   ginStatus: "PENDING" | "ISSUED" | "PARTIAL";
   locationCode: string | null;
+  vatPercentage: number;
 };
 
 export type CreateSalesReturnLineDto = {

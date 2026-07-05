@@ -221,6 +221,8 @@ const RecordReturnsModalButton = ({
     );
   }, [workingLineDrafts]);
 
+  const vatPercentage = invoiceDetailQuery.data?.vatPercentage ?? 0;
+
   const handleSubmit = async () => {
     setError("");
     if (!returnDate || Number.isNaN(new Date(returnDate).getTime())) {
@@ -685,8 +687,12 @@ const RecordReturnsModalButton = ({
                 <p className="mt-1 text-[14px] font-semibold text-amber-800">{totals.unusableQty}</p>
               </div>
               <div className="rounded-xl border border-blue-200 bg-blue-50 p-2.5">
-                <p className="text-[11px] uppercase tracking-[0.08em] text-blue-700">Credit Amount</p>
-                <p className="mt-1 text-[14px] font-semibold text-blue-800">{formatCurrency(totals.totalAmount)}</p>
+                <p className="text-[11px] uppercase tracking-[0.08em] text-blue-700">
+                  Credit Amount {vatPercentage > 0 ? `(inc. ${vatPercentage}% VAT)` : ""}
+                </p>
+                <p className="mt-1 text-[14px] font-semibold text-blue-800">
+                  {formatCurrency(totals.totalAmount * (1 + vatPercentage / 100))}
+                </p>
               </div>
             </div>
             </section>

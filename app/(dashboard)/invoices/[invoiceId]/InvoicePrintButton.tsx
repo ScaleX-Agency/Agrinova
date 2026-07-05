@@ -23,6 +23,7 @@ type InvoicePrintButtonProps = {
   customerAddress: string | null;
   lines: InvoicePrintLine[];
   totalAmount: number;
+  vatPercentage?: number;
 };
 
 const formatDate = (value: string) =>
@@ -85,6 +86,7 @@ const InvoicePrintButton = ({
   customerAddress,
   lines,
   totalAmount,
+  vatPercentage = 0,
 }: InvoicePrintButtonProps) => {
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -167,12 +169,43 @@ const InvoicePrintButton = ({
                 ))}
               </tbody>
               <tfoot>
-                <tr>
-                  <td colSpan={6} className="text-right text-[11px] font-semibold uppercase tracking-[0.08em] text-stone-700">
-                    Total Amount Rs.
-                  </td>
-                  <td className="text-right text-[13px] font-semibold tabular-nums text-[#1a5c2e]">{formatPrintAmount(totalAmount)}</td>
-                </tr>
+                {vatPercentage > 0 ? (
+                  <>
+                    <tr>
+                      <td colSpan={6} className="text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-stone-600">
+                        Subtotal Rs.
+                      </td>
+                      <td className="text-right text-[11px] font-medium tabular-nums text-stone-900">
+                        {formatPrintAmount(totalAmount / (1 + vatPercentage / 100))}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colSpan={6} className="text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-stone-600">
+                        VAT ({vatPercentage}%) Rs.
+                      </td>
+                      <td className="text-right text-[11px] font-medium tabular-nums text-stone-900">
+                        {formatPrintAmount(totalAmount - totalAmount / (1 + vatPercentage / 100))}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colSpan={6} className="text-right text-[11px] font-semibold uppercase tracking-[0.08em] text-stone-700">
+                        Grand Total Rs.
+                      </td>
+                      <td className="text-right text-[13px] font-semibold tabular-nums text-[#1a5c2e]">
+                        {formatPrintAmount(totalAmount)}
+                      </td>
+                    </tr>
+                  </>
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="text-right text-[11px] font-semibold uppercase tracking-[0.08em] text-stone-700">
+                      Total Amount Rs.
+                    </td>
+                    <td className="text-right text-[13px] font-semibold tabular-nums text-[#1a5c2e]">
+                      {formatPrintAmount(totalAmount)}
+                    </td>
+                  </tr>
+                )}
               </tfoot>
             </table>
           </section>

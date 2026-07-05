@@ -165,6 +165,7 @@ export async function GET(request: Request) {
         gin_status: true,
         customer_id: true,
         rep_id: true,
+        vat_percentage: true,
         customer: {
           select: {
             name: true,
@@ -209,6 +210,7 @@ export async function GET(request: Request) {
         status: invoice.payment_status,
         ginStatus: invoice.gin_status,
         locationCode: invoice.location.code,
+        vatPercentage: Number(invoice.vat_percentage ?? 0),
       })),
     };
 
@@ -246,8 +248,16 @@ export async function POST(request: Request) {
       invoiceNumber,
       lineCount: lines.length,
       invoiceDate: body.invoiceDate,
+      vatPercentage: body.vatPercentage,
     });
 
+    const vatPercentage = body.vatPercentage !== undefined ? Number(body.vatPercentage) : 0;
+    if (Number.isNaN(vatPercentage) || vatPercentage < 0 || vatPercentage > 100) {
+      return NextResponse.json(
+        { error: "VAT percentage must be a number between 0 and 100." },
+        { status: 400 },
+      );
+    }
 
     if (!customerId || !repId || !locationId || !createdBy || !invoiceNumber) {
       return NextResponse.json(
@@ -427,8 +437,10 @@ export async function POST(request: Request) {
         }
       }
 
-      // Total amount is the sum of net line totals (what the customer actually pays)
-      const totalAmount = normalizedLines.reduce((sum, line) => sum + line.net_line_total, 0);
+      // Total amount is the sum of net line totals (what the customer actually pays) + VAT
+      const subtotalAmount = normalizedLines.reduce((sum, line) => sum + line.net_line_total, 0);
+      const vatAmount = subtotalAmount * (vatPercentage / 100);
+      const totalAmount = subtotalAmount + vatAmount;
 
       const createdInvoice = await tx.invoice.create({
         data: {
@@ -438,6 +450,7 @@ export async function POST(request: Request) {
           location_id: location.location_id,
           created_by: createdBy,
           invoice_date: invoiceDate,
+          vat_percentage: vatPercentage,
           total_amount: totalAmount,
           paid_amount: 0,
           credited_amount: 0,

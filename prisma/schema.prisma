@@ -89,6 +89,7 @@ model Invoice {
   paid_amount     Decimal @default(0) @db.Decimal(10, 2) //from receipts
   credited_amount Decimal @default(0) @db.Decimal(10, 2) //from returns
   balance_amount  Decimal @default(0) @db.Decimal(10, 2) //final
+  vat_percentage  Decimal @default(0) @db.Decimal(5, 2)
 
   payment_status InvoiceStatus @default(UNPAID)
   gin_status     GINStatus     @default(PENDING)

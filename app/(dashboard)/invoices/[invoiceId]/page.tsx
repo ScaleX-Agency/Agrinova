@@ -131,6 +131,7 @@ const InvoiceDetailPage = async ({
       paid_amount: true,
       credited_amount: true,
       balance_amount: true,
+      vat_percentage: true,
       created_at: true,
       updated_at: true,
       creator: {
@@ -226,14 +227,23 @@ const InvoiceDetailPage = async ({
     (sum: number, line: InvoiceLine) => sum + Number(line.line_total),
     0,
   );
+  const vatPercentage = Number(invoice.vat_percentage ?? 0);
+  const totalBeforeVat = invoice.invoice_lines.reduce(
+    (sum: number, line: InvoiceLine) => sum + Number(line.net_line_total),
+    0,
+  );
+  const vatAmount = totalBeforeVat * (vatPercentage / 100);
   const ginStatus = invoice.gin_status;
   const paymentStatus = invoice.payment_status;
   const total = Number(invoice.total_amount);
   const paidAmount = Number(invoice.paid_amount);
   const creditedAmount = Number(invoice.credited_amount);
   const balanceAmount = Number(invoice.balance_amount);
-  const discountTotal = Math.max(0, subtotal - total);
-  const grandTotalAfterReturns = Math.max(0, subtotal - discountTotal - creditedAmount);
+  const discountTotal = invoice.invoice_lines.reduce(
+    (sum: number, line: InvoiceLine) => sum + (Number(line.line_total) - Number(line.net_line_total)),
+    0,
+  );
+  const grandTotalAfterReturns = Math.max(0, total - creditedAmount);
   const issueStocksLines = invoice.invoice_lines.map((line) => ({
     productName: line.product.product_name,
     packSize: line.product.pack_size,
@@ -307,6 +317,7 @@ const InvoiceDetailPage = async ({
                 netLineTotal: Number(line.net_line_total),
               }))}
               totalAmount={total}
+              vatPercentage={vatPercentage}
             />
 
             {ginStatus === "ISSUED" ? (
@@ -543,6 +554,12 @@ const InvoiceDetailPage = async ({
               <span>discount</span>
               <span>- {formatCurrency(discountTotal)}</span>
             </div>
+            {vatPercentage > 0 && (
+              <div className="flex items-center justify-between border-b border-stone-200 pb-1.5 text-stone-700">
+                <span>vat ({vatPercentage}%)</span>
+                <span>{formatCurrency(vatAmount)}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between border-b border-stone-200 pb-1.5 text-red-700">
               <span>returns</span>
               <span>- {formatCurrency(creditedAmount)}</span>
