@@ -65,12 +65,22 @@ const InvoiceDetailsSection = ({
 }: InvoiceDetailsSectionProps) => {
   const [invoiceNoDraft, setInvoiceNoDraft] = useState(invoiceNo);
   const [isInvoiceNoFocused, setIsInvoiceNoFocused] = useState(false);
+  const [vatPercentageDraft, setVatPercentageDraft] = useState(
+    vatPercentage === 0 ? "" : vatPercentage.toString(),
+  );
 
   useEffect(() => {
     if (!isInvoiceNoFocused) {
       setInvoiceNoDraft(invoiceNo);
     }
   }, [invoiceNo, isInvoiceNoFocused]);
+
+  useEffect(() => {
+    const parsedDraft = vatPercentageDraft === "" ? 0 : Number(vatPercentageDraft) || 0;
+    if (parsedDraft !== vatPercentage) {
+      setVatPercentageDraft(vatPercentage === 0 ? "" : vatPercentage.toString());
+    }
+  }, [vatPercentage, vatPercentageDraft]);
 
   const editableInputClassName =
     "rounded-xl border border-stone-200 bg-white px-3 py-2 text-[13px] text-stone-700 [font-family:var(--font-dmsans)] outline-none focus:border-[#1a5c2e]";
@@ -172,13 +182,19 @@ const InvoiceDetailsSection = ({
             type="number"
             min={0}
             max={100}
-            step={1}
+            step="any"
             placeholder="0"
-            value={vatPercentage || ""}
+            value={vatPercentageDraft}
             onChange={(event) => {
               const val = event.target.value;
-              const parsedVal = val === "" ? 0 : Math.max(0, Math.min(100, Number(val) || 0));
-              onVatPercentageChange(parsedVal);
+              setVatPercentageDraft(val);
+              const numVal = Number(val);
+              if (!Number.isNaN(numVal)) {
+                const parsedVal = Math.max(0, Math.min(100, numVal));
+                onVatPercentageChange(parsedVal);
+              } else if (val === "") {
+                onVatPercentageChange(0);
+              }
             }}
             className={editableInputClassName}
           />
