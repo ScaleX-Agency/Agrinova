@@ -68,7 +68,7 @@ export default function CommissionRepDetailPage() {
   const params = useParams<{ repId: string }>();
   const repId = Number(params.repId);
 
-  const [periodType, setPeriodType] = useState<PeriodType>("monthly");
+  const [periodType, setPeriodType] = useState<PeriodType>("yearly");
   const [date, setDate] = useState(todayISO());
   const [month, setMonth] = useState(monthISO());
   const [year, setYear] = useState(yearISO());
@@ -105,7 +105,7 @@ export default function CommissionRepDetailPage() {
   });
 
   const reset = () => {
-    setPeriodType("monthly");
+    setPeriodType("yearly");
     setDate(todayISO());
     setMonth(monthISO());
     setYear(yearISO());

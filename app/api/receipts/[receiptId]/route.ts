@@ -150,6 +150,11 @@ export async function DELETE(
         throw new Error("Receipt not found or already inactive.");
       }
 
+      // Lock the invoice row for update to serialize concurrent modifications
+      if (typeof tx.$executeRaw === "function") {
+        await tx.$executeRaw`SELECT invoice_id FROM "INVOICE" WHERE invoice_id = ${receipt.invoice_id} FOR UPDATE`;
+      }
+
       for (const settlement of receipt.invoiceSettlements) {
         // Deactivate reversal allocations where this settlement was a source
         await tx.commissionReversalAllocation.updateMany({

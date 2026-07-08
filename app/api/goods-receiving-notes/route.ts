@@ -69,6 +69,8 @@ export async function GET(request: Request) {
       } : {}),
     };
 
+    const includeLines = searchParams.get("includeLines") === "true";
+
     const [total, notes] = await Promise.all([
       prisma.goodsReceivingNote.count({ where }),
       prisma.goodsReceivingNote.findMany({
@@ -95,11 +97,27 @@ export async function GET(request: Request) {
               lines: true,
             },
           },
+          ...(includeLines
+            ? {
+                lines: {
+                  select: {
+                    quantity: true,
+                    product: {
+                      select: {
+                        product_code: true,
+                        product_name: true,
+                        pack_size: true,
+                      },
+                    },
+                  },
+                },
+              }
+            : {}),
         },
       }),
     ]);
 
-    const responseBody: GoodsReceivingNotesResponse = {
+    const responseBody = {
       data: notes.map((note) => ({
         id: note.grn_id,
         grnNumber: note.grn_number,
@@ -115,6 +133,16 @@ export async function GET(request: Request) {
         createdByName: note.creator.full_name,
         createdAt: note.created_at.toISOString(),
         updatedAt: note.updated_at.toISOString(),
+        ...(includeLines && "lines" in note
+          ? {
+              lines: (note as any).lines.map((line: any) => ({
+                productName: line.product.product_name,
+                productCode: line.product.product_code,
+                packSize: line.product.pack_size,
+                quantity: line.quantity,
+              })),
+            }
+          : {}),
       })),
       pagination: {
         page,

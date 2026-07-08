@@ -247,6 +247,11 @@ export async function POST(request: Request) {
     const chequeDate = body.chequeDate ? new Date(body.chequeDate) : null;
 
     const created = await prisma.$transaction(async (tx) => {
+      // 1. Lock the invoice row for update to serialize concurrent payment operations
+      if (typeof tx.$executeRaw === "function") {
+        await tx.$executeRaw`SELECT invoice_id FROM "INVOICE" WHERE invoice_id = ${invoiceId} FOR UPDATE`;
+      }
+
       const invoice = await tx.invoice.findUnique({
         where: { invoice_id: invoiceId },
         select: {

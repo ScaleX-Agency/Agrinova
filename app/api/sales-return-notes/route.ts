@@ -157,6 +157,11 @@ export async function POST(request: Request) {
 
     const created = await prisma.$transaction(
       async (tx) => {
+        // Row-level lock on Invoice to serialize concurrent return creations for this invoice
+        if (typeof tx.$executeRaw === "function") {
+          await tx.$executeRaw`SELECT invoice_id FROM "INVOICE" WHERE invoice_id = ${invoiceId} FOR UPDATE`;
+        }
+
         const invoice = await tx.invoice.findUnique({
           where: { invoice_id: invoiceId },
           select: {

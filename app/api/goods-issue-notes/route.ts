@@ -219,6 +219,11 @@ export async function POST(request: Request) {
 
     const createdGin = await prisma.$transaction(
       async (tx) => {
+        // Row-level lock on Invoice to serialize concurrent GIN creations for this invoice
+        if (typeof tx.$executeRaw === "function") {
+          await tx.$executeRaw`SELECT invoice_id FROM "INVOICE" WHERE invoice_id = ${invoiceId} FOR UPDATE`;
+        }
+
         const existingActiveGin = await tx.goodsIssueNote.findFirst({
           where: {
             gin_number: ginNumber,

@@ -60,6 +60,7 @@ const NewReceiptPage = () => {
   const [successMessage, setSuccessMessage] = useState("");
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
   const submitPayload = useRef<CreateReceiptRequestDto | null>(null);
 
   const checkReceiptNumberAvailability = async (value: string) => {
@@ -139,6 +140,7 @@ const NewReceiptPage = () => {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isChecking) return;
     setFieldErrors({});
     setSubmitError("");
     setSuccessMessage("");
@@ -182,6 +184,7 @@ const NewReceiptPage = () => {
       return;
     }
 
+    setIsChecking(true);
     try {
       const availability = await checkReceiptNumberAvailability(receiptNo.trim());
       if (!availability.isUnique) {
@@ -189,6 +192,7 @@ const NewReceiptPage = () => {
           ...prev,
           receiptNo: "An active receipt with this number already exists.",
         }));
+        setIsChecking(false);
         return;
       }
     } catch (error) {
@@ -196,8 +200,11 @@ const NewReceiptPage = () => {
         ...prev,
         receiptNo: error instanceof Error ? error.message : "Failed to check receipt number.",
       }));
+      setIsChecking(false);
       return;
     }
+
+    setIsChecking(false);
 
     // Prepare payload and open confirmation modal
     submitPayload.current = {
@@ -527,10 +534,10 @@ const NewReceiptPage = () => {
           </Link>
           <button
             type="submit"
-            disabled={saveMutation.isPending || invoiceDetailQuery.isLoading}
+            disabled={saveMutation.isPending || invoiceDetailQuery.isLoading || isChecking}
             className="inline-flex items-center rounded-xl bg-[#1a5c2e] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {saveMutation.isPending ? "Saving..." : "Save Receipt"}
+            {saveMutation.isPending || isChecking ? "Saving..." : "Save Receipt"}
           </button>
         </div>
       </form>

@@ -10,6 +10,7 @@ type InvoiceTotalsSectionProps = {
   submitError: string;
   successMessage: string;
   isSaving: boolean;
+  isChecking?: boolean;
 };
 
 const InvoiceTotalsSection = ({
@@ -21,6 +22,7 @@ const InvoiceTotalsSection = ({
   submitError,
   successMessage,
   isSaving,
+  isChecking = false,
 }: InvoiceTotalsSectionProps) => {
   return (
     <section className="rounded-2xl border border-stone-200 bg-white p-4 md:p-5">
@@ -62,10 +64,10 @@ const InvoiceTotalsSection = ({
       <div className="mt-5 flex justify-end">
         <button
           type="submit"
-          disabled={isSaving}
+          disabled={isSaving || isChecking}
           className="rounded-xl bg-[#1a5c2e] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42] disabled:cursor-not-allowed disabled:opacity-60 [font-family:var(--font-dmsans)]"
         >
-          {isSaving ? "Saving..." : "Save Invoice"}
+          {isSaving ? "Saving..." : isChecking ? "Checking..." : "Save Invoice"}
         </button>
       </div>
     </section>
