@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { ChevronRight, HandCoins, Plus, Receipt, Users } from "lucide-react";
+import { ChevronRight, HandCoins, Plus, Receipt, Users, Loader2 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { useTodayDashboard } from "@/hooks/useTodayDashboard";
 import { formatLKRFull } from "@/lib/formatters";
@@ -27,7 +27,7 @@ function StatCard({
   accent,
 }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   icon: React.ReactNode;
   accent: string;
 }) {
@@ -40,9 +40,9 @@ function StatCard({
         <p className="text-[11px] font-medium uppercase tracking-wide text-stone-400 [font-family:var(--font-dmsans)]">
           {label}
         </p>
-        <p className="text-[22px] font-semibold text-stone-900 [font-family:var(--font-dmsans)] leading-tight">
+        <div className="text-[22px] font-semibold text-stone-900 [font-family:var(--font-dmsans)] leading-tight h-7 flex items-center">
           {value}
-        </p>
+        </div>
       </div>
     </div>
   );
@@ -83,25 +83,25 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
           label="This Month Sales"
-          value={isLoading ? "..." : formatLKRFull(data?.kpis.todaySales ?? 0)}
+          value={isLoading ? <Loader2 className="animate-spin text-stone-400" size={18} /> : formatLKRFull(data?.kpis.todaySales ?? 0)}
           icon={<HandCoins size={18} className="text-green-700" />}
           accent="bg-green-50 border-green-100"
         />
         <StatCard
           label="This Month Customers"
-          value={isLoading ? "..." : String(data?.kpis.todayCustomers ?? 0)}
+          value={isLoading ? <Loader2 className="animate-spin text-stone-400" size={18} /> : String(data?.kpis.todayCustomers ?? 0)}
           icon={<Users size={18} className="text-blue-700" />}
           accent="bg-blue-50 border-blue-100"
         />
         <StatCard
           label="This Month Collections"
-          value={isLoading ? "..." : formatLKRFull(data?.kpis.todayCollections ?? 0)}
+          value={isLoading ? <Loader2 className="animate-spin text-stone-400" size={18} /> : formatLKRFull(data?.kpis.todayCollections ?? 0)}
           icon={<Receipt size={18} className="text-violet-700" />}
           accent="bg-violet-50 border-violet-100"
         />
         <StatCard
           label="This Month Invoices"
-          value={isLoading ? "..." : String(data?.kpis.todayInvoices ?? 0)}
+          value={isLoading ? <Loader2 className="animate-spin text-stone-400" size={18} /> : String(data?.kpis.todayInvoices ?? 0)}
           icon={<Receipt size={18} className="text-cyan-700" />}
           accent="bg-cyan-50 border-cyan-100"
         />
@@ -129,7 +129,16 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {!data || data.invoicesToday.length === 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-10 text-center">
+                      <div className="flex items-center justify-center gap-2 text-stone-500 [font-family:var(--font-dmsans)]">
+                        <Loader2 className="animate-spin" size={18} />
+                        <span>Loading invoices...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : !data || data.invoicesToday.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-4 py-10 text-center text-[13px] text-stone-400 [font-family:var(--font-dmsans)]">
                       No invoices recorded this month.
@@ -164,7 +173,12 @@ export default function DashboardPage() {
             </h2>
           </div>
           <div className="divide-y divide-stone-100 max-h-[420px] overflow-y-auto">
-            {!data || data.receiptsToday.length === 0 ? (
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-2 text-stone-500 [font-family:var(--font-dmsans)]">
+                <Loader2 className="animate-spin" size={18} />
+                <span className="text-[13px]">Loading collections...</span>
+              </div>
+            ) : !data || data.receiptsToday.length === 0 ? (
               <p className="px-4 py-10 text-center text-[13px] text-stone-400 [font-family:var(--font-dmsans)]">
                 No receipts recorded this month.
               </p>
@@ -186,7 +200,6 @@ export default function DashboardPage() {
           </div>
         </section>
       </div>
-
     </div>
   );
 }
