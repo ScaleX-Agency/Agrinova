@@ -50,7 +50,7 @@ function yearISO() {
 }
 
 export default function CommissionClient() {
-  const [periodType, setPeriodType] = useState<PeriodType>("monthly");
+  const [periodType, setPeriodType] = useState<PeriodType>("yearly");
   const [date, setDate] = useState(todayISO());
   const [month, setMonth] = useState(monthISO());
   const [year, setYear] = useState(yearISO());
@@ -173,7 +173,7 @@ export default function CommissionClient() {
   ];
 
   const reset = () => {
-    setPeriodType("monthly");
+    setPeriodType("yearly");
     setDate(todayISO());
     setMonth(monthISO());
     setYear(yearISO());
