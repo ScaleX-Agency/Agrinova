@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { createStockTransfer, getStockTransfers } from "@/lib/inventoryService";
 import type { CreateStockTransferDto } from "@/types/inventory";
 import type { StockTransfersResponse } from "@/types/api";
@@ -76,6 +77,61 @@ export async function GET(req: Request) {
         const end = new Date(endDateParam);
         dateFilter.lt = new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1);
       }
+    }
+
+    const includeLines = searchParams.get("includeLines") === "true";
+    if (includeLines) {
+      const transfers = await prisma.stockTransfer.findMany({
+        where: {
+          is_active: true,
+          ...(dateFilter ? { transfer_date: dateFilter } : {}),
+          ...(search ? {
+            OR: [
+              { transfer_no: { contains: search, mode: "insensitive" } },
+              { notes: { contains: search, mode: "insensitive" } },
+              { from_location: { name: { contains: search, mode: "insensitive" } } },
+              { from_location: { code: { contains: search, mode: "insensitive" } } },
+              { to_location: { name: { contains: search, mode: "insensitive" } } },
+              { to_location: { code: { contains: search, mode: "insensitive" } } },
+            ],
+          } : {}),
+        },
+        orderBy: [{ transfer_date: "desc" }, { transfer_id: "desc" }],
+        include: {
+          from_location: true,
+          to_location: true,
+          creator: true,
+          lines: {
+            include: {
+              product: true,
+            },
+          },
+        },
+      });
+
+      return NextResponse.json({
+        data: transfers.map((t) => ({
+          id: t.transfer_id,
+          transferNo: t.transfer_no,
+          transferDate: t.transfer_date.toISOString(),
+          fromLocationId: t.from_location_id,
+          fromLocationCode: t.from_location.code,
+          fromLocationName: t.from_location.name,
+          toLocationId: t.to_location_id,
+          toLocationCode: t.to_location.code,
+          toLocationName: t.to_location.name,
+          lineCount: t.lines.length,
+          totalQty: t.lines.reduce((sum, line) => sum + line.quantity, 0),
+          notes: t.notes,
+          createdByName: t.creator.full_name,
+          lines: t.lines.map((l) => ({
+            productName: l.product.product_name,
+            productCode: l.product.product_code,
+            packSize: l.product.pack_size,
+            quantity: l.quantity,
+          })),
+        })),
+      });
     }
 
     const result = await getStockTransfers(page, pageSize, { dateFilter, search });
