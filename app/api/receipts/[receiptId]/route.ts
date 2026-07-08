@@ -187,7 +187,8 @@ export async function DELETE(
         });
       }
 
-      for (const returnedCheque of receipt.returnedCheques) {
+      if (receipt.returnedCheques) {
+        const returnedCheque = receipt.returnedCheques;
         for (const settlement of returnedCheque.invoiceSettlements) {
           await tx.commissionReversalAllocation.updateMany({
             where: {
