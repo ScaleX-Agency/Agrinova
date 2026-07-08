@@ -3,17 +3,16 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const COLOMBO_OFFSET_MINUTES = 330;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
-function getColomboDayBounds(base: Date = new Date()) {
+function getColomboMonthBounds(base: Date = new Date()) {
   const shifted = new Date(base.getTime() + COLOMBO_OFFSET_MINUTES * 60 * 1000);
   const year = shifted.getUTCFullYear();
   const month = shifted.getUTCMonth();
-  const day = shifted.getUTCDate();
 
   const startUtc =
-    Date.UTC(year, month, day, 0, 0, 0, 0) - COLOMBO_OFFSET_MINUTES * 60 * 1000;
-  const endUtc = startUtc + DAY_MS;
+    Date.UTC(year, month, 1, 0, 0, 0, 0) - COLOMBO_OFFSET_MINUTES * 60 * 1000;
+  const endUtc =
+    Date.UTC(year, month + 1, 1, 0, 0, 0, 0) - COLOMBO_OFFSET_MINUTES * 60 * 1000;
 
   return {
     start: new Date(startUtc),
@@ -41,7 +40,7 @@ export async function GET() {
   }
 
   try {
-    const { start, end } = getColomboDayBounds();
+    const { start, end } = getColomboMonthBounds();
 
     const [
       invoicesToday,

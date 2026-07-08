@@ -53,9 +53,7 @@ export default function DashboardPage() {
   const { data, isLoading } = useTodayDashboard();
   const now = useMemo(() => new Date(), []);
 
-  const today = now.toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
+  const currentMonth = now.toLocaleDateString("en-GB", {
     month: "long",
     year: "numeric",
   });
@@ -65,13 +63,13 @@ export default function DashboardPage() {
       <div className="flex items-start justify-between">
         <div>
           <p className="text-[12px] font-medium text-stone-400 uppercase tracking-[0.12em] [font-family:var(--font-dmsans)] mb-1">
-            {today}
+            {currentMonth}
           </p>
           <h1 className="text-[26px] font-semibold text-stone-900 tracking-tight [font-family:var(--font-dmsans)]">
             {greeting()}, {user?.firstName ? user.firstName : "Admin"}
           </h1>
           <p className="text-[13px] text-stone-400 mt-1 [font-family:var(--font-dmsans)]">
-            Daily operations snapshot across sales, cash collections, and document activity.
+            Monthly operations snapshot across sales, cash collections, and document activity.
           </p>
         </div>
         <Link
@@ -84,25 +82,25 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
-          label="Today Sales"
+          label="This Month Sales"
           value={isLoading ? "..." : formatLKRFull(data?.kpis.todaySales ?? 0)}
           icon={<HandCoins size={18} className="text-green-700" />}
           accent="bg-green-50 border-green-100"
         />
         <StatCard
-          label="Today Customers"
+          label="This Month Customers"
           value={isLoading ? "..." : String(data?.kpis.todayCustomers ?? 0)}
           icon={<Users size={18} className="text-blue-700" />}
           accent="bg-blue-50 border-blue-100"
         />
         <StatCard
-          label="Today Collections"
+          label="This Month Collections"
           value={isLoading ? "..." : formatLKRFull(data?.kpis.todayCollections ?? 0)}
           icon={<Receipt size={18} className="text-violet-700" />}
           accent="bg-violet-50 border-violet-100"
         />
         <StatCard
-          label="Today Invoices"
+          label="This Month Invoices"
           value={isLoading ? "..." : String(data?.kpis.todayInvoices ?? 0)}
           icon={<Receipt size={18} className="text-cyan-700" />}
           accent="bg-cyan-50 border-cyan-100"
@@ -113,7 +111,7 @@ export default function DashboardPage() {
         <section className="lg:col-span-2 bg-white border border-stone-200 rounded-2xl overflow-hidden">
           <div className="px-5 py-3.5 border-b border-stone-100 flex items-center justify-between">
             <h2 className="text-[13px] font-semibold text-stone-800 [font-family:var(--font-dmsans)]">
-              Today&apos;s Invoices
+              This Month&apos;s Invoices
             </h2>
             <Link href="/invoices" className="text-[12px] font-medium text-blue-700 hover:text-blue-800 [font-family:var(--font-dmsans)] flex items-center gap-1">
               View All <ChevronRight size={12} />
@@ -134,7 +132,7 @@ export default function DashboardPage() {
                 {!data || data.invoicesToday.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-4 py-10 text-center text-[13px] text-stone-400 [font-family:var(--font-dmsans)]">
-                      No invoices recorded today.
+                      No invoices recorded this month.
                     </td>
                   </tr>
                 ) : (
@@ -162,13 +160,13 @@ export default function DashboardPage() {
         <section className="bg-white border border-stone-200 rounded-2xl overflow-hidden">
           <div className="px-5 py-3.5 border-b border-stone-100">
             <h2 className="text-[13px] font-semibold text-stone-800 [font-family:var(--font-dmsans)]">
-              Today&apos;s Collections
+              This Month&apos;s Collections
             </h2>
           </div>
           <div className="divide-y divide-stone-100 max-h-[420px] overflow-y-auto">
             {!data || data.receiptsToday.length === 0 ? (
               <p className="px-4 py-10 text-center text-[13px] text-stone-400 [font-family:var(--font-dmsans)]">
-                No receipts recorded today.
+                No receipts recorded this month.
               </p>
             ) : (
               data.receiptsToday.map((receipt) => (
