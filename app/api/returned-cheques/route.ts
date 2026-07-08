@@ -177,6 +177,11 @@ export async function POST(request: Request) {
     }
 
     const result = await prisma.$transaction(async (tx) => {
+      // Row-level lock on Receipt to serialize concurrent returned cheques for this receipt
+      if (typeof tx.$executeRaw === "function") {
+        await tx.$executeRaw`SELECT receipt_id FROM "RECEIPT" WHERE receipt_id = ${receiptId} FOR UPDATE`;
+      }
+
       const receipt = await tx.receipt.findUnique({
         where: { receipt_id: receiptId },
         select: {

@@ -745,6 +745,11 @@ export async function createStockEntry(
   });
 
   const result = await prisma.$transaction(async (tx) => {
+    // Row-level lock on InventoryLocation to serialize concurrent stock entries for this location
+    if (typeof tx.$executeRaw === "function") {
+      await tx.$executeRaw`SELECT location_id FROM "INVENTORY_LOCATION" WHERE location_id = ${locationId} FOR UPDATE`;
+    }
+
     const location = await tx.inventoryLocation.findUnique({
       where: { location_id: locationId },
       select: { location_id: true },

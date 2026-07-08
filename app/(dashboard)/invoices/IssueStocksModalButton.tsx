@@ -42,6 +42,7 @@ const IssueStocksModalButton = ({
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [debouncedGinNumber, setDebouncedGinNumber] = useState("");
+  const [isChecking, setIsChecking] = useState(false);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -143,12 +144,15 @@ const IssueStocksModalButton = ({
       return;
     }
 
+    setIsChecking(true);
     try {
       const availability = await checkGinNumberAvailability(ginNumber.trim());
       if (!availability.isUnique) {
         setError("An active GIN with this number already exists.");
+        setIsChecking(false);
         return;
       }
+      setIsChecking(false);
 
       const payload: CreateGoodsIssueNoteRequestDto = {
         ginNumber: ginNumber.trim(),
@@ -160,6 +164,7 @@ const IssueStocksModalButton = ({
       setIsOpen(false);
       router.refresh();
     } catch (submitError) {
+      setIsChecking(false);
       setError(
         submitError instanceof Error
           ? submitError.message
@@ -318,10 +323,10 @@ const IssueStocksModalButton = ({
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={createGinMutation.isPending}
+                disabled={createGinMutation.isPending || isChecking}
                 className="rounded-lg bg-[#1a5c2e] px-3 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {createGinMutation.isPending ? "Issuing..." : "Issue Stocks"}
+                {createGinMutation.isPending ? "Issuing..." : isChecking ? "Checking..." : "Issue Stocks"}
               </button>
             </div>
           </div>

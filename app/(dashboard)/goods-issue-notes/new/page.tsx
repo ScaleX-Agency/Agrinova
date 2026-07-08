@@ -37,6 +37,7 @@ const NewGoodsIssueNotePage = () => {
     ginDate?: string;
   }>({});
   const [debouncedGinNumber, setDebouncedGinNumber] = useState("");
+  const [isChecking, setIsChecking] = useState(false);
 
   const checkGinNumberAvailability = async (value: string) => {
     const params = new URLSearchParams({
@@ -128,6 +129,7 @@ const NewGoodsIssueNotePage = () => {
     }
     if (!validate()) return;
 
+    setIsChecking(true);
     try {
       const availability = await checkGinNumberAvailability(ginNumber.trim());
       if (!availability.isUnique) {
@@ -135,8 +137,10 @@ const NewGoodsIssueNotePage = () => {
           ...prev,
           ginNumber: "An active GIN with this number already exists.",
         }));
+        setIsChecking(false);
         return;
       }
+      setIsChecking(false);
 
       const payload: CreateGoodsIssueNoteRequestDto = {
         ginNumber: ginNumber.trim(),
@@ -147,6 +151,7 @@ const NewGoodsIssueNotePage = () => {
       const created = await createGinMutation.mutateAsync(payload);
       router.push(`/goods-issue-notes/${created.ginId}`);
     } catch (error) {
+      setIsChecking(false);
       setSubmitError(
         error instanceof Error
           ? error.message
@@ -321,10 +326,10 @@ const NewGoodsIssueNotePage = () => {
               <button
                 type="button"
                 onClick={handleCreate}
-                disabled={createGinMutation.isPending || !invoiceId}
+                disabled={createGinMutation.isPending || !invoiceId || isChecking}
                 className="rounded-lg bg-[#1a5c2e] px-3 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {createGinMutation.isPending ? "Saving..." : "Create GIN"}
+                {createGinMutation.isPending ? "Saving..." : isChecking ? "Checking..." : "Create GIN"}
               </button>
             </div>
           </div>

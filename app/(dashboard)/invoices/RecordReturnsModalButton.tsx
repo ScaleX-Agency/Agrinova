@@ -59,6 +59,7 @@ const RecordReturnsModalButton = ({
   const [error, setError] = useState("");
   const [lineDrafts, setLineDrafts] = useState<ReturnLineDraft[]>([]);
   const [selectedProductLineId, setSelectedProductLineId] = useState<number | null>(null);
+  const [isChecking, setIsChecking] = useState(false);
 
   const invoiceDetailQuery = useQuery({
     queryKey: ["record-returns-modal-invoice", invoiceId],
@@ -233,10 +234,12 @@ const RecordReturnsModalButton = ({
       setError("Return number is required.");
       return;
     }
+    setIsChecking(true);
     try {
       const availability = await checkReturnNumberAvailability(returnNumber.trim());
       if (!availability.isUnique) {
         setError("An active return with this number already exists.");
+        setIsChecking(false);
         return;
       }
     } catch (availabilityError) {
@@ -245,8 +248,10 @@ const RecordReturnsModalButton = ({
           ? availabilityError.message
           : "Failed to check return number.",
       );
+      setIsChecking(false);
       return;
     }
+    setIsChecking(false);
 
     const selectedLines = workingLineDrafts.filter((line) => line.returnQty > 0);
     if (selectedLines.length === 0) {
@@ -710,10 +715,10 @@ const RecordReturnsModalButton = ({
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={createReturnMutation.isPending}
+                disabled={createReturnMutation.isPending || isChecking}
                 className="rounded-xl bg-[#1a5c2e] px-3 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42] disabled:cursor-not-allowed disabled:opacity-60 [font-family:var(--font-dmsans)]"
               >
-                {createReturnMutation.isPending ? "Saving..." : "Save Return"}
+                {createReturnMutation.isPending ? "Saving..." : isChecking ? "Checking..." : "Save Return"}
               </button>
             </div>
           </div>

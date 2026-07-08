@@ -69,6 +69,7 @@ const NewInvoicePage = () => {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const [submitPayload, setSubmitPayload] = useState<CreateInvoiceRequestDto | null>(null);
+  const [isChecking, setIsChecking] = useState(false);
 
   const clearFieldErrors = useCallback((keys: (keyof FieldErrors)[]) => {
     setFieldErrors((prev) => {
@@ -548,6 +549,7 @@ const NewInvoicePage = () => {
     if (firstError) return;
     if (activeCustomerId == null || activeRepId == null || activeLocationId == null) return;
 
+    setIsChecking(true);
     try {
       const availability = await checkInvoiceNumberAvailability(trimmedInvoiceNo);
       if (!availability.isUnique) {
@@ -555,6 +557,7 @@ const NewInvoicePage = () => {
           ...prev,
           invoiceNo: "An active invoice with this number already exists.",
         }));
+        setIsChecking(false);
         return;
       }
     } catch (error) {
@@ -562,8 +565,10 @@ const NewInvoicePage = () => {
         ...prev,
         invoiceNo: error instanceof Error ? error.message : "Failed to check invoice number.",
       }));
+      setIsChecking(false);
       return;
     }
+    setIsChecking(false);
 
     const payloadLines = lines.map((line) => {
       const selectedProductId = line.productId;
@@ -689,6 +694,7 @@ const NewInvoicePage = () => {
           submitError={submitError}
           successMessage={successMessage}
           isSaving={createInvoiceMutation.isPending}
+          isChecking={isChecking}
         />
       </form>
 
