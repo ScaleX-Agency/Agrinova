@@ -79,6 +79,7 @@ const RecordPaymentModalButton = ({
   const [bankName, setBankName] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
+  const [isChecking, setIsChecking] = useState(false);
 
   const invoiceDetailQuery = useQuery({
     queryKey: ["record-payment-modal-invoice", invoiceId],
@@ -206,13 +207,16 @@ const RecordPaymentModalButton = ({
   };
 
   const handleSubmit = async () => {
+    if (isChecking) return;
     setError("");
     if (!validate()) return;
 
+    setIsChecking(true);
     try {
       const availability = await checkReceiptNumberAvailability(receiptNo.trim());
       if (!availability.isUnique) {
         setError("An active receipt with this number already exists.");
+        setIsChecking(false);
         return;
       }
 
@@ -240,6 +244,8 @@ const RecordPaymentModalButton = ({
           ? submitError.message
           : "Unable to record payment.",
       );
+    } finally {
+      setIsChecking(false);
     }
   };
 
@@ -512,10 +518,10 @@ const RecordPaymentModalButton = ({
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={createReceiptMutation.isPending}
+                disabled={createReceiptMutation.isPending || isChecking}
                 className="rounded-lg bg-[#1a5c2e] px-3 py-2 text-[13px] font-semibold text-white hover:bg-[#2d7a42] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {createReceiptMutation.isPending
+                {createReceiptMutation.isPending || isChecking
                   ? "Saving..."
                   : "Save Payment"}
               </button>
