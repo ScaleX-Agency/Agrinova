@@ -84,7 +84,7 @@ model Invoice {
   created_by         Int
   invoice_date       DateTime
   total_amount       Decimal             @db.Decimal(10, 2)
-  invoice_number     String
+  invoice_number     String              @unique(map: "unique_active_invoice_number", where: raw("(is_active = true)"))
   gin_status         GINStatus           @default(PENDING)
   location_id        Int
   created_at         DateTime            @default(now())
@@ -137,7 +137,7 @@ model InvoiceLine {
 
 model SalesReturnNote {
   return_id        Int                   @id @default(autoincrement())
-  return_number    String
+  return_number    String                @unique(map: "unique_active_return_number", where: raw("(is_active = true)"))
   return_date      DateTime
   customer_id      Int
   location_id      Int
@@ -182,7 +182,7 @@ model SalesReturnNoteLine {
 
 model GoodsIssueNote {
   gin_id      Int                  @id @default(autoincrement())
-  gin_number  String
+  gin_number  String               @unique(map: "unique_active_gin_number", where: raw("(is_active = true)"))
   gin_date    DateTime
   customer_id Int
   location_id Int
@@ -259,7 +259,7 @@ model GoodsReturnNoteLine {
 
 model GoodsReceivingNote {
   grn_id       Int                      @id @default(autoincrement())
-  grn_number   String
+  grn_number   String                   @unique(map: "unique_active_grn_number", where: raw("(is_active = true)"))
   grn_date     DateTime
   entry_type   StockEntryType
   location_id  Int
@@ -315,7 +315,7 @@ model Receipt {
   creator            User                @relation("ReceiptCreatedBy", fields: [created_by], references: [user_id])
   deleter            User?               @relation("ReceiptDeletedBy", fields: [deleted_by], references: [user_id])
   invoice            Invoice             @relation(fields: [invoice_id], references: [invoice_id])
-  returnedCheques    ReturnedCheque[]
+  returnedCheques    ReturnedCheque?
 
   @@map("RECEIPT")
 }
@@ -364,7 +364,7 @@ model InvoiceSettlement {
 
 model ReturnedCheque {
   returned_cheque_id Int                 @id @default(autoincrement())
-  receipt_id         Int
+  receipt_id         Int                 @unique(map: "unique_active_returned_cheque_receipt_id", where: raw("(is_active = true)"))
   invoice_id         Int
   return_date        DateTime
   amount             Decimal             @db.Decimal(10, 2)
