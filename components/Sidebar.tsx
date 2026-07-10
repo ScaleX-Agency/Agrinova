@@ -253,17 +253,17 @@ const SidebarContent = ({
         </div>
         {!collapsed && (
           <div className="min-w-0">
-            <p className="text-[17px] font-semibold leading-none text-stone-900 [font-family:var(--font-dmsans)]">
-              Agrinova
-            </p>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="truncate text-[10px] uppercase tracking-[0.12em] text-stone-400 [font-family:var(--font-dmsans)]">
-                IMS Workspace
-              </span>
-              <span className="rounded bg-amber-50 border border-amber-200 px-1 py-0.5 text-[8px] font-semibold text-amber-700 tracking-wider uppercase scale-90 origin-left">
+            <div className="flex items-center gap-1.5">
+              <p className="text-[17px] font-semibold leading-none text-stone-900 [font-family:var(--font-dmsans)]">
+                Agrinova
+              </p>
+              <span className="rounded bg-red-100 border border-red-200 px-1.5 py-0.5 text-[8.5px] font-bold text-red-700 tracking-wider uppercase">
                 Demo
               </span>
             </div>
+            <p className="mt-1 truncate text-[10px] uppercase tracking-[0.12em] text-stone-400 [font-family:var(--font-dmsans)]">
+              IMS Workspace
+            </p>
           </div>
         )}
       </div>

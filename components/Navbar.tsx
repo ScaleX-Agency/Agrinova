@@ -134,11 +134,11 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
 
           {/* Status pill */}
           <div 
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[#c0c3f0] bg-[#eeeffe]"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-red-200 bg-red-50"
             title="Portfolio Demo Environment - Authentication Bypassed"
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-            <span className="text-[11.5px] font-semibold text-[#2b2d7e] [font-family:var(--font-dmsans)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-[11.5px] font-bold text-red-700 [font-family:var(--font-dmsans)] uppercase tracking-wider">
               Demo Sandbox
             </span>
           </div>

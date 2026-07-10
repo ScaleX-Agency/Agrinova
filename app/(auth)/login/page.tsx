@@ -19,9 +19,14 @@ export default function DemoLoginPage() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#e8f5ec] text-[#1a5c2e] mb-2 border border-[#b6d9be]">
             <Database size={28} />
           </div>
-          <h1 className="text-3xl font-bold text-[#2b2d7e] font-serif tracking-tight">
-            AGRINOVA
-          </h1>
+          <div className="flex items-center justify-center gap-2">
+            <h1 className="text-3xl font-bold text-[#2b2d7e] font-serif tracking-tight">
+              AGRINOVA
+            </h1>
+            <span className="rounded bg-red-100 border border-red-200 px-2 py-0.5 text-[11px] font-bold text-red-700 tracking-wider uppercase scale-90">
+              Demo
+            </span>
+          </div>
           <p className="text-sm font-semibold uppercase tracking-wider text-stone-500 font-sans">
             Inventory Management System
           </p>

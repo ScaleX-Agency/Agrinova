@@ -35,6 +35,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
 
         <div className="min-w-0 flex-1 flex flex-col">
+          {/* Global Demo Disclaimer Banner */}
+          <div className="bg-red-600 text-white px-4 py-1.5 text-center text-xs font-medium select-none flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-b border-red-700 shadow-sm">
+            <span className="bg-white text-red-700 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded leading-none">
+              Demo Sandbox
+            </span>
+            <span>
+              Disclaimer: This is a public portfolio showcase. Login requirements are bypassed and all data is simulated for demo purposes.
+            </span>
+          </div>
+
           <Navbar onToggleSidebar={() => setMobileOpen(true)} />
 
           <main className="flex-1">
