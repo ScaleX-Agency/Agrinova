@@ -1,0 +1,37 @@
+name: Deploy Demo to Vercel
+
+on:
+  push:
+    branches:
+      - demo-no-auth
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.19.0"
+          cache: "npm"
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Build with Next.js
+        run: npm run build
+        env:
+          NEXT_PUBLIC_GITHUB_SHA: ${{ github.sha }}
+
+      - name: Deploy to Vercel
+        run: vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }} --build-env NEXT_PUBLIC_GITHUB_SHA=${{ github.sha }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_DEMO_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_DEMO_PROJECT_ID }}
