@@ -31,7 +31,7 @@ jobs:
           NEXT_PUBLIC_GITHUB_SHA: ${{ github.sha }}
 
       - name: Deploy to Vercel
-        run: vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }} --build-env NEXT_PUBLIC_GITHUB_SHA=${{ github.sha }}
+        run: vercel deploy --prod --yes --token=${{ secrets.VERCEL_DEMO_TOKEN }} --build-env NEXT_PUBLIC_GITHUB_SHA=${{ github.sha }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_DEMO_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_DEMO_PROJECT_ID }}
