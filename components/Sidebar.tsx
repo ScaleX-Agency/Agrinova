@@ -256,9 +256,14 @@ const SidebarContent = ({
             <p className="text-[17px] font-semibold leading-none text-stone-900 [font-family:var(--font-dmsans)]">
               Agrinova
             </p>
-            <p className="mt-0.5 truncate text-[10px] uppercase tracking-[0.12em] text-stone-400 [font-family:var(--font-dmsans)]">
-              IMS Workspace
-            </p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="truncate text-[10px] uppercase tracking-[0.12em] text-stone-400 [font-family:var(--font-dmsans)]">
+                IMS Workspace
+              </span>
+              <span className="rounded bg-amber-50 border border-amber-200 px-1 py-0.5 text-[8px] font-semibold text-amber-700 tracking-wider uppercase scale-90 origin-left">
+                Demo
+              </span>
+            </div>
           </div>
         )}
       </div>

@@ -134,12 +134,12 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
 
           {/* Status pill */}
           <div 
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-stone-200 bg-stone-50"
-            title={process.env.NEXT_PUBLIC_GITHUB_SHA ? `Deploy SHA: ${process.env.NEXT_PUBLIC_GITHUB_SHA}` : "Live"}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[#c0c3f0] bg-[#eeeffe]"
+            title="Portfolio Demo Environment - Authentication Bypassed"
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-[11.5px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">
-              {process.env.NEXT_PUBLIC_GITHUB_SHA ? `Live (${process.env.NEXT_PUBLIC_GITHUB_SHA.substring(0, 7)})` : "Live"}
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+            <span className="text-[11.5px] font-semibold text-[#2b2d7e] [font-family:var(--font-dmsans)]">
+              Demo Sandbox
             </span>
           </div>
 
