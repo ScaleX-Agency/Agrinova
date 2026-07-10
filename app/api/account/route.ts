@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { clerkClient } from "@clerk/nextjs/server";
+import { clerkClient } from "@/lib/clerk-server-mock";
 import * as z from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";

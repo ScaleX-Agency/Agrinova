@@ -2,7 +2,7 @@
 
 import type { Metadata } from "next";
 import { DM_Sans, JetBrains_Mono } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
+import { ClerkProvider } from "@/lib/clerk-mock";
 import { Suspense } from "react";
 import "../globals.css";
 import AppShell from "@/components/AppShell";

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import * as z from "zod";
-import { auth } from "@clerk/nextjs/server";
+import { auth } from "@/lib/clerk-server-mock";
 import { getCurrentUser, isAdminUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 

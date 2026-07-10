@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { DM_Sans, JetBrains_Mono } from "next/font/google";
-import { ClerkProvider } from '@clerk/nextjs'
+import { ClerkProvider } from '@/lib/clerk-mock'
 import "../globals.css";
 import Providers from "@/app/providers";
 

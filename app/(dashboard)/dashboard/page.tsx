@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { ChevronRight, HandCoins, Plus, Receipt, Users, Loader2 } from "lucide-react";
-import { useUser } from "@clerk/nextjs";
+import { useUser } from "@/lib/clerk-mock";
 import { useTodayDashboard } from "@/hooks/useTodayDashboard";
 import { formatLKRFull } from "@/lib/formatters";
 

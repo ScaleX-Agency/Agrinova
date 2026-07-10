@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth, clerkClient } from '@clerk/nextjs/server';
+import { auth, clerkClient } from '@/lib/clerk-server-mock';
 import { prisma } from '@/lib/prisma';
 import * as z from 'zod';
 

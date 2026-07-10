@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useUser } from "@clerk/nextjs";
+import { useUser } from "@/lib/clerk-mock";
 import { Avatar, Skeleton } from "antd";
 import { Bell, Search, PanelLeftClose, X, ChevronRight } from "lucide-react";
 import { GlobalSearchPalette } from "./GlobalSearch";

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useClerk } from "@clerk/nextjs";
+import { useClerk } from "@/lib/clerk-mock";
 import {
   LayoutDashboard,
   Boxes,

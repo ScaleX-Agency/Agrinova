@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth } from "@/lib/clerk-server-mock";
 import { prisma } from "@/lib/prisma";
 
 export async function getCurrentUser() {

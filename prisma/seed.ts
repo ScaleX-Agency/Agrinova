@@ -39,8 +39,8 @@ prisma.inventoryLocation.upsert({ where:{ code:"IGRN4" }, update:{}, create:{ co
 const role = await prisma.role.upsert({ where:{ role_id:1 }, update:{}, create:{ role_name:"Administrator" } }); 
 await prisma.user.upsert({ 
 where: { username:"admin" }, 
-update:{}, 
-create:{ role_id:role.role_id, full_name:"Admin User", username:"admin", password_hash:"placeholder" }, 
+update:{ clerk_id: "mock_admin_clerk_id" }, 
+create:{ role_id:role.role_id, full_name:"Admin User", username:"admin", password_hash:"placeholder", clerk_id: "mock_admin_clerk_id" }, 
 }); 
  
 // Products 
