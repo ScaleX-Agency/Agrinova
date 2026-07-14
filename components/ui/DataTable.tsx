@@ -12,7 +12,7 @@ import {
   type SortingState,
 } from "@tanstack/react-table";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Alignment = "left" | "center" | "right";
 
@@ -77,6 +77,16 @@ function DataTable<TData>({
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: initialPageSize,
+  });
+
+  useEffect(() => {
+    if (!serverSide) {
+      setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+    }
+  }, [data, globalFilter, columnFilters, serverSide]);
 
   const normalizedColumns = useMemo(
     () =>
@@ -99,14 +109,12 @@ function DataTable<TData>({
       sorting,
       globalFilter,
       columnFilters,
-      ...(serverSide
+      pagination: serverSide
         ? {
-            pagination: {
-              pageIndex: serverSide.pageIndex,
-              pageSize: serverSide.pageSize,
-            },
+            pageIndex: serverSide.pageIndex,
+            pageSize: serverSide.pageSize,
           }
-        : {}),
+        : pagination,
     },
     initialState: {
       pagination: {
@@ -127,7 +135,7 @@ function DataTable<TData>({
             serverSide.onPageChange(updater.pageIndex);
           }
         }
-      : undefined,
+      : setPagination,
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
     onColumnFiltersChange: setColumnFilters,
