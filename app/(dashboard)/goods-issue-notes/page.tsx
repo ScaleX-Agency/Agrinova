@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { Eye, FileText } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Eye, FileText, Download } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { GoodsIssueNoteOptionDto, GoodsIssueNotesResponse } from "@/types/api";
@@ -37,6 +37,7 @@ const GoodsIssueNotesPage = () => {
   const [appliedEnd, setAppliedEnd] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(0);
+  const [isExporting, setIsExporting] = useState(false);
 
   const notesQuery = useQuery<GoodsIssueNotesResponse, Error>({
     queryKey: ["goods-issue-notes", appliedRange, appliedStart, appliedEnd, page, searchTerm],
@@ -63,6 +64,91 @@ const GoodsIssueNotesPage = () => {
 
   const rows = notesQuery.data?.data ?? [];
   const pagination = notesQuery.data?.pagination;
+
+  const resolvedPeriod = useMemo(() => {
+    let start = new Date();
+    let end = new Date();
+    const range = appliedRange;
+
+    if (range === "day") {
+      start = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
+    } else if (range === "week") {
+      const day = start.getDay();
+      const diff = start.getDate() - day + (day === 0 ? -6 : 1);
+      start = new Date(start.getFullYear(), start.getMonth(), diff);
+      end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7);
+    } else if (range === "month") {
+      start = new Date(start.getFullYear(), start.getMonth(), 1);
+      end = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+    } else if (range === "year") {
+      start = new Date(start.getFullYear(), 0, 1);
+      end = new Date(start.getFullYear() + 1, 0, 1);
+    } else if (range === "custom") {
+      start = appliedStart ? new Date(appliedStart) : new Date(0);
+      end = appliedEnd ? new Date(appliedEnd) : new Date();
+    } else {
+      // all time
+      const dates = rows.map((r) => new Date(r.date));
+      if (dates.length === 0) return { from: "-", to: "-" };
+      const min = new Date(Math.min(...dates.map((d) => d.getTime())));
+      const max = new Date(Math.max(...dates.map((d) => d.getTime())));
+      return { from: min.toISOString().slice(0, 10), to: max.toISOString().slice(0, 10) };
+    }
+    return {
+      from: start.toISOString().slice(0, 10),
+      to: end.toISOString().slice(0, 10),
+    };
+  }, [appliedRange, appliedStart, appliedEnd, rows]);
+
+  const handleExportExcel = async () => {
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (appliedRange !== "all") {
+        params.set("range", appliedRange);
+        if (appliedRange === "custom") {
+          if (appliedStart) params.set("startDate", appliedStart);
+          if (appliedEnd) params.set("endDate", appliedEnd);
+        }
+      }
+      params.set("page", "1");
+      params.set("limit", "100000");
+      if (searchTerm.trim()) params.set("search", searchTerm.trim());
+      params.set("includeLines", "true");
+
+      const query = params.toString();
+      const response = await fetch(`/api/goods-issue-notes${query ? `?${query}` : ""}`);
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Failed to export Goods Issue Notes.");
+      const exportRows = result.data ?? [];
+
+      const { exportGoodsIssueNotesToExcel } = await import("@/lib/exportGoodsIssueNotes");
+      await exportGoodsIssueNotesToExcel({
+        fromLabel: resolvedPeriod.from !== "-" ? formatDate(resolvedPeriod.from) : "-",
+        toLabel: resolvedPeriod.to !== "-" ? formatDate(resolvedPeriod.to) : "-",
+        rows: exportRows,
+      });
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("toast", {
+            detail: { msg: `Exported ${exportRows.length} goods issue notes to Excel`, type: "success" },
+          }),
+        );
+      }
+    } catch (error: any) {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("toast", {
+            detail: { msg: error?.message ?? "Failed to export goods issue notes", type: "error" },
+          }),
+        );
+      }
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const tableColumns: ColumnDef<GoodsIssueNoteOptionDto>[] = [
     {
@@ -135,7 +221,15 @@ const GoodsIssueNotesPage = () => {
           <p className="text-[13px] text-stone-500">Track goods issued against invoices and review line-level details.</p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleExportExcel}
+            disabled={isExporting}
+            className="inline-flex items-center gap-2 rounded-xl border border-[#c0c3f0] bg-white px-3.5 py-2 text-[13px] font-semibold text-[#2b2d7e] hover:bg-[#eeeffe] disabled:opacity-50"
+          >
+            <Download size={14} />
+            Export Excel
+          </button>
           <Link
             href="/invoices/new"
             className="inline-flex items-center gap-2 rounded-xl bg-[#1a5c2e] px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[#2d7a42]"

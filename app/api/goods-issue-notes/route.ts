@@ -137,16 +137,25 @@ export async function GET(request: Request) {
             select: { invoice_id: true, invoice_number: true, gin_status: true },
           },
           customer: { select: { customer_id: true, name: true } },
-          location: { select: { location_id: true, code: true } },
-          lines: includeLines
+          location: { select: { location_id: true, code: true, name: true } },
+          _count: { select: { lines: true } },
+          ...(includeLines
             ? {
-                select: {
-                  product_id: true,
-                  quantity: true,
+                lines: {
+                  select: {
+                    product_id: true,
+                    quantity: true,
+                    product: {
+                      select: {
+                        product_name: true,
+                        product_code: true,
+                        pack_size: true,
+                      },
+                    },
+                  },
                 },
               }
-            : false,
-          _count: { select: { lines: true } },
+            : {}),
         },
       }),
     ]);
@@ -163,13 +172,19 @@ export async function GET(request: Request) {
         customerName: note.customer.name,
         locationId: note.location.location_id,
         locationCode: note.location.code,
+        locationName: note.location.name,
         lineCount: note._count.lines,
-        lines: includeLines
-          ? note.lines.map((line) => ({
-              productId: line.product_id,
-              quantity: line.quantity,
-            }))
-          : undefined,
+        ...(includeLines && "lines" in note
+          ? {
+              lines: (note as any).lines.map((line: any) => ({
+                productId: line.product_id,
+                quantity: line.quantity,
+                productName: line.product.product_name,
+                productCode: line.product.product_code,
+                packSize: line.product.pack_size,
+              })),
+            }
+          : {}),
       })),
       pagination: {
         page,
