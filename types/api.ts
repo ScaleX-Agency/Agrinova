@@ -415,10 +415,14 @@ export type GoodsIssueNoteOptionDto = {
   customerName: string;
   locationId: number;
   locationCode: string;
+  locationName?: string;
   lineCount: number;
   lines?: {
     productId: number;
     quantity: number;
+    productName?: string;
+    productCode?: string;
+    packSize?: string;
   }[];
 };
 
