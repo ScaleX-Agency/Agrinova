@@ -65,10 +65,16 @@ const invoicePrintPageStyle = `
       line-height: 1 !important;
     }
 
-    .invoice-print-company-details,
-    .invoice-print-company-details p {
-      font-size: 7px !important;
-      line-height: 1.05 !important;
+    .invoice-print-sheet .invoice-print-company-details,
+    .invoice-print-sheet .invoice-print-company-details p {
+      font-size: 12px !important;
+      line-height: 1.25 !important;
+    }
+
+    .invoice-print-terms,
+    .invoice-print-terms p {
+      font-size: 10px !important;
+      line-height: 1.25 !important;
     }
 
     .invoice-print-title {
@@ -114,7 +120,7 @@ const InvoicePrintButton = ({
                 <Image src="/agrinova-logo.jpeg" alt="Agrinova" width={42} height={42} className="h-8 w-8 shrink-0 object-contain" priority />
                 <p className="invoice-print-company-name text-[18px] font-semibold leading-none text-[#2b2d7e]">Agrinova (Pvt) Limited</p>
               </div>
-              <div className="invoice-print-company-details mt-1 space-y-0.5 text-center text-stone-700">
+              <div className="invoice-print-company-details mt-1 space-y-0.5 text-center text-[12px] leading-snug text-stone-700">
                 <p>205 D, Kalapaluwawa Road, Koswatta, Battaramulla</p>
                 <p>Tel: 0115 635034/5, 0777 687897</p>
                 <p>Fax: 0112 073605</p>
@@ -211,7 +217,7 @@ const InvoicePrintButton = ({
           </section>
 
           <section className="mt-3 flex justify-start">
-            <div className="w-[4.8in] space-y-1 text-left text-[7.5px] font-medium leading-tight text-stone-800">
+            <div className="invoice-print-terms w-[4.8in] space-y-1 text-left text-[10px] font-medium leading-snug text-stone-800">
               <p>Maximum Credit Period is 30 Days</p>
               <p>
                 All cheques should be crossed <span className="font-bold">&quot;Account Payee Only&quot;</span> and drawn in favour of
