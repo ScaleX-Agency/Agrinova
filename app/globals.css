@@ -237,8 +237,8 @@ body {
 
   .invoice-print-sheet .invoice-print-company-details,
   .invoice-print-sheet .invoice-print-company-details p {
-    font-size: 7px !important;
-    line-height: 1.05 !important;
+    font-size: 12px !important;
+    line-height: 1.25 !important;
   }
 
   .invoice-print-sheet .invoice-print-title {
