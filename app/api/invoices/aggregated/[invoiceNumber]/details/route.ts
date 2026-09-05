@@ -25,6 +25,8 @@ export async function GET(
         total_amount: true,
         payment_status: true,
         notes: true,
+        po_number: true,
+        vat_number: true,
         customer: {
           select: {
             customer_id: true,
@@ -114,6 +116,8 @@ export async function GET(
           totalAmount: Number(invoice.total_amount),
           status: invoice.payment_status,
           notes: invoice.notes,
+          poNumber: invoice.po_number,
+          vatNumber: invoice.vat_number,
           customer: invoice.customer,
           salesRep: invoice.rep,
           location: invoice.location,

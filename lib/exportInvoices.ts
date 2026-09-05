@@ -3,6 +3,8 @@ import ExcelJS from "exceljs";
 type InvoiceExportRow = {
   customerName: string;
   invoiceNo: string;
+  poNo?: string;
+  vatNo?: string;
   repName: string;
   date: string;
   amount: number;
@@ -22,6 +24,8 @@ export async function exportInvoicesToExcel(params: ExportInvoiceParams): Promis
 
   ws.columns = [
     { header: "Invoice No", key: "invoiceNo", width: 20 },
+    { header: "PO No", key: "poNo", width: 16 },
+    { header: "VAT No", key: "vatNo", width: 16 },
     { header: "Customer Name", key: "customerName", width: 30 },
     { header: "Sales Rep", key: "repName", width: 25 },
     { header: "Date", key: "date", width: 15 },
@@ -30,7 +34,7 @@ export async function exportInvoicesToExcel(params: ExportInvoiceParams): Promis
 
   ws.getCell("A1").value = "Invoices";
   ws.getCell("A1").font = { bold: true, size: 14 };
-  ws.mergeCells("A1:E1");
+  ws.mergeCells("A1:G1");
 
   ws.getCell("A2").value = "From";
   ws.getCell("B2").value = fromLabel;
@@ -39,7 +43,7 @@ export async function exportInvoicesToExcel(params: ExportInvoiceParams): Promis
 
   const headerRowIndex = 5;
   const headerRow = ws.getRow(headerRowIndex);
-  headerRow.values = ["Invoice No", "Customer Name", "Sales Rep", "Date", "Amount (LKR)"];
+  headerRow.values = ["Invoice No", "PO No", "VAT No", "Customer Name", "Sales Rep", "Date", "Amount (LKR)"];
   headerRow.font = { bold: true, color: { argb: "FF334155" } };
   headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } };
 
@@ -48,7 +52,7 @@ export async function exportInvoicesToExcel(params: ExportInvoiceParams): Promis
   }
 
   for (let r = headerRowIndex + 1; r <= ws.rowCount; r += 1) {
-    ws.getCell(`E${r}`).numFmt = '"LKR" #,##0.00';
+    ws.getCell(`G${r}`).numFmt = '"LKR" #,##0.00';
   }
 
   const thinBorder = {
@@ -66,14 +70,14 @@ export async function exportInvoicesToExcel(params: ExportInvoiceParams): Promis
 
   const tableEndRow = Math.max(ws.rowCount, headerRowIndex);
   for (let r = headerRowIndex; r <= tableEndRow; r += 1) {
-    for (let c = 1; c <= 5; c += 1) {
+    for (let c = 1; c <= 7; c += 1) {
       ws.getCell(r, c).border = thinBorder;
     }
   }
 
   ws.autoFilter = {
     from: { row: headerRowIndex, column: 1 },
-    to: { row: tableEndRow, column: 5 },
+    to: { row: tableEndRow, column: 7 },
   };
 
   const buffer = await wb.xlsx.writeBuffer();

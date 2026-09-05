@@ -187,6 +187,8 @@ const InvoicesPage = () => {
         rows: exportRows.map((row) => ({
           customerName: row.customerName,
           invoiceNo: row.invoiceNo,
+          poNo: row.poNumber || "-",
+          vatNo: row.vatNumber || "-",
           repName: row.repName,
           date: formatDate(row.invoiceDate),
           amount: Math.max(0, row.totalAmount - row.creditedAmount),

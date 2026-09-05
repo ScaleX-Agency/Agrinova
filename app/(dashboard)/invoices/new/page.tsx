@@ -55,6 +55,8 @@ const NewInvoicePage = () => {
   const [invoiceNo, setInvoiceNo] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(getTodayDateInputValue);
   const [notes, setNotes] = useState("");
+  const [poNumber, setPoNumber] = useState("");
+  const [vatNumber, setVatNumber] = useState("");
   const [customerId, setCustomerId] = useState<number | null>(null);
   const [repId, setRepId] = useState<number | null>(null);
   const [locationId, setLocationId] = useState<number | null>(null);
@@ -100,6 +102,16 @@ const NewInvoicePage = () => {
 
   const handleVatPercentageChange = useCallback((value: number) => {
     setVatPercentage(value);
+    setSubmitError("");
+  }, []);
+
+  const handlePoNumberChange = useCallback((value: string) => {
+    setPoNumber(value);
+    setSubmitError("");
+  }, []);
+
+  const handleVatNumberChange = useCallback((value: string) => {
+    setVatNumber(value);
     setSubmitError("");
   }, []);
 
@@ -607,6 +619,8 @@ const NewInvoicePage = () => {
       locationId: activeLocationId,
       notes: notes.trim() || undefined,
       vatPercentage,
+      poNumber: poNumber.trim() || null,
+      vatNumber: vatNumber.trim() || null,
       lines: payloadLines,
     });
     setIsConfirmModalOpen(true);
@@ -656,6 +670,8 @@ const NewInvoicePage = () => {
           locationsLoading={locationsQuery.isLoading}
           hasRepSelected={repId !== null}
           vatPercentage={vatPercentage}
+          poNumber={poNumber}
+          vatNumber={vatNumber}
           onInvoiceNoChange={handleInvoiceNoChange}
           onInvoiceDateChange={handleInvoiceDateChange}
           onNotesChange={handleNotesChange}
@@ -663,6 +679,8 @@ const NewInvoicePage = () => {
           onCustomerChange={handleCustomerChange}
           onLocationChange={handleLocationChange}
           onVatPercentageChange={handleVatPercentageChange}
+          onPoNumberChange={handlePoNumberChange}
+          onVatNumberChange={handleVatNumberChange}
         />
 
         <InvoiceProductsSection

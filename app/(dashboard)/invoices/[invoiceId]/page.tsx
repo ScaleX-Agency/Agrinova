@@ -132,6 +132,8 @@ const InvoiceDetailPage = async ({
       credited_amount: true,
       balance_amount: true,
       vat_percentage: true,
+      po_number: true,
+      vat_number: true,
       created_at: true,
       updated_at: true,
       creator: {
@@ -306,6 +308,8 @@ const InvoiceDetailPage = async ({
               customerName={invoice.customer.name}
               customerPhone={invoice.customer.phone ?? null}
               customerAddress={invoice.customer.address ?? null}
+              poNumber={invoice.po_number ?? null}
+              vatNumber={invoice.vat_number ?? null}
               lines={invoice.invoice_lines.map((line) => ({
                 lineId: line.line_id,
                 productName: line.product.product_name,
@@ -398,6 +402,16 @@ const InvoiceDetailPage = async ({
               <p>
                 <span className="font-medium text-stone-800">Invoice Date:</span> {formatDate(invoice.invoice_date)}
               </p>
+              {invoice.po_number ? (
+                <p>
+                  <span className="font-medium text-stone-800">PO No:</span> {invoice.po_number}
+                </p>
+              ) : null}
+              {invoice.vat_number ? (
+                <p>
+                  <span className="font-medium text-stone-800">VAT No:</span> {invoice.vat_number}
+                </p>
+              ) : null}
               <p>
                 <span className="font-medium text-stone-800">Status:</span> {STATUS_LABEL[paymentStatus]}
               </p>
