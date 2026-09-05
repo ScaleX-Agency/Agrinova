@@ -25,6 +25,8 @@ export async function GET(
         total_amount: true,
         payment_status: true,
         notes: true,
+        po_number: true,
+        vat_number: true,
         customer: {
           select: {
             customer_id: true,
@@ -240,6 +242,8 @@ export async function GET(
             date: invoice.invoice_date.toISOString(),
             status: invoice.payment_status,
             notes: invoice.notes,
+            poNumber: invoice.po_number,
+            vatNumber: invoice.vat_number,
           },
           customer: {
             id: invoice.customer.customer_id,

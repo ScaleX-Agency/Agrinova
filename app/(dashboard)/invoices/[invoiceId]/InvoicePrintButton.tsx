@@ -24,6 +24,8 @@ type InvoicePrintButtonProps = {
   lines: InvoicePrintLine[];
   totalAmount: number;
   vatPercentage?: number;
+  poNumber?: string | null;
+  vatNumber?: string | null;
 };
 
 const formatDate = (value: string) =>
@@ -93,6 +95,8 @@ const InvoicePrintButton = ({
   lines,
   totalAmount,
   vatPercentage = 0,
+  poNumber,
+  vatNumber,
 }: InvoicePrintButtonProps) => {
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -135,6 +139,12 @@ const InvoicePrintButton = ({
               </p>
               <p>
                 <span className="font-semibold text-stone-700">Date:</span> {formatDate(invoiceDate)}
+              </p>
+              <p>
+                <span className="font-semibold text-stone-700">PO -</span> {poNumber ? poNumber : ""}
+              </p>
+              <p>
+                <span className="font-semibold text-stone-700">Vat no -</span> {vatNumber ? vatNumber : ""}
               </p>
             </section>
           </header>

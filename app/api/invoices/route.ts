@@ -159,6 +159,8 @@ export async function GET(request: Request) {
       ...(search ? {
         OR: [
           { invoice_number: { contains: search, mode: "insensitive" } },
+          { po_number: { contains: search, mode: "insensitive" } },
+          { vat_number: { contains: search, mode: "insensitive" } },
           { customer: { name: { contains: search, mode: "insensitive" } } },
           { rep: { full_name: { contains: search, mode: "insensitive" } } },
         ],
@@ -185,6 +187,8 @@ export async function GET(request: Request) {
           customer_id: true,
           rep_id: true,
           vat_percentage: true,
+          po_number: true,
+          vat_number: true,
           customer: {
             select: {
               name: true,
@@ -241,6 +245,8 @@ export async function GET(request: Request) {
         ginStatus: invoice.gin_status,
         locationCode: invoice.location.code,
         vatPercentage: Number(invoice.vat_percentage ?? 0),
+        poNumber: invoice.po_number,
+        vatNumber: invoice.vat_number,
       })),
       pagination: {
         page,
@@ -281,6 +287,8 @@ export async function POST(request: Request) {
 
     const invoiceNumber = body.invoiceNo.trim();
     const invoiceNotes = body.notes?.trim() ? body.notes.trim() : null;
+    const poNumber = typeof body.poNumber === "string" && body.poNumber.trim() ? body.poNumber.trim() : null;
+    const vatNumber = typeof body.vatNumber === "string" && body.vatNumber.trim() ? body.vatNumber.trim() : null;
 
     console.log("Received invoice creation request", {
       customerId,
@@ -290,6 +298,8 @@ export async function POST(request: Request) {
       lineCount: lines.length,
       invoiceDate: body.invoiceDate,
       vatPercentage: body.vatPercentage,
+      poNumber,
+      vatNumber,
     });
 
     const vatPercentage = body.vatPercentage !== undefined ? Number(body.vatPercentage) : 0;
@@ -503,6 +513,8 @@ export async function POST(request: Request) {
           balance_amount: totalAmount,
           payment_status: "UNPAID",
           notes: invoiceNotes,
+          po_number: poNumber,
+          vat_number: vatNumber,
         },
         select: {
           invoice_id: true,

@@ -25,6 +25,8 @@ type InvoiceDetailsSectionProps = {
   locationsLoading: boolean;
   hasRepSelected: boolean;
   vatPercentage: number;
+  poNumber: string;
+  vatNumber: string;
   onInvoiceNoChange: (value: string) => void;
   onInvoiceDateChange: (value: string) => void;
   onNotesChange: (value: string) => void;
@@ -32,6 +34,8 @@ type InvoiceDetailsSectionProps = {
   onCustomerChange: (value: number | null) => void;
   onLocationChange: (value: number | null) => void;
   onVatPercentageChange: (value: number) => void;
+  onPoNumberChange: (value: string) => void;
+  onVatNumberChange: (value: string) => void;
 };
 
 const InvoiceDetailsSection = ({
@@ -55,6 +59,8 @@ const InvoiceDetailsSection = ({
   locationsLoading,
   hasRepSelected,
   vatPercentage,
+  poNumber,
+  vatNumber,
   onInvoiceNoChange,
   onInvoiceDateChange,
   onNotesChange,
@@ -62,6 +68,8 @@ const InvoiceDetailsSection = ({
   onCustomerChange,
   onLocationChange,
   onVatPercentageChange,
+  onPoNumberChange,
+  onVatNumberChange,
 }: InvoiceDetailsSectionProps) => {
   const [invoiceNoDraft, setInvoiceNoDraft] = useState(invoiceNo);
   const [isInvoiceNoFocused, setIsInvoiceNoFocused] = useState(false);
@@ -96,7 +104,7 @@ const InvoiceDetailsSection = ({
         </h2>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-6">
+      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
         <label className="flex flex-col gap-1.5">
           <span className="text-[12px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">Invoice No.</span>
           <input
@@ -200,7 +208,29 @@ const InvoiceDetailsSection = ({
           />
         </label>
 
-        <label className="flex flex-col gap-1.5 lg:col-span-6">
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[12px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">PO No.</span>
+          <input
+            type="text"
+            placeholder="Optional PO number"
+            value={poNumber}
+            onChange={(event) => onPoNumberChange(event.target.value)}
+            className={editableInputClassName}
+          />
+        </label>
+
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[12px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">VAT No.</span>
+          <input
+            type="text"
+            placeholder="Optional VAT number"
+            value={vatNumber}
+            onChange={(event) => onVatNumberChange(event.target.value)}
+            className={editableInputClassName}
+          />
+        </label>
+
+        <label className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-4">
           <span className="text-[12px] font-medium text-stone-600 [font-family:var(--font-dmsans)]">Notes</span>
           <input
             type="text"

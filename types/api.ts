@@ -64,6 +64,8 @@ export type CreateInvoiceRequestDto = {
   locationId: number;
   notes?: string;
   vatPercentage?: number;
+  poNumber?: string | null;
+  vatNumber?: string | null;
   lines: CreateInvoiceLineDto[];
 };
 
@@ -118,6 +120,8 @@ export type InvoiceDetailDto = {
   outstandingAmount: number;
   totalReturnableQty: number;
   vatPercentage: number;
+  poNumber?: string | null;
+  vatNumber?: string | null;
   lines: InvoiceLineDto[];
 };
 
@@ -559,6 +563,8 @@ export type InvoiceOptionDto = {
   ginStatus: "PENDING" | "ISSUED" | "PARTIAL";
   locationCode: string | null;
   vatPercentage: number;
+  poNumber?: string | null;
+  vatNumber?: string | null;
 };
 
 export type CreateSalesReturnLineDto = {
