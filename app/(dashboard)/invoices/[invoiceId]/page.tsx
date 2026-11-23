@@ -310,6 +310,11 @@ const InvoiceDetailPage = async ({
               customerAddress={invoice.customer.address ?? null}
               poNumber={invoice.po_number ?? null}
               vatNumber={invoice.vat_number ?? null}
+              receiptNo={
+                receiptsWithNumber.length > 0
+                  ? [...receiptsWithNumber].reverse().map((receipt) => receipt.receipt_number).join(", ")
+                  : null
+              }
               lines={invoice.invoice_lines.map((line) => ({
                 lineId: line.line_id,
                 productName: line.product.product_name,
