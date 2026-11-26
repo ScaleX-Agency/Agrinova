@@ -26,6 +26,7 @@ export type InvoiceFormSheetProps = {
   receiptNo?: string | null;
   offsetXmm?: number;
   offsetYmm?: number;
+  scalePct?: number;
   /** Screen-only: image of the blank form drawn behind the data (never printed). */
   backgroundSrc?: string;
 };
@@ -69,8 +70,8 @@ const glyphEm = (ch: string) => {
 const textEm = (text: string) => [...text].reduce((sum, ch) => sum + glyphEm(ch), 0);
 
 /** Usable column width in em at 9.5pt (column width minus cell padding), with ~5% slack. */
-const PRODUCT_LINE_EM = 21;
-const PACK_LINE_EM = 7;
+const PRODUCT_LINE_EM = 20;
+const PACK_LINE_EM = 6.7;
 const MAX_LINES_PER_ROW = 2;
 
 /** How many printed text lines a product row takes (1 or 2). */
@@ -162,6 +163,7 @@ const InvoiceFormSheet = ({
   receiptNo,
   offsetXmm = 0,
   offsetYmm = 0,
+  scalePct = 100,
   backgroundSrc,
 }: InvoiceFormSheetProps) => {
   const pages = paginate(lines, L.maxRowsPerPage);
@@ -204,7 +206,7 @@ const InvoiceFormSheet = ({
               />
             )}
 
-            <div style={{ position: "absolute", inset: 0, transform: `translate(${offsetXmm}mm, ${offsetYmm}mm)` }}>
+            <div style={{ position: "absolute", inset: 0, transform: `translate(${offsetXmm}mm, ${offsetYmm}mm) scale(${scalePct / 100})`, transformOrigin: "0 0" }}>
               {/* Customer details */}
               <Field box={L.customer.name} style={{ fontWeight: "bold", fontSize: `${fitFontSize(customerName, 26)}pt`, textOverflow: "ellipsis" }}>
                 {customerName}
@@ -231,13 +233,13 @@ const InvoiceFormSheet = ({
               {customerPhone && <Field box={L.customer.contact}>{customerPhone}</Field>}
 
               {/* Invoice details */}
-              <Field box={L.details.invoiceNo} style={{ fontWeight: "bold", fontSize: `${fitFontSize(invoiceNo, 16)}pt` }}>
+              <Field box={L.details.invoiceNo} style={{ fontWeight: "bold", fontSize: `${fitFontSize(invoiceNo, 11)}pt` }}>
                 {invoiceNo}
               </Field>
               <Field box={L.details.date}>{formatDate(invoiceDate)}</Field>
-              {poNumber && <Field box={L.details.poNo} style={{ fontSize: `${fitFontSize(poNumber, 16)}pt` }}>{poNumber}</Field>}
-              {vatNumber && <Field box={L.details.vatNo} style={{ fontSize: `${fitFontSize(vatNumber, 16)}pt` }}>{vatNumber}</Field>}
-              {receiptNo && <Field box={L.details.receiptNo} style={{ fontSize: `${fitFontSize(receiptNo, 16)}pt` }}>{receiptNo}</Field>}
+              {poNumber && <Field box={L.details.poNo} style={{ fontSize: `${fitFontSize(poNumber, 12)}pt` }}>{poNumber}</Field>}
+              {vatNumber && <Field box={L.details.vatNo} style={{ fontSize: `${fitFontSize(vatNumber, 12)}pt` }}>{vatNumber}</Field>}
+              {receiptNo && <Field box={L.details.receiptNo} style={{ fontSize: `${fitFontSize(receiptNo, 12)}pt` }}>{receiptNo}</Field>}
 
               {/* Line items */}
               <div

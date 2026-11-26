@@ -8,7 +8,11 @@
  * already on the paper.
  *
  * Measured from the client's form artwork. Fine-tune per printer with the
- * X/Y offset in the print settings rather than editing these numbers.
+ * X/Y offset and scale in the print settings rather than editing these numbers.
+ *
+ * Everything printed stays between x = 0.7in and x = 8.5in: narrow-carriage
+ * dot-matrix printers (e.g. Epson LQ-310) only print an 8in-wide band, and the
+ * first real test print was cut off past ~8.6in.
  */
 export const INVOICE_FORM = {
   page: { width: 9.5, height: 5.5 },
@@ -26,15 +30,15 @@ export const INVOICE_FORM = {
 
   details: {
     /** Value column starts just after the ":" of the right-hand labels. */
-    invoiceNo: { x: 7.57, y: 0.355, width: 1.25 },
-    date: { x: 7.57, y: 0.55, width: 1.25 },
-    poNo: { x: 7.57, y: 0.75, width: 1.25 },
-    vatNo: { x: 7.57, y: 0.94, width: 1.25 },
-    receiptNo: { x: 7.57, y: 1.14, width: 1.25 },
+    invoiceNo: { x: 7.57, y: 0.355, width: 0.93 },
+    date: { x: 7.57, y: 0.55, width: 0.93 },
+    poNo: { x: 7.57, y: 0.75, width: 0.93 },
+    vatNo: { x: 7.57, y: 0.94, width: 0.93 },
+    receiptNo: { x: 7.57, y: 1.14, width: 0.93 },
   },
 
   /** Blank body between the header rule and the terms text. */
-  items: { x: 0.72, y: 1.5, width: 8.08, bottom: 4.12 },
+  items: { x: 0.72, y: 1.5, width: 7.78, bottom: 4.12 },
 
   /**
    * Max printed item lines per sheet (a wrapped product name counts as 2);
@@ -51,12 +55,18 @@ export type InvoicePrintSettings = {
   offsetXmm: number;
   /** Shift everything down (+) / up (-), in millimetres. */
   offsetYmm: number;
+  /**
+   * Scale everything (percent, from the top-left corner). Only needed when the
+   * printer driver insists on shrinking the page; normally 100.
+   */
+  scalePct: number;
 };
 
 export const DEFAULT_INVOICE_PRINT_SETTINGS: InvoicePrintSettings = {
   mode: "form",
   offsetXmm: 0,
   offsetYmm: 0,
+  scalePct: 100,
 };
 
 const STORAGE_KEY = "agrinova.invoicePrintSettings";
@@ -77,6 +87,10 @@ const parseSettings = (raw: string | null): InvoicePrintSettings => {
       mode: parsed.mode === "plain" ? "plain" : "form",
       offsetXmm: Number.isFinite(parsed.offsetXmm) ? Number(parsed.offsetXmm) : 0,
       offsetYmm: Number.isFinite(parsed.offsetYmm) ? Number(parsed.offsetYmm) : 0,
+      scalePct:
+        Number.isFinite(parsed.scalePct) && Number(parsed.scalePct) >= 50 && Number(parsed.scalePct) <= 150
+          ? Number(parsed.scalePct)
+          : 100,
     };
   } catch {
     return DEFAULT_INVOICE_PRINT_SETTINGS;
