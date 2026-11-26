@@ -1,8 +1,18 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
+import { Settings2 } from "lucide-react";
 import PrintButton from "@/components/print/PrintButton";
+import InvoiceFormSheet from "@/components/print/InvoiceFormSheet";
+import {
+  getInvoicePrintSettings,
+  getServerInvoicePrintSettings,
+  invoiceFormPageStyle,
+  saveInvoicePrintSettings,
+  subscribeInvoicePrintSettings,
+  type InvoicePrintSettings,
+} from "@/components/print/invoiceFormLayout";
 
 type InvoicePrintLine = {
   lineId: number;
@@ -26,6 +36,7 @@ type InvoicePrintButtonProps = {
   vatPercentage?: number;
   poNumber?: string | null;
   vatNumber?: string | null;
+  receiptNo?: string | null;
 };
 
 const formatDate = (value: string) =>
@@ -97,17 +108,111 @@ const InvoicePrintButton = ({
   vatPercentage = 0,
   poNumber,
   vatNumber,
+  receiptNo,
 }: InvoicePrintButtonProps) => {
   const contentRef = useRef<HTMLDivElement>(null);
+  const formContentRef = useRef<HTMLDivElement>(null);
+  const settings = useSyncExternalStore(
+    subscribeInvoicePrintSettings,
+    getInvoicePrintSettings,
+    getServerInvoicePrintSettings,
+  );
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const updateSettings = (patch: Partial<InvoicePrintSettings>) => {
+    saveInvoicePrintSettings({ ...settings, ...patch });
+  };
+
+  const isForm = settings.mode === "form";
 
   return (
     <>
-      <PrintButton
-        contentRef={contentRef}
-        documentTitle={invoiceNo}
-        label="Print Invoice"
-        pageStyle={invoicePrintPageStyle}
-      />
+      <div className="relative inline-flex items-center gap-1">
+        <PrintButton
+          contentRef={isForm ? formContentRef : contentRef}
+          documentTitle={invoiceNo}
+          label="Print Invoice"
+          pageStyle={isForm ? invoiceFormPageStyle : invoicePrintPageStyle}
+        />
+        <button
+          type="button"
+          onClick={() => setSettingsOpen((open) => !open)}
+          title="Print settings"
+          aria-label="Print settings"
+          aria-expanded={settingsOpen}
+          className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-xl border border-[#c0c3f0] bg-white text-[#2b2d7e] hover:bg-[#eeeffe]"
+        >
+          <Settings2 size={14} />
+        </button>
+
+        {settingsOpen && (
+          <div className="absolute right-0 top-full z-30 mt-2 w-72 space-y-3 rounded-xl border border-stone-200 bg-white p-4 text-[13px] shadow-lg [font-family:var(--font-dmsans)]">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold text-[#2b2d7e]">Print settings</p>
+              <button type="button" onClick={() => setSettingsOpen(false)} className="text-stone-400 hover:text-stone-700" aria-label="Close">
+                ×
+              </button>
+            </div>
+
+            <fieldset className="space-y-1.5">
+              <legend className="mb-1 text-[11px] font-medium uppercase tracking-[0.1em] text-stone-500">Paper</legend>
+              <label className="flex items-center gap-2">
+                <input type="radio" name="invoice-print-mode" checked={isForm} onChange={() => updateSettings({ mode: "form" })} />
+                Pre-printed form (data only)
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="radio" name="invoice-print-mode" checked={!isForm} onChange={() => updateSettings({ mode: "plain" })} />
+                Plain paper (full invoice)
+              </label>
+            </fieldset>
+
+            {isForm && (
+              <fieldset className="space-y-2">
+                <legend className="mb-1 text-[11px] font-medium uppercase tracking-[0.1em] text-stone-500">Alignment (mm)</legend>
+                {([
+                  ["offsetXmm", "Move right (+) / left (−)"],
+                  ["offsetYmm", "Move down (+) / up (−)"],
+                ] as const).map(([key, label]) => (
+                  <label key={key} className="flex items-center justify-between gap-3">
+                    <span className="text-stone-600">{label}</span>
+                    <input
+                      type="number"
+                      step={0.5}
+                      value={settings[key]}
+                      onChange={(event) => {
+                        const value = Number(event.target.value);
+                        updateSettings({ [key]: Number.isFinite(value) ? value : 0 });
+                      }}
+                      className="w-20 rounded-lg border border-stone-300 px-2 py-1 text-right tabular-nums"
+                    />
+                  </label>
+                ))}
+                <p className="text-[11px] leading-snug text-stone-500">Saved on this computer only. Adjust after a test print until the text sits inside the boxes.</p>
+              </fieldset>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="hidden" aria-hidden>
+        <div ref={formContentRef}>
+          <InvoiceFormSheet
+            invoiceNo={invoiceNo}
+            invoiceDate={invoiceDate}
+            customerName={customerName}
+            customerPhone={customerPhone}
+            customerAddress={customerAddress}
+            lines={lines}
+            totalAmount={totalAmount}
+            vatPercentage={vatPercentage}
+            poNumber={poNumber}
+            vatNumber={vatNumber}
+            receiptNo={receiptNo}
+            offsetXmm={settings.offsetXmm}
+            offsetYmm={settings.offsetYmm}
+          />
+        </div>
+      </div>
 
       <div className="hidden" aria-hidden>
         <div ref={contentRef} className="print-sheet invoice-print-sheet [font-family:var(--font-dmsans)] text-[12px] text-stone-900">
