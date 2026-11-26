@@ -172,6 +172,7 @@ const InvoicePrintButton = ({
                 {([
                   ["offsetXmm", "Move right (+) / left (−)"],
                   ["offsetYmm", "Move down (+) / up (−)"],
+                  ["scalePct", "Scale (%)"],
                 ] as const).map(([key, label]) => (
                   <label key={key} className="flex items-center justify-between gap-3">
                     <span className="text-stone-600">{label}</span>
@@ -181,13 +182,16 @@ const InvoicePrintButton = ({
                       value={settings[key]}
                       onChange={(event) => {
                         const value = Number(event.target.value);
-                        updateSettings({ [key]: Number.isFinite(value) ? value : 0 });
+                        const fallback = key === "scalePct" ? 100 : 0;
+                        updateSettings({ [key]: event.target.value !== "" && Number.isFinite(value) ? value : fallback });
                       }}
                       className="w-20 rounded-lg border border-stone-300 px-2 py-1 text-right tabular-nums"
                     />
                   </label>
                 ))}
-                <p className="text-[11px] leading-snug text-stone-500">Saved on this computer only. Adjust after a test print until the text sits inside the boxes.</p>
+                <p className="text-[11px] leading-snug text-stone-500">
+                  Saved on this computer only. In the print dialog set Scale to 100% and Margins to None first, then adjust these after a test print.
+                </p>
               </fieldset>
             )}
           </div>
@@ -210,6 +214,7 @@ const InvoicePrintButton = ({
             receiptNo={receiptNo}
             offsetXmm={settings.offsetXmm}
             offsetYmm={settings.offsetYmm}
+            scalePct={settings.scalePct}
           />
         </div>
       </div>
