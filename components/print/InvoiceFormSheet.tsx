@@ -85,6 +85,80 @@ const rowLines = (line: InvoiceFormLine) =>
     ),
   );
 
+type TextBlock = { fontPt: number; lines: number; lineHeightIn: number };
+
+const PT_PER_IN = 72;
+const LINE_SPACING = 1.15;
+/** Word-wrapping wastes part of each wrapped line. */
+const WRAP_SLACK = 0.92;
+
+/** Arial / Arial Bold advance widths (1/1000 em) for printable ASCII from " " (32) to "~" (126). */
+const ARIAL = [
+  278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584, 584, 556,
+  1015, 667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556,
+  333, 556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584,
+];
+const ARIAL_BOLD = [
+  278, 333, 474, 556, 556, 889, 722, 238, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 333, 333, 584, 584, 584, 611,
+  975, 722, 722, 722, 722, 667, 611, 778, 722, 278, 556, 722, 611, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 333, 278, 333, 584, 556,
+  333, 556, 611, 556, 611, 556, 333, 611, 611, 278, 278, 556, 278, 889, 611, 611, 611, 611, 389, 556, 333, 611, 556, 778, 556, 556, 500, 389, 280, 389, 584,
+];
+const arialEm = (text: string, bold = false) => {
+  const table = bold ? ARIAL_BOLD : ARIAL;
+  let width = 0;
+  for (const ch of text) {
+    const code = ch.charCodeAt(0);
+    width += code >= 32 && code <= 126 ? table[code - 32] : 600;
+  }
+  return width / 1000;
+};
+
+const linesNeeded = (em: number, fontPt: number, widthPt: number, slack = WRAP_SLACK) =>
+  Math.max(1, Math.ceil((em * fontPt) / (widthPt * slack)));
+/** Addresses have more short words / commas, so wrapping wastes more space. */
+const ADDRESS_WRAP_SLACK = 0.82;
+
+/**
+ * Fit the customer name and address into the blank space beside the
+ * "Customer" and "Address" labels (down to the "Contact No." row).
+ * The name is never cut: it shrinks a little, then wraps onto a second
+ * (or, for extreme names, third) line, and the address gets what's left.
+ */
+const layoutCustomerBlock = (name: string, address: string | null) => {
+  const top = L.customer.name.y;
+  const height = L.customer.contact.y - top - 0.02;
+  const widthPt = L.customer.name.width * PT_PER_IN;
+  const nameEm = arialEm(name, true);
+
+  // One line if it fits at >= 8.5pt; otherwise wrap to 2 lines (3 when there is
+  // no address) from 9pt down to 7pt, and only extreme names go beyond that.
+  const oneLinePt = Math.min(L.fontSizePt, Math.floor(((widthPt * 0.97) / nameEm) * 2) / 2);
+  const maxNameLines = address ? 2 : 3;
+  let nameBlock: TextBlock;
+  if (oneLinePt >= 8.5) {
+    nameBlock = { fontPt: oneLinePt, lines: 1, lineHeightIn: L.lineHeight };
+  } else {
+    let fontPt = 9;
+    while (fontPt > 7 && linesNeeded(nameEm, fontPt, widthPt) > maxNameLines) fontPt -= 0.5;
+    nameBlock = { fontPt, lines: linesNeeded(nameEm, fontPt, widthPt), lineHeightIn: (fontPt * LINE_SPACING) / PT_PER_IN };
+  }
+
+  const remaining = height - nameBlock.lines * nameBlock.lineHeightIn;
+  let addressBlock: TextBlock = { fontPt: 9, lines: 0, lineHeightIn: 0 };
+  if (address && remaining > 0.1) {
+    const addressEm = arialEm(address);
+    for (const fontPt of [9, 8.5, 8, 7.5, 7]) {
+      const lineHeightIn = (fontPt * LINE_SPACING) / PT_PER_IN;
+      const fits = Math.floor(remaining / lineHeightIn + 0.01);
+      const needed = linesNeeded(addressEm, fontPt, widthPt, ADDRESS_WRAP_SLACK);
+      addressBlock = { fontPt, lines: Math.min(needed, fits), lineHeightIn };
+      if (needed <= fits) break;
+    }
+  }
+
+  return { top, height, name: nameBlock, address: addressBlock };
+};
+
 /** Split rows into sheets so no sheet holds more than `capacity` printed lines. */
 const paginate = (items: InvoiceFormLine[], capacity: number): InvoiceFormLine[][] => {
   const pages: InvoiceFormLine[][] = [[]];
@@ -167,10 +241,7 @@ const InvoiceFormSheet = ({
   backgroundSrc,
 }: InvoiceFormSheetProps) => {
   const pages = paginate(lines, L.maxRowsPerPage);
-  // Long addresses get a third, slightly smaller line rather than being cut off.
-  const longAddress = (customerAddress?.length ?? 0) > 56;
-  const addressLines = longAddress ? 3 : L.customer.address.lines;
-  const addressLineHeight = (L.lineHeight * L.customer.address.lines) / addressLines;
+  const customerBlock = layoutCustomerBlock(customerName, customerAddress);
   const subtotal = vatPercentage > 0 ? totalAmount / (1 + vatPercentage / 100) : totalAmount;
 
   return (
@@ -208,28 +279,43 @@ const InvoiceFormSheet = ({
 
             <div style={{ position: "absolute", inset: 0, transform: `translate(${offsetXmm}mm, ${offsetYmm}mm) scale(${scalePct / 100})`, transformOrigin: "0 0" }}>
               {/* Customer details */}
-              <Field box={L.customer.name} style={{ fontWeight: "bold", fontSize: `${fitFontSize(customerName, 26)}pt`, textOverflow: "ellipsis" }}>
-                {customerName}
-              </Field>
-              {customerAddress && (
+              {/* Name + address share the space between the "Customer" and "Contact No." rows. */}
+              <div
+                className="invoice-form-customer"
+                style={{
+                  position: "absolute",
+                  left: `${L.customer.name.x}in`,
+                  top: `${customerBlock.top}in`,
+                  width: `${L.customer.name.width}in`,
+                  height: `${customerBlock.height}in`,
+                  overflow: "hidden",
+                  overflowWrap: "anywhere",
+                }}
+              >
                 <div
                   style={{
-                    position: "absolute",
-                    left: `${L.customer.address.x}in`,
-                    top: `${L.customer.address.y}in`,
-                    width: `${L.customer.address.width}in`,
-                    height: `${L.lineHeight * L.customer.address.lines}in`,
-                    fontSize: longAddress ? "8pt" : "9pt",
-                    lineHeight: `${addressLineHeight}in`,
-                    overflow: "hidden",
-                    display: "-webkit-box",
-                    WebkitLineClamp: addressLines,
-                    WebkitBoxOrient: "vertical",
+                    fontWeight: "bold",
+                    fontSize: `${customerBlock.name.fontPt}pt`,
+                    lineHeight: `${customerBlock.name.lineHeightIn}in`,
                   }}
                 >
-                  {customerAddress}
+                  {customerName}
                 </div>
-              )}
+                {customerAddress && customerBlock.address.lines > 0 && (
+                  <div
+                    style={{
+                      fontSize: `${customerBlock.address.fontPt}pt`,
+                      lineHeight: `${customerBlock.address.lineHeightIn}in`,
+                      display: "-webkit-box",
+                      WebkitLineClamp: customerBlock.address.lines,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {customerAddress}
+                  </div>
+                )}
+              </div>
               {customerPhone && <Field box={L.customer.contact}>{customerPhone}</Field>}
 
               {/* Invoice details */}

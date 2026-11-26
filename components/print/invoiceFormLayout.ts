@@ -23,8 +23,8 @@ export const INVOICE_FORM = {
 
   customer: {
     /** Value column starts just after the ":" of the left-hand labels. */
+    /** Name + address flow together from here down to the contact row. */
     name: { x: 1.42, y: 0.355, width: 1.8 },
-    address: { x: 1.42, y: 0.55, width: 1.8, lines: 2 },
     contact: { x: 1.42, y: 0.94, width: 1.8 },
   },
 
